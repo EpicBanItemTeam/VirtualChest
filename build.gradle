@@ -1,0 +1,80 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            name = 'forge'
+            url = 'http://files.minecraftforge.net/maven'
+        }
+        maven {
+            name = 'minecrell'
+            url = 'http://repo.minecrell.net/releases'
+        }
+        dependencies {
+            classpath 'net.minecrell:VanillaGradle:2.0.3_1'
+            classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+        }
+    }
+}
+
+apply plugin: 'net.minecrell.vanilla.server.library'
+
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'sponge'
+        url = 'http://repo.spongepowered.org/maven'
+    }
+}
+
+version = '0.1.0'
+archivesBaseName = "VirtualChest"
+
+minecraft {
+    version = '1.10.2'
+    mappings = 'snapshot_20161111'
+
+    replace "@version@", project.version
+}
+
+task apiJar(type: Jar, dependsOn: sourceJar) {
+    from 'build/sources/api/java/'
+    baseName = 'VirtualChestAPI'
+    
+    from 'api/LICENSE'
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    from 'build/docs/javadoc/'
+    classifier = 'javadoc'
+}
+
+artifacts {
+    archives sourceJar
+    archives apiJar
+    archives javadocJar
+}
+
+dependencies {
+    compile 'org.spongepowered:spongeapi:5.0.0'
+}
+
+sourceSets {
+    main {
+        java.srcDir 'src/'
+        java.srcDir 'api/'
+        resources.srcDir 'resources/'
+    }
+    api {
+        java.srcDir 'api/'
+    }
+}
+
+reobf {
+    jar {
+        mappingType = 'SEARGE'
+    }
+}
+

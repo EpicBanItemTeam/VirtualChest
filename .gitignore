@@ -1,0 +1,20 @@
+# Whitelist Mode
+/*
+
+# Git Files
+!.gitignore
+
+# GitHub Files
+!README.md
+!LICENSE
+
+# Java Files
+!src/
+!resources/
+!api/
+
+# Gradle Files
+!build.gradle
+!gradle/
+!gradlew
+!gradlew.bat
