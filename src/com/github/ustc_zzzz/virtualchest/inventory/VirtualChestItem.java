@@ -12,11 +12,9 @@ import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.item.Enchantment;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.ItemStack;
-import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.serializer.TextSerializers;
 
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**

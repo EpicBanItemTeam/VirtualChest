@@ -11,7 +11,10 @@ import org.spongepowered.api.text.serializer.TextSerializers;
 
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.PropertyResourceBundle;
+import java.util.ResourceBundle;
 
 /**
  * @author ustc_zzzz
