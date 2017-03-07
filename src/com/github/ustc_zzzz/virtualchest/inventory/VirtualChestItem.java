@@ -27,6 +27,7 @@ public class VirtualChestItem
     public static final DataQuery PRIMARY_ACTION = DataQuery.of("PrimaryAction");
     public static final DataQuery MIDDLE_ACTION = DataQuery.of("MiddleAction");
     public static final DataQuery SECONDARY_ACTION = DataQuery.of("SecondaryAction");
+    public static final DataQuery HIDE_ENCHANTMENTS = DataQuery.of("HideEnchantments");
 
     public static final DataQuery LORE = Keys.ITEM_LORE.getQuery();
     public static final DataQuery DISPLAY_NAME = Keys.DISPLAY_NAME.getQuery();
@@ -74,12 +75,13 @@ public class VirtualChestItem
         if (stackOptional.isPresent())
         {
             ItemStack stack = stackOptional.get();
-            v.getStringList(LORE).ifPresent(loreList -> stack.offer(Keys.ITEM_LORE, loreList
-                    .stream().map(TextSerializers.FORMATTING_CODE::deserialize).collect(Collectors.toList())));
-            v.getString(DISPLAY_NAME).ifPresent(displayName -> stack.offer(Keys.DISPLAY_NAME,
-                    TextSerializers.FORMATTING_CODE.deserialize(displayName)));
-            v.getStringList(ENCHANTMENTS).ifPresent(enchantments -> stack.offer(Keys.ITEM_ENCHANTMENTS, enchantments
-                    .stream().map(VirtualChestItem::deserializeItemEnchantment).collect(Collectors.toList())));
+            v.getStringList(LORE).ifPresent(l -> stack.offer(Keys.ITEM_LORE,
+                    l.stream().map(TextSerializers.FORMATTING_CODE::deserialize).collect(Collectors.toList())));
+            v.getString(DISPLAY_NAME).ifPresent(d -> stack.offer(Keys.DISPLAY_NAME,
+                    TextSerializers.FORMATTING_CODE.deserialize(d)));
+            v.getStringList(ENCHANTMENTS).ifPresent(e -> stack.offer(Keys.ITEM_ENCHANTMENTS,
+                    e.stream().map(VirtualChestItem::deserializeItemEnchantment).collect(Collectors.toList())));
+            v.getBoolean(HIDE_ENCHANTMENTS).ifPresent(h -> stack.offer(Keys.HIDE_ENCHANTMENTS, h));
         }
         return stackOptional;
     }
