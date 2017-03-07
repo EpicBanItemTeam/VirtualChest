@@ -22,11 +22,18 @@ import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataManager;
 import org.spongepowered.api.data.persistence.DataTranslator;
 import org.spongepowered.api.data.persistence.DataTranslators;
+import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
+import org.spongepowered.api.event.Order;
+import org.spongepowered.api.event.cause.Cause;
+import org.spongepowered.api.event.entity.living.humanoid.HandInteractEvent;
+import org.spongepowered.api.event.filter.cause.First;
 import org.spongepowered.api.event.game.GameReloadEvent;
 import org.spongepowered.api.event.game.state.GameAboutToStartServerEvent;
 import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
+import org.spongepowered.api.event.item.inventory.InteractItemEvent;
+import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.util.GuavaCollectors;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
@@ -113,6 +120,42 @@ public class VirtualChestPlugin
         CommentedConfigurationNode root = config.createEmptyNode();
         root.getNode(PLUGIN_ID, "scan-dirs").setValue(this.menuDirs);
         config.save(root);
+    }
+
+    @Listener(order = Order.EARLY)
+    public void onInteractItemPrimary(InteractItemEvent.Primary event, @First Player player)
+    {
+        for (String inventoryName : this.dispatcher.listInventories())
+        {
+            VirtualChestInventory inventory = this.dispatcher.getInventory(inventoryName).get();
+            if (inventory.matchItemForOpeningWithPrimaryAction(event.getItemStack()))
+            {
+                if (player.hasPermission("virtualchest.open.self." + inventoryName))
+                {
+                    player.openInventory(inventory.createInventory(player), Cause.source(this).build());
+                    event.setCancelled(true);
+                    break;
+                }
+            }
+        }
+    }
+
+    @Listener(order = Order.EARLY)
+    public void onInteractItemSecondary(InteractItemEvent.Secondary event, @First Player player)
+    {
+        for (String inventoryName : this.dispatcher.listInventories())
+        {
+            VirtualChestInventory inventory = this.dispatcher.getInventory(inventoryName).get();
+            if (inventory.matchItemForOpeningWithSecondaryAction(event.getItemStack()))
+            {
+                if (player.hasPermission("virtualchest.open.self." + inventoryName))
+                {
+                    player.openInventory(inventory.createInventory(player), Cause.source(this).build());
+                    event.setCancelled(true);
+                    break;
+                }
+            }
+        }
     }
 
     @Listener

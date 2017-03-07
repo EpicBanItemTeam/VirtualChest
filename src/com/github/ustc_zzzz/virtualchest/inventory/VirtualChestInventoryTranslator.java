@@ -35,19 +35,25 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
     @Override
     public VirtualChestInventory translate(DataView view) throws InvalidDataException
     {
-        Optional<Text> title = Optional.empty();
-        Optional<Integer> height = Optional.empty();
+        Optional<Text> titleOptional = Optional.empty();
+        Optional<Integer> heightOptional = Optional.empty();
+        Optional<DataContainer> triggerItem = Optional.empty();
         ImmutableMap.Builder<SlotPos, VirtualChestItem> itemsBuilder = ImmutableMap.builder();
         for (DataQuery key : view.getKeys(false))
         {
             if (VirtualChestInventory.TITLE.equals(key))
             {
-                title = view.getString(VirtualChestInventory.TITLE).map(TextSerializers.FORMATTING_CODE::deserialize);
+                titleOptional = view.getString(VirtualChestInventory.TITLE).map(TextSerializers.FORMATTING_CODE::deserialize);
                 continue;
             }
             if (VirtualChestInventory.HEIGHT.equals(key))
             {
-                height = view.getInt(VirtualChestInventory.HEIGHT);
+                heightOptional = view.getInt(VirtualChestInventory.HEIGHT);
+                continue;
+            }
+            if (VirtualChestInventory.TRIGGER_ITEM.equals(key))
+            {
+                triggerItem = view.getView(VirtualChestInventory.TRIGGER_ITEM).map(DataView::copy);
                 continue;
             }
             SlotPos slotPos;
@@ -67,8 +73,10 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
                 itemsBuilder.put(slotPos, item);
             }
         }
-        return new VirtualChestInventory(plugin, title.orElseThrow(() -> new InvalidDataException("Expected title")),
-                height.orElseThrow(() -> new InvalidDataException("Expected height")), itemsBuilder.build());
+        Text title = titleOptional.orElseThrow(() -> new InvalidDataException("Expected title"));
+        Integer height = heightOptional.orElseThrow(() -> new InvalidDataException("Expected height"));
+        ImmutableMap<SlotPos, VirtualChestItem> items = itemsBuilder.build();
+        return new VirtualChestInventory(plugin, title, height, items, triggerItem);
     }
 
     @Override
@@ -78,6 +86,7 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
         container.set(Queries.CONTENT_VERSION, CONTENT_VERSION);
         container.set(VirtualChestInventory.TITLE, obj.title);
         container.set(VirtualChestInventory.HEIGHT, obj.height);
+        obj.openItemPredicate.ifPresent(d -> container.set(VirtualChestInventory.TRIGGER_ITEM, d));
         for (Map.Entry<SlotPos, VirtualChestItem> entry : obj.items.entrySet())
         {
             DataContainer data = VirtualChestItem.serialize(plugin, entry.getValue());

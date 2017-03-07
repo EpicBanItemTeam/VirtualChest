@@ -37,9 +37,13 @@ public class VirtualChestInventoryDispatcher
         return inventories.keySet();
     }
 
+    public Optional<VirtualChestInventory> getInventory(String inventoryName)
+    {
+        return Optional.ofNullable(inventories.get(inventoryName));
+    }
+
     public Optional<Inventory> createInventory(String name, Player player)
     {
-        Optional<VirtualChestInventory> inventory = Optional.ofNullable(inventories.get(name));
-        return inventory.map(i -> i.createInventory(player));
+        return getInventory(name).map(i -> i.createInventory(player));
     }
 }

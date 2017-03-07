@@ -4,15 +4,19 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableMap;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.Queries;
+import org.spongepowered.api.data.key.Keys;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.event.item.inventory.InteractInventoryEvent;
+import org.spongepowered.api.item.ItemType;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.InventoryArchetypes;
+import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.item.inventory.property.InventoryDimension;
 import org.spongepowered.api.item.inventory.property.InventoryTitle;
@@ -25,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * @author ustc_zzzz
@@ -33,19 +38,58 @@ public final class VirtualChestInventory
 {
     public static final DataQuery TITLE = Queries.TEXT_TITLE;
     public static final DataQuery HEIGHT = DataQuery.of("Rows");
+    public static final DataQuery ITEM_TYPE = DataQuery.of("ItemType");
+    public static final DataQuery UNSAFE_DAMAGE = DataQuery.of("UnsafeDamage");
+    public static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
+    public static final DataQuery PRIMARY_ACTION = DataQuery.of("EnablePrimaryAction");
+    public static final DataQuery SECONDARY_ACTION = DataQuery.of("EnableSecondaryAction");
 
     private final VirtualChestPlugin plugin;
 
     final Map<SlotPos, VirtualChestItem> items;
     final int height;
     final Text title;
+    final Optional<DataContainer> openItemPredicate;
 
-    VirtualChestInventory(VirtualChestPlugin plugin, Text title, int height, Map<SlotPos, VirtualChestItem> items)
+    VirtualChestInventory(
+            VirtualChestPlugin plugin,
+            Text title,
+            int height,
+            Map<SlotPos, VirtualChestItem> items,
+            Optional<DataContainer> openItemPredicate)
     {
         this.plugin = plugin;
         this.title = title;
         this.height = height;
         this.items = ImmutableMap.copyOf(items);
+        this.openItemPredicate = openItemPredicate;
+    }
+
+    private boolean matchItemForOpening(ItemStackSnapshot item)
+    {
+        if (openItemPredicate.isPresent())
+        {
+            DataContainer container = openItemPredicate.get();
+            ItemType itemType = item.getType();
+            Integer itemDamage = item.toContainer().getInt(UNSAFE_DAMAGE).get();
+            boolean matchItemType = container.getCatalogType(ITEM_TYPE, ItemType.class).filter(itemType::equals).isPresent();
+            boolean matchDamage = container.getInt(UNSAFE_DAMAGE).orElse(itemDamage).equals(itemDamage);
+            return matchItemType && matchDamage;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public boolean matchItemForOpeningWithPrimaryAction(ItemStackSnapshot item)
+    {
+        return openItemPredicate.map(d -> matchItemForOpening(item) && d.getBoolean(PRIMARY_ACTION).orElse(true)).orElse(false);
+    }
+
+    public boolean matchItemForOpeningWithSecondaryAction(ItemStackSnapshot item)
+    {
+        return openItemPredicate.map(d -> matchItemForOpening(item) && d.getBoolean(SECONDARY_ACTION).orElse(true)).orElse(false);
     }
 
     public Inventory createInventory(Player player)
