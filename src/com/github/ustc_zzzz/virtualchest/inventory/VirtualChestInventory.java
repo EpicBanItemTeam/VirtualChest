@@ -163,7 +163,7 @@ public final class VirtualChestInventory
         private void fireOpenEvent(InteractInventoryEvent.Open e)
         {
             int i = -1, j = 0;
-            for (Slot slot : e.getTargetInventory().<Slot>slots())
+            for (Slot slot : e.getTargetInventory().first().<Slot>slots())
             {
                 if (++i >= 9)
                 {
@@ -176,16 +176,21 @@ public final class VirtualChestInventory
 
         private void fireClickEvent(ClickInventoryEvent e)
         {
-            e.setCancelled(true);
             boolean doCloseInventory = false;
             for (SlotTransaction slotTransaction : e.getTransactions())
             {
                 Slot slot = slotTransaction.getSlot();
-                if (slotToItem.containsKey(slot))
+                Inventory parentInventory = slot.parent();
+                if (parentInventory.equals(e.getTargetInventory().first()))
                 {
-                    if (VirtualChestItem.Action.CLOSE_INVENTORY.equals(slotToItem.get(slot).fireEvent(this.player, e)))
+                    e.setCancelled(true);
+                    if (slotToItem.containsKey(slot))
                     {
-                        doCloseInventory = true;
+                        VirtualChestItem virtualChestItem = slotToItem.get(slot);
+                        if (VirtualChestItem.Action.CLOSE_INVENTORY.equals(virtualChestItem.fireEvent(this.player, e)))
+                        {
+                            doCloseInventory = true;
+                        }
                     }
                 }
             }
