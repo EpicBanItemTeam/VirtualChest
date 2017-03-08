@@ -4,15 +4,17 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.chat.ChatTypes;
 import org.spongepowered.api.text.serializer.TextSerializers;
+import org.spongepowered.api.text.title.Title;
+import org.spongepowered.api.util.Tuple;
 
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.function.BiFunction;
+import java.lang.ref.WeakReference;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * @author ustc_zzzz
@@ -23,7 +25,7 @@ public final class VirtualChestActions
     private static final char PREFIX_SPLITTER = ':';
 
     private final VirtualChestPlugin plugin;
-    private final Map<String, BiFunction<Player, String, CommandResult>> executors = new HashMap<>();
+    private final Map<String, VirtualChestActionExecutor> executors = new HashMap<>();
 
     public VirtualChestActions(VirtualChestPlugin plugin)
     {
@@ -33,18 +35,20 @@ public final class VirtualChestActions
         registerPrefix("tell", this::processTell);
         registerPrefix("broadcast", this::processBroadcast);
         registerPrefix("title", this::processTitle);
+        registerPrefix("bigtitle", this::processBigtitle);
+        registerPrefix("delay", this::processDelay);
+
+        registerPrefix("", this::process);
     }
 
-    public void registerPrefix(String prefix, BiFunction<Player, String, CommandResult> executor)
+    public void registerPrefix(String prefix, VirtualChestActionExecutor executor)
     {
         this.executors.put(prefix, executor);
     }
 
     public void runCommand(Player player, String commandString)
     {
-        List<String> commands = parseCommand(commandString);
-
-        for (String command : commands)
+        LinkedList<Tuple<String, String>> commandList = parseCommand(commandString).stream().map(command ->
         {
             int colonPos = command.indexOf(PREFIX_SPLITTER);
             String prefix = colonPos > 0 ? command.substring(0, colonPos) : "";
@@ -56,38 +60,69 @@ public final class VirtualChestActions
                     ++suffixPosition;
                 }
                 String suffix = command.substring(suffixPosition);
-                this.executors.get(prefix).apply(player, suffix);
+                return Tuple.of(prefix, suffix);
             }
             else
             {
-                Sponge.getCommandManager().process(player, command);
+                return Tuple.of("", command);
             }
+        }).collect(Collectors.toCollection(LinkedList::new));
+        new Callback(player, commandList).accept(CommandResult.empty());
+    }
+
+    private void process(Player player, String command, Consumer<CommandResult> callback)
+    {
+        callback.accept(Sponge.getCommandManager().process(player, command));
+    }
+
+    private void processDelay(Player player, String command, Consumer<CommandResult> callback)
+    {
+        try
+        {
+            int delayTick = Integer.parseInt(command);
+            if (delayTick <= 0)
+            {
+                throw new NumberFormatException();
+            }
+            Consumer<Task> taskExecutor = task -> callback.accept(CommandResult.success());
+            Sponge.getScheduler().createTaskBuilder().delayTicks(delayTick).execute(taskExecutor).submit(this.plugin);
+        }
+        catch (NumberFormatException e)
+        {
+            callback.accept(CommandResult.empty());
         }
     }
 
-    private CommandResult processTitle(Player player, String command)
+    private void processBigtitle(Player player, String command, Consumer<CommandResult> callback)
+    {
+        Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
+        player.sendTitle(Title.of(text));
+        callback.accept(CommandResult.success());
+    }
+
+    private void processTitle(Player player, String command, Consumer<CommandResult> callback)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
         player.sendMessage(ChatTypes.ACTION_BAR, text);
-        return CommandResult.success();
+        callback.accept(CommandResult.success());
     }
 
-    private CommandResult processBroadcast(Player player, String command)
+    private void processBroadcast(Player player, String command, Consumer<CommandResult> callback)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
         Sponge.getServer().getBroadcastChannel().send(text);
-        return CommandResult.success();
+        callback.accept(CommandResult.success());
     }
 
-    private CommandResult processTell(Player player, String command)
+    private void processTell(Player player, String command, Consumer<CommandResult> callback)
     {
         player.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(command));
-        return CommandResult.success();
+        callback.accept(CommandResult.success());
     }
 
-    private CommandResult processConsole(Player player, String command)
+    private void processConsole(Player player, String command, Consumer<CommandResult> callback)
     {
-        return Sponge.getCommandManager().process(Sponge.getServer().getConsole(), command);
+        callback.accept(Sponge.getCommandManager().process(Sponge.getServer().getConsole(), command));
     }
 
     private static List<String> parseCommand(String commandSequence)
@@ -130,5 +165,33 @@ public final class VirtualChestActions
             commands.add(stringBuilder.toString());
         }
         return commands;
+    }
+
+    private class Callback implements Consumer<CommandResult>
+    {
+        private final WeakReference<Player> player;
+        private final LinkedList<Tuple<String, String>> commandList;
+
+        private Callback(Player player, LinkedList<Tuple<String, String>> commandList)
+        {
+            this.player = new WeakReference<>(player);
+            this.commandList = commandList;
+        }
+
+        @Override
+        public void accept(CommandResult commandResult)
+        {
+            Optional<Player> playerOptional = Optional.ofNullable(player.get());
+            if (!playerOptional.isPresent())
+            {
+                commandList.clear();
+            }
+            else if (!commandList.isEmpty())
+            {
+                Player p = playerOptional.get();
+                Tuple<String, String> t = commandList.pop();
+                executors.get(t.getFirst()).doAction(p, t.getSecond(), this);
+            }
+        }
     }
 }
