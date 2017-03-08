@@ -1,13 +1,24 @@
 package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.google.common.collect.ImmutableList;
+import com.google.common.reflect.TypeToken;
+import ninja.leaping.configurate.commented.CommentedConfigurationNode;
+import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
+import ninja.leaping.configurate.objectmapping.ObjectMappingException;
+import org.spongepowered.api.Sponge;
+import org.spongepowered.api.data.DataContainer;
+import org.spongepowered.api.data.persistence.DataTranslator;
+import org.spongepowered.api.data.persistence.DataTranslators;
+import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.inventory.Inventory;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.*;
 
 /**
  * @author ustc_zzzz
@@ -15,12 +26,17 @@ import java.util.Set;
 public class VirtualChestInventoryDispatcher
 {
     private final VirtualChestPlugin plugin;
+    private final VirtualChestTranslation translation;
+    private final DataTranslator<VirtualChestInventory> inventoryTranslator;
 
-    private Map<String, VirtualChestInventory> inventories = new HashMap<>();
+    private List<String> menuDirs = ImmutableList.of();
+    private Map<String, VirtualChestInventory> inventories = new LinkedHashMap<>();
 
     public VirtualChestInventoryDispatcher(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
+        this.translation = plugin.getTranslation();
+        this.inventoryTranslator = Sponge.getDataManager().getTranslator(VirtualChestInventory.class).get();
     }
 
     public void updateInventories(Map<String, VirtualChestInventory> newInventories, boolean purgeOldOnes)
@@ -45,5 +61,62 @@ public class VirtualChestInventoryDispatcher
     public Optional<Inventory> createInventory(String name, Player player)
     {
         return getInventory(name).map(i -> i.createInventory(player));
+    }
+
+    public void loadConfig(CommentedConfigurationNode node) throws IOException
+    {
+        try
+        {
+            menuDirs = ImmutableList.copyOf(node.getList(TypeToken.of(String.class), this::releaseExample));
+            Map<String, VirtualChestInventory> newOnes = new LinkedHashMap<>();
+            menuDirs.stream().map(plugin.getConfigDir()::resolve).forEach(p -> newOnes.putAll(scanDir(p.toFile())));
+            updateInventories(newOnes, true);
+        }
+        catch (ObjectMappingException e)
+        {
+            throw new IOException(e);
+        }
+    }
+
+    public void saveConfig(CommentedConfigurationNode node) throws IOException
+    {
+        node.setValue(this.menuDirs);
+    }
+
+    private List<String> releaseExample()
+    {
+        // TODO: release example command GUIs
+        return Collections.singletonList("menu/");
+    }
+
+    private Map<String, VirtualChestInventory> scanDir(File file)
+    {
+        Map<String, VirtualChestInventory> newInventories = new LinkedHashMap<>();
+        if (file.isDirectory() || file.mkdirs())
+        {
+            for (File f : Optional.ofNullable(file.listFiles()).orElse(new File[0]))
+            {
+                String fileName = f.getName();
+                if (fileName.endsWith(".conf"))
+                {
+                    fileName = fileName.substring(0, fileName.lastIndexOf(".conf"));
+                    try
+                    {
+                        HoconConfigurationLoader loader = HoconConfigurationLoader.builder().setFile(f).build();
+                        CommentedConfigurationNode menuRoot = loader.load().getNode(VirtualChestPlugin.PLUGIN_ID);
+                        DataContainer serializedMenu = DataTranslators.CONFIGURATION_NODE.translate(menuRoot);
+                        VirtualChestInventory inventory = inventoryTranslator.translate(serializedMenu);
+                        newInventories.put(fileName, inventory);
+                    }
+                    catch (IOException | InvalidDataException e)
+                    {
+                        String error = "Find error when reading the file (" + fileName + "). "
+                                + "Don't worry, we will skip this one and continue to read others";
+                        this.plugin.getLogger().warn(error, e);
+                    }
+                }
+            }
+        }
+        return newInventories;
     }
 }

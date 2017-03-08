@@ -12,9 +12,10 @@ import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.item.Enchantment;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.ItemStack;
-import org.spongepowered.api.text.serializer.TextSerializers;
+import org.spongepowered.api.text.Text;
 
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -37,7 +38,7 @@ public class VirtualChestItem
 
     private final VirtualChestPlugin plugin;
 
-    private final ItemStack stack;
+    private final DataView serializedStack;
     private final String primaryAction;
     private final String middleAction;
     private final String secondaryAction;
@@ -45,7 +46,7 @@ public class VirtualChestItem
 
     public static DataContainer serialize(VirtualChestPlugin plugin, VirtualChestItem item) throws InvalidDataException
     {
-        DataContainer data = new MemoryDataContainer().set(ITEM, item.stack).set(KEEP_OPEN, item.keepInventoryOpen);
+        DataContainer data = new MemoryDataContainer().set(ITEM, item.serializedStack).set(KEEP_OPEN, item.keepInventoryOpen);
         if (!item.primaryAction.isEmpty())
         {
             data.set(PRIMARY_ACTION, item.primaryAction);
@@ -63,45 +64,45 @@ public class VirtualChestItem
 
     public static VirtualChestItem deserialize(VirtualChestPlugin plugin, DataView data) throws InvalidDataException
     {
-        Optional<ItemStack> optional = data.getView(ITEM).flatMap(VirtualChestItem::deserializeItemStack);
-        return new VirtualChestItem(plugin, optional.orElseThrow(() -> new InvalidDataException("Expected Item")),
+        return new VirtualChestItem(plugin, data.getView(ITEM).orElseThrow(() -> new InvalidDataException("Expected Item")),
                 data.getBoolean(KEEP_OPEN).orElse(Boolean.FALSE), data.getString(PRIMARY_ACTION).orElse(""),
                 data.getString(MIDDLE_ACTION).orElse(""), data.getString(SECONDARY_ACTION).orElse(""));
-    }
-
-    private static Optional<ItemStack> deserializeItemStack(DataView v)
-    {
-        Optional<ItemStack> stackOptional = DATA_MANAGER.deserialize(ItemStack.class, v);
-        if (stackOptional.isPresent())
-        {
-            ItemStack stack = stackOptional.get();
-            v.getStringList(LORE).ifPresent(l -> stack.offer(Keys.ITEM_LORE,
-                    l.stream().map(TextSerializers.FORMATTING_CODE::deserialize).collect(Collectors.toList())));
-            v.getString(DISPLAY_NAME).ifPresent(d -> stack.offer(Keys.DISPLAY_NAME,
-                    TextSerializers.FORMATTING_CODE.deserialize(d)));
-            v.getStringList(ENCHANTMENTS).ifPresent(e -> stack.offer(Keys.ITEM_ENCHANTMENTS,
-                    e.stream().map(VirtualChestItem::deserializeItemEnchantment).collect(Collectors.toList())));
-            v.getBoolean(HIDE_ENCHANTMENTS).ifPresent(h -> stack.offer(Keys.HIDE_ENCHANTMENTS, h));
-        }
-        return stackOptional;
     }
 
     private static ItemEnchantment deserializeItemEnchantment(String e)
     {
         int colonFirstIndex = e.indexOf(':'), colonLastIndex = e.lastIndexOf(':');
-        int level = colonFirstIndex == colonLastIndex ? 0 : Integer.valueOf(e.substring(colonLastIndex + 1));
+        int level = colonFirstIndex == colonLastIndex ? 1 : Integer.valueOf(e.substring(colonLastIndex + 1));
         String enchantmentId = colonFirstIndex == colonLastIndex ? e : e.substring(0, colonLastIndex);
         Optional<Enchantment> optional = Sponge.getRegistry().getType(Enchantment.class, enchantmentId);
         Enchantment enchantment = optional.orElseThrow(() -> new InvalidDataException("Invalid enchantment"));
         return new ItemEnchantment(enchantment, level);
     }
 
-    private VirtualChestItem(VirtualChestPlugin plugin, ItemStack stack, boolean keeyOpen,
+    private ItemStack deserializeItemStack(Player player)
+    {
+        ItemStack itemStack = DATA_MANAGER.deserialize(ItemStack.class, serializedStack).orElseThrow(InvalidDataException::new);
+        serializedStack.getStringList(LORE).ifPresent(l -> itemStack.offer(Keys.ITEM_LORE,
+                l.stream().map(getPlaceholderParser(player)).collect(Collectors.toList())));
+        serializedStack.getString(DISPLAY_NAME).ifPresent(d -> itemStack.offer(Keys.DISPLAY_NAME,
+                getPlaceholderParser(player).apply(d)));
+        serializedStack.getStringList(ENCHANTMENTS).ifPresent(e -> itemStack.offer(Keys.ITEM_ENCHANTMENTS,
+                e.stream().map(VirtualChestItem::deserializeItemEnchantment).collect(Collectors.toList())));
+        serializedStack.getBoolean(HIDE_ENCHANTMENTS).ifPresent(h -> itemStack.offer(Keys.HIDE_ENCHANTMENTS, h));
+        return itemStack;
+    }
+
+    private Function<String, Text> getPlaceholderParser(Player player)
+    {
+        return text -> this.plugin.getPlaceholderParser().parse(player, text);
+    }
+
+    private VirtualChestItem(VirtualChestPlugin plugin, DataView stack, boolean keeyOpen,
                              String primaryAction, String middleAction, String secondaryAction)
     {
         this.plugin = plugin;
 
-        this.stack = stack;
+        this.serializedStack = stack;
         this.keepInventoryOpen = keeyOpen;
         this.primaryAction = primaryAction;
         this.middleAction = middleAction;
@@ -131,9 +132,9 @@ public class VirtualChestItem
         return actionCommand;
     }
 
-    public void setInventory(Inventory inventory)
+    public void setInventory(Player player, Inventory inventory)
     {
-        inventory.set(this.stack);
+        inventory.set(deserializeItemStack(player));
     }
 
     public Action fireEvent(Player player, ClickInventoryEvent event)
@@ -150,7 +151,7 @@ public class VirtualChestItem
     public String toString()
     {
         return Objects.toStringHelper(this)
-                .add("Item", this.stack)
+                .add("Item", this.serializedStack)
                 .add("KeepOpen", this.keepInventoryOpen)
                 .add("PrimaryAction", this.primaryAction)
                 .add("MiddleAction", this.middleAction)

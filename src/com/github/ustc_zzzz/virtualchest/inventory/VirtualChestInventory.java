@@ -21,6 +21,7 @@ import org.spongepowered.api.item.inventory.property.InventoryDimension;
 import org.spongepowered.api.item.inventory.property.InventoryTitle;
 import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
+import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 
 import java.util.Comparator;
@@ -38,6 +39,7 @@ public final class VirtualChestInventory
     public static final DataQuery HEIGHT = DataQuery.of("Rows");
     public static final DataQuery ITEM_TYPE = DataQuery.of("ItemType");
     public static final DataQuery UNSAFE_DAMAGE = DataQuery.of("UnsafeDamage");
+    public static final DataQuery UPDATE_INTERVAL_TICK = DataQuery.of("UpdateIntervalTick");
     public static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
     public static final DataQuery PRIMARY_ACTION = DataQuery.of("EnablePrimaryAction");
     public static final DataQuery SECONDARY_ACTION = DataQuery.of("EnableSecondaryAction");
@@ -48,19 +50,22 @@ public final class VirtualChestInventory
     final int height;
     final Text title;
     final Optional<DataContainer> openItemPredicate;
+    final Optional<Integer> updateIntervalTick;
 
     VirtualChestInventory(
             VirtualChestPlugin plugin,
             Text title,
             int height,
             Map<SlotPos, VirtualChestItem> items,
-            Optional<DataContainer> openItemPredicate)
+            Optional<DataContainer> openItemPredicate,
+            Optional<Integer> updateIntervalTick)
     {
         this.plugin = plugin;
         this.title = title;
         this.height = height;
         this.items = ImmutableMap.copyOf(items);
         this.openItemPredicate = openItemPredicate;
+        this.updateIntervalTick = updateIntervalTick;
     }
 
     private boolean matchItemForOpening(ItemStackSnapshot item)
@@ -97,6 +102,12 @@ public final class VirtualChestInventory
                 // why is it 'NAM'?
                 .property(InventoryDimension.PROPERTY_NAM, new InventoryDimension(9, this.height))
                 .listener(InteractInventoryEvent.class, new VirtualChestEventListener(player)).build(this.plugin);
+        this.updateInventory(player, chestInventory);
+        return chestInventory;
+    }
+
+    private void updateInventory(Player player, Inventory chestInventory)
+    {
         int i = -1, j = 0;
         for (Slot slot : chestInventory.<Slot>slots())
         {
@@ -105,9 +116,8 @@ public final class VirtualChestInventory
                 ++j;
                 i = 0;
             }
-            Optional.ofNullable(items.get(SlotPos.of(i, j))).ifPresent(item -> item.setInventory(slot));
+            Optional.ofNullable(items.get(SlotPos.of(i, j))).ifPresent(item -> item.setInventory(player, slot));
         }
-        return chestInventory;
     }
 
     public static String slotPosToKey(SlotPos slotPos) throws InvalidDataException
@@ -141,6 +151,8 @@ public final class VirtualChestInventory
         private final Map<Slot, VirtualChestItem> slotToItem;
         private final Player player;
 
+        private Optional<Task> autoUpdateTask = Optional.empty();
+
         private VirtualChestEventListener(Player player)
         {
             this.slotToItem = new TreeMap<>(Comparator.comparingInt(SpongeUnimplemented::getSlotOrdinal));
@@ -158,12 +170,17 @@ public final class VirtualChestInventory
             {
                 fireOpenEvent((InteractInventoryEvent.Open) event);
             }
+            else if (event instanceof InteractInventoryEvent.Close)
+            {
+                fireCloseEvent((InteractInventoryEvent.Close) event);
+            }
         }
 
         private void fireOpenEvent(InteractInventoryEvent.Open e)
         {
             int i = -1, j = 0;
-            for (Slot slot : e.getTargetInventory().first().<Slot>slots())
+            Inventory chestInventory = e.getTargetInventory().first();
+            for (Slot slot : chestInventory.<Slot>slots())
             {
                 if (++i >= 9)
                 {
@@ -172,6 +189,15 @@ public final class VirtualChestInventory
                 }
                 Optional.ofNullable(items.get(SlotPos.of(i, j))).ifPresent(item -> slotToItem.put(slot, item));
             }
+            updateIntervalTick.ifPresent(intervalTick -> autoUpdateTask = Optional.of(Sponge.getScheduler()
+                    .createTaskBuilder().intervalTicks(intervalTick)
+                    .execute(task -> updateInventory(player, chestInventory)).submit(plugin)));
+        }
+
+        private void fireCloseEvent(InteractInventoryEvent.Close e)
+        {
+            autoUpdateTask.ifPresent(Task::cancel);
+            autoUpdateTask = Optional.empty();
         }
 
         private void fireClickEvent(ClickInventoryEvent e)

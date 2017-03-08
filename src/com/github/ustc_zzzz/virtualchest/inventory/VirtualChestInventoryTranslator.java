@@ -9,6 +9,7 @@ import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
+import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.Map;
 import java.util.Optional;
@@ -16,6 +17,7 @@ import java.util.Optional;
 /**
  * @author ustc_zzzz
  */
+@NonnullByDefault
 public class VirtualChestInventoryTranslator implements DataTranslator<VirtualChestInventory>
 {
     private static final int CONTENT_VERSION = 0;
@@ -37,6 +39,7 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
     {
         Optional<Text> titleOptional = Optional.empty();
         Optional<Integer> heightOptional = Optional.empty();
+        Optional<Integer> updateIntervalTick = Optional.empty();
         Optional<DataContainer> triggerItem = Optional.empty();
         ImmutableMap.Builder<SlotPos, VirtualChestItem> itemsBuilder = ImmutableMap.builder();
         for (DataQuery key : view.getKeys(false))
@@ -49,6 +52,11 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
             if (VirtualChestInventory.HEIGHT.equals(key))
             {
                 heightOptional = view.getInt(VirtualChestInventory.HEIGHT);
+                continue;
+            }
+            if (VirtualChestInventory.UPDATE_INTERVAL_TICK.equals(key))
+            {
+                updateIntervalTick = view.getInt(VirtualChestInventory.UPDATE_INTERVAL_TICK);
                 continue;
             }
             if (VirtualChestInventory.TRIGGER_ITEM.equals(key))
@@ -76,7 +84,7 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
         Text title = titleOptional.orElseThrow(() -> new InvalidDataException("Expected title"));
         Integer height = heightOptional.orElseThrow(() -> new InvalidDataException("Expected height"));
         ImmutableMap<SlotPos, VirtualChestItem> items = itemsBuilder.build();
-        return new VirtualChestInventory(plugin, title, height, items, triggerItem);
+        return new VirtualChestInventory(plugin, title, height, items, triggerItem, updateIntervalTick);
     }
 
     @Override
@@ -86,6 +94,7 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
         container.set(Queries.CONTENT_VERSION, CONTENT_VERSION);
         container.set(VirtualChestInventory.TITLE, obj.title);
         container.set(VirtualChestInventory.HEIGHT, obj.height);
+        container.set(VirtualChestInventory.UPDATE_INTERVAL_TICK, obj.updateIntervalTick);
         obj.openItemPredicate.ifPresent(d -> container.set(VirtualChestInventory.TRIGGER_ITEM, d));
         for (Map.Entry<SlotPos, VirtualChestItem> entry : obj.items.entrySet())
         {
