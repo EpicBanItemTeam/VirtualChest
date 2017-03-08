@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.translation;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.google.common.base.Charsets;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.asset.Asset;
@@ -10,6 +11,7 @@ import org.spongepowered.api.text.serializer.TextSerializer;
 import org.spongepowered.api.text.serializer.TextSerializers;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.MissingResourceException;
@@ -36,7 +38,7 @@ public class VirtualChestTranslation
         {
             Asset asset = assets.getAsset(plugin, "i18n/" + locale.toString() + ".properties").orElse(assets.
                     getAsset(plugin, "i18n/en_US.properties").orElseThrow(() -> new IOException(I18N_ERROR)));
-            resourceBundle = new PropertyResourceBundle(asset.getUrl().openStream());
+            resourceBundle = new PropertyResourceBundle(new InputStreamReader(asset.getUrl().openStream(), Charsets.UTF_8));
         }
         catch (IOException e)
         {
