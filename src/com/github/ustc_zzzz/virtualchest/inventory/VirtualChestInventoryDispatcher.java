@@ -2,12 +2,15 @@ package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.TypeToken;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
 import ninja.leaping.configurate.objectmapping.ObjectMappingException;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.asset.Asset;
+import org.spongepowered.api.asset.AssetManager;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.persistence.DataTranslator;
 import org.spongepowered.api.data.persistence.DataTranslators;
@@ -17,7 +20,6 @@ import org.spongepowered.api.item.inventory.Inventory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -85,8 +87,24 @@ public class VirtualChestInventoryDispatcher
 
     private List<String> releaseExample()
     {
-        // TODO: release example command GUIs
-        return Collections.singletonList("menu/");
+        String defaultMenuDir = "menu/";
+        File menuDir = this.plugin.getConfigDir().resolve(defaultMenuDir).toFile();
+        if (menuDir.isDirectory() || menuDir.mkdirs())
+        {
+            try
+            {
+                AssetManager assetManager = Sponge.getAssetManager();
+                Optional<Asset> example = assetManager.getAsset(this.plugin, "examples/example.conf");
+                Optional<Asset> example2 = assetManager.getAsset(this.plugin, "examples/example2.conf");
+                example.orElseThrow(IOException::new).copyToDirectory(menuDir.toPath());
+                example2.orElseThrow(IOException::new).copyToDirectory(menuDir.toPath());
+            }
+            catch (IOException e)
+            {
+                Throwables.propagate(e);
+            }
+        }
+        return Collections.singletonList(defaultMenuDir);
     }
 
     private Map<String, VirtualChestInventory> scanDir(File file)

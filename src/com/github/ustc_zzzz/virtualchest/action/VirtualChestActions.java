@@ -54,8 +54,8 @@ public final class VirtualChestActions
             String prefix = colonPos > 0 ? command.substring(0, colonPos) : "";
             if (this.executors.containsKey(prefix))
             {
-                int suffixPosition = colonPos + 1;
-                while (Character.isWhitespace(command.charAt(suffixPosition)))
+                int length = command.length(), suffixPosition = colonPos + 1;
+                while (suffixPosition < length && Character.isWhitespace(command.charAt(suffixPosition)))
                 {
                     ++suffixPosition;
                 }
