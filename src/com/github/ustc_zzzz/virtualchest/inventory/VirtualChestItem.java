@@ -26,7 +26,6 @@ public class VirtualChestItem
     public static final DataQuery ITEM = DataQuery.of("Item");
     public static final DataQuery KEEP_OPEN = DataQuery.of("KeepOpen");
     public static final DataQuery PRIMARY_ACTION = DataQuery.of("PrimaryAction");
-    public static final DataQuery MIDDLE_ACTION = DataQuery.of("MiddleAction");
     public static final DataQuery SECONDARY_ACTION = DataQuery.of("SecondaryAction");
     public static final DataQuery HIDE_ENCHANTMENTS = DataQuery.of("HideEnchantments");
 
@@ -40,7 +39,6 @@ public class VirtualChestItem
 
     private final DataView serializedStack;
     private final String primaryAction;
-    private final String middleAction;
     private final String secondaryAction;
     private final boolean keepInventoryOpen;
 
@@ -50,10 +48,6 @@ public class VirtualChestItem
         if (!item.primaryAction.isEmpty())
         {
             data.set(PRIMARY_ACTION, item.primaryAction);
-        }
-        if (!item.middleAction.isEmpty())
-        {
-            data.set(MIDDLE_ACTION, item.middleAction);
         }
         if (!item.secondaryAction.isEmpty())
         {
@@ -66,7 +60,7 @@ public class VirtualChestItem
     {
         return new VirtualChestItem(plugin, data.getView(ITEM).orElseThrow(() -> new InvalidDataException("Expected Item")),
                 data.getBoolean(KEEP_OPEN).orElse(Boolean.FALSE), data.getString(PRIMARY_ACTION).orElse(""),
-                data.getString(MIDDLE_ACTION).orElse(""), data.getString(SECONDARY_ACTION).orElse(""));
+                data.getString(SECONDARY_ACTION).orElse(""));
     }
 
     private static ItemEnchantment deserializeItemEnchantment(String e)
@@ -98,14 +92,13 @@ public class VirtualChestItem
     }
 
     private VirtualChestItem(VirtualChestPlugin plugin, DataView stack, boolean keeyOpen,
-                             String primaryAction, String middleAction, String secondaryAction)
+                             String primaryAction, String secondaryAction)
     {
         this.plugin = plugin;
 
         this.serializedStack = stack;
         this.keepInventoryOpen = keeyOpen;
         this.primaryAction = primaryAction;
-        this.middleAction = middleAction;
         this.secondaryAction = secondaryAction;
     }
 
@@ -120,10 +113,6 @@ public class VirtualChestItem
         if (event instanceof ClickInventoryEvent.Primary)
         {
             actionCommand = primaryAction;
-        }
-        if (event instanceof ClickInventoryEvent.Middle)
-        {
-            actionCommand = middleAction;
         }
         if (event instanceof ClickInventoryEvent.Secondary)
         {
@@ -154,7 +143,6 @@ public class VirtualChestItem
                 .add("Item", this.serializedStack)
                 .add("KeepOpen", this.keepInventoryOpen)
                 .add("PrimaryAction", this.primaryAction)
-                .add("MiddleAction", this.middleAction)
                 .add("SecondaryAction", this.secondaryAction)
                 .toString();
     }
