@@ -27,6 +27,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
     private final VirtualChestPlugin plugin;
     private final VirtualChestTranslation translation;
 
+    private final CommandCallable reloadCommand;
     private final CommandCallable listCommand;
     private final CommandCallable openCommand;
 
@@ -35,11 +36,18 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
         this.plugin = plugin;
         this.translation = plugin.getTranslation();
 
+        this.reloadCommand = CommandSpec.builder()
+                .description(this.translation.take("virtualchest.reload.description"))
+                .arguments(GenericArguments.none())
+                .executor(this::processReloadCommand).build();
+
         this.listCommand = CommandSpec.builder()
+                .description(this.translation.take("virtualchest.list.description"))
                 .arguments(GenericArguments.none())
                 .executor(this::processListCommand).build();
 
         this.openCommand = CommandSpec.builder()
+                .description(this.translation.take("virtualchest.open.description"))
                 .arguments(GenericArguments.string(Text.of("name")), GenericArguments.playerOrSource(Text.of("player")))
                 .executor(this::processOpenCommand).build();
     }
@@ -95,6 +103,19 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
         return CommandResult.success();
     }
 
+    private CommandResult processReloadCommand(CommandSource source, CommandContext args) throws CommandException
+    {
+        if (!source.hasPermission("virtualchest.reload"))
+        {
+            return CommandResult.empty();
+        }
+        else
+        {
+            this.plugin.onReload(() -> Cause.source(this.plugin).build());
+            return CommandResult.success();
+        }
+    }
+
     private void openInventory(String name, Player player) throws CommandException
     {
         Optional<Inventory> inventoryOptional = plugin.getDispatcher().createInventory(name, player);
@@ -113,6 +134,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
     public CommandCallable get()
     {
         return CommandSpec.builder()
+                .child(this.reloadCommand, "reload", "r")
                 .child(this.listCommand, "list", "l")
                 .child(this.openCommand, "open", "o")
                 .build();
