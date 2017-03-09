@@ -46,6 +46,6 @@ All the commands starts with `/virtualchest`, you can also use `/vchest` or `/vc
 This plugin is licensed under [LGPL 3.0 license](LICENSE), and you can spread it to almost anywhere applicable to LGPL license without having to manually request for my agreement.  
 该插件以[LGPL 3.0](LICENSE)授权，你可以不经过我的手动允许，将其传播到几乎任何地方，只要它不与LGPL协议相抵触。
 
-However, there are two exceptions: [mcbbs](http://www.mcbbs.net/) (a Minecraft forum in China) and [the sponge forum](https://forums.spongepowered.org/), because it will be done by myself.  
-不过，有两个地方是例外：[MCBBS](http://www.mcbbs.net/)和[Sponge官方论坛](https://forums.spongepowered.org/)，因为它将由我本人亲自代劳。
+There are only two places which need to be noticed: [mcbbs](http://www.mcbbs.net/) (a Minecraft forum in China) and [the sponge forum](https://forums.spongepowered.org/), because it will be done by myself. The only reason is that I have already posted the plugin there, and the repost is not welcomed by forums.  
+不过，有两个地方需要注意：[MCBBS](http://www.mcbbs.net/)和[Sponge官方论坛](https://forums.spongepowered.org/)。唯一的原因在于我已经把本插件在这两个地方发布了，而论坛是不欢迎二次发布的。
 
