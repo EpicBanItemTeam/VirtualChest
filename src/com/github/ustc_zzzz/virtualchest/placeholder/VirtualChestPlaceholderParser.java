@@ -19,18 +19,37 @@ public class VirtualChestPlaceholderParser
     private final VirtualChestPlugin virtualChestPlugin;
     private final Map<String, Function<Player, String>> placeholders = new HashMap<>();
 
+    private String playerPlaceholder = "{player}";
+    private String worldPlaceholder = "{world}";
+    private String onlinePlaceholder = "{online}";
+    private String maxPlayersPlaceholder = "{max_players}";
+
+    private boolean enableReplacementsInActions = true;
+
     public VirtualChestPlaceholderParser(VirtualChestPlugin plugin)
     {
         this.virtualChestPlugin = plugin;
     }
 
-    public Text parse(Player player, String text)
+    public Text parseItemText(Player player, String text)
     {
         for (Map.Entry<String, Function<Player, String>> entry : placeholders.entrySet())
         {
             text = text.replace(entry.getKey(), entry.getValue().apply(player));
         }
         return TextSerializers.FORMATTING_CODE.deserialize(text);
+    }
+
+    public String parseAction(Player player, String text)
+    {
+        if (this.enableReplacementsInActions)
+        {
+            for (Map.Entry<String, Function<Player, String>> entry : placeholders.entrySet())
+            {
+                text = text.replace(entry.getKey(), entry.getValue().apply(player));
+            }
+        }
+        return text;
     }
 
     private void pushPlaceholder(String placeholder, Function<Player, String> replacement)
@@ -60,17 +79,26 @@ public class VirtualChestPlaceholderParser
 
     public void loadConfig(CommentedConfigurationNode node)
     {
-        pushPlaceholder(node.getNode("player").getString("{player}"), this::replacePlayer);
-        pushPlaceholder(node.getNode("world").getString("{world}"), this::replaceWorld);
-        pushPlaceholder(node.getNode("online").getString("{online}"), this::replaceOnline);
-        pushPlaceholder(node.getNode("max-players").getString("{max_players}"), this::replaceMaxPlayers);
+        this.enableReplacementsInActions = node.getNode("enable-replacements-in-actions").getBoolean(true);
+
+        this.playerPlaceholder = node.getNode("player").getString("{player}");
+        this.worldPlaceholder = node.getNode("world").getString("{world}");
+        this.onlinePlaceholder = node.getNode("online").getString("{online}");
+        this.maxPlayersPlaceholder = node.getNode("max-players").getString("{max_players}");
+
+        pushPlaceholder(this.playerPlaceholder, this::replacePlayer);
+        pushPlaceholder(this.worldPlaceholder, this::replaceWorld);
+        pushPlaceholder(this.onlinePlaceholder, this::replaceOnline);
+        pushPlaceholder(this.maxPlayersPlaceholder, this::replaceMaxPlayers);
     }
 
     public void saveConfig(CommentedConfigurationNode node)
     {
-        node.getNode("player").setValue("{player}");
-        node.getNode("world").setValue("{world}");
-        node.getNode("online").setValue("{online}");
-        node.getNode("max-players").setValue("{max_players}");
+        node.getNode("enable-replacements-in-actions").setValue(this.enableReplacementsInActions);
+
+        node.getNode("player").setValue(this.playerPlaceholder);
+        node.getNode("world").setValue(this.worldPlaceholder);
+        node.getNode("online").setValue(this.onlinePlaceholder);
+        node.getNode("max-players").setValue(this.maxPlayersPlaceholder);
     }
 }

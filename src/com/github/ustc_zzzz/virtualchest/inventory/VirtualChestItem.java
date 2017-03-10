@@ -88,7 +88,7 @@ public class VirtualChestItem
 
     private Function<String, Text> getPlaceholderParser(Player player)
     {
-        return text -> this.plugin.getPlaceholderParser().parse(player, text);
+        return text -> this.plugin.getPlaceholderParser().parseItemText(player, text);
     }
 
     private VirtualChestItem(VirtualChestPlugin plugin, DataView stack, boolean keeyOpen,

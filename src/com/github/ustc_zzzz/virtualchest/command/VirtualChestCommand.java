@@ -111,7 +111,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
         }
         else
         {
-            this.plugin.onReload(() -> Cause.source(this.plugin).build());
+            this.plugin.onReload(Cause.source(this.plugin)::build);
             return CommandResult.success();
         }
     }

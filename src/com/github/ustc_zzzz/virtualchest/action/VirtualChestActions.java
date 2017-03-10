@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderParser;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.entity.living.player.Player;
@@ -60,11 +61,11 @@ public final class VirtualChestActions
                     ++suffixPosition;
                 }
                 String suffix = command.substring(suffixPosition);
-                return Tuple.of(prefix, suffix);
+                return Tuple.of(prefix, this.plugin.getPlaceholderParser().parseAction(player, suffix));
             }
             else
             {
-                return Tuple.of("", command);
+                return Tuple.of("", this.plugin.getPlaceholderParser().parseAction(player, command));
             }
         }).collect(Collectors.toCollection(LinkedList::new));
         new Callback(player, commandList).accept(CommandResult.empty());
