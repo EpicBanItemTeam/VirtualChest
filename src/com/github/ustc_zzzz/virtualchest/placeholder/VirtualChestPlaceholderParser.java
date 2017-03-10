@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.placeholder;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
@@ -16,7 +17,7 @@ import java.util.function.Function;
  */
 public class VirtualChestPlaceholderParser
 {
-    private final VirtualChestPlugin virtualChestPlugin;
+    private final VirtualChestTranslation translation;
     private final Map<String, Function<Player, String>> placeholders = new HashMap<>();
 
     private String playerPlaceholder = "{player}";
@@ -28,7 +29,7 @@ public class VirtualChestPlaceholderParser
 
     public VirtualChestPlaceholderParser(VirtualChestPlugin plugin)
     {
-        this.virtualChestPlugin = plugin;
+        this.translation = plugin.getTranslation();
     }
 
     public Text parseItemText(Player player, String text)
@@ -94,11 +95,24 @@ public class VirtualChestPlaceholderParser
 
     public void saveConfig(CommentedConfigurationNode node)
     {
-        node.getNode("enable-replacements-in-actions").setValue(this.enableReplacementsInActions);
+        node.getNode("enable-replacements-in-actions").setValue(this.enableReplacementsInActions)
+                .setComment(node.getComment().orElse(this.translation
+                        .take("virtualchest.config.placeholders.enableReplacementsInActions.comment").toPlain()));
 
-        node.getNode("player").setValue(this.playerPlaceholder);
-        node.getNode("world").setValue(this.worldPlaceholder);
-        node.getNode("online").setValue(this.onlinePlaceholder);
-        node.getNode("max-players").setValue(this.maxPlayersPlaceholder);
+        node.getNode("player").setValue(this.playerPlaceholder)
+                .setComment(node.getComment().orElse(this.translation
+                        .take("virtualchest.config.placeholders.player.comment").toPlain()));
+        node.getNode("world").setValue(this.worldPlaceholder)
+                .setComment(node.getComment().orElse(this.translation
+                        .take("virtualchest.config.placeholders.world.comment").toPlain()));
+        node.getNode("online").setValue(this.onlinePlaceholder)
+                .setComment(node.getComment().orElse(this.translation
+                        .take("virtualchest.config.placeholders.online.comment").toPlain()));
+        node.getNode("max-players").setValue(this.maxPlayersPlaceholder)
+                .setComment(node.getComment().orElse(this.translation
+                        .take("virtualchest.config.placeholders.maxPlayers.comment").toPlain()));
+
+        node.setComment(node.getComment().orElse(this.translation
+                .take("virtualchest.config.placeholders.comment").toPlain()));
     }
 }

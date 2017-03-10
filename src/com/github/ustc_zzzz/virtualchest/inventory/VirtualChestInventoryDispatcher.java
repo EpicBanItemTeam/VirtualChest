@@ -82,7 +82,9 @@ public class VirtualChestInventoryDispatcher
 
     public void saveConfig(CommentedConfigurationNode node) throws IOException
     {
-        node.setValue(this.menuDirs);
+        node.setValue(this.menuDirs)
+                .setComment(node.getComment().orElse(this.translation
+                        .take("virtualchest.config.scanDir.comment").toPlain()));
     }
 
     private List<String> releaseExample()

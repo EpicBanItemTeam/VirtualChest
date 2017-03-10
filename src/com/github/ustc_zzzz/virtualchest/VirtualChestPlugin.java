@@ -30,6 +30,7 @@ import org.spongepowered.api.plugin.Plugin;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * @author ustc_zzzz
@@ -52,6 +53,8 @@ public class VirtualChestPlugin
     @DefaultConfig(sharedRoot = false)
     private ConfigurationLoader<CommentedConfigurationNode> config;
 
+    private CommentedConfigurationNode rootConfigNode;
+
     private VirtualChestTranslation translation;
 
     private VirtualChestActions virtualChestActions;
@@ -67,11 +70,12 @@ public class VirtualChestPlugin
         CommentedConfigurationNode root = config.load();
         this.dispatcher.loadConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
         this.placeholderParser.loadConfig(root.getNode(PLUGIN_ID, "placeholders"));
+        this.rootConfigNode = root;
     }
 
     private void saveConfig() throws IOException
     {
-        CommentedConfigurationNode root = config.createEmptyNode();
+        CommentedConfigurationNode root = Optional.ofNullable(this.rootConfigNode).orElseGet(config::createEmptyNode);
         this.dispatcher.saveConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
         this.placeholderParser.saveConfig(root.getNode(PLUGIN_ID, "placeholders"));
         config.save(root);
