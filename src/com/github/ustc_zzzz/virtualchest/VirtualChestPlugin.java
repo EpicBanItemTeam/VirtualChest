@@ -7,7 +7,10 @@ import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatch
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryTranslator;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderParser;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.inject.Inject;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
@@ -27,8 +30,12 @@ import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.event.item.inventory.InteractItemEvent;
 import org.spongepowered.api.plugin.Plugin;
+import org.spongepowered.plugin.meta.version.ComparableVersion;
 
+import javax.net.ssl.HttpsURLConnection;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -36,11 +43,12 @@ import java.util.Optional;
  * @author ustc_zzzz
  */
 @Plugin(id = VirtualChestPlugin.PLUGIN_ID, name = "VirtualChest", authors =
-        {"ustc_zzzz"}, version = "@version@", description = VirtualChestPlugin.DESCRIPTION)
+        {"ustc_zzzz"}, version = VirtualChestPlugin.VERSION, description = VirtualChestPlugin.DESCRIPTION)
 public class VirtualChestPlugin
 {
     public static final String PLUGIN_ID = "virtualchest";
     public static final String DESCRIPTION = "A plugin providing virtual chests";
+    public static final String VERSION = "@version@";
 
     @Inject
     private Logger logger;
@@ -65,9 +73,42 @@ public class VirtualChestPlugin
 
     private VirtualChestPlaceholderParser placeholderParser;
 
+    private boolean doCheckUpdate = true;
+
+    private void checkUpdate()
+    {
+        try
+        {
+            URL url = new URL("https://api.github.com/repos/ustc-zzzz/VirtualChest/releases");
+            HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.getResponseCode();
+            InputStreamReader reader = new InputStreamReader(connection.getInputStream(), Charsets.UTF_8);
+            JsonObject jsonObject = new JsonParser().parse(reader).getAsJsonArray().get(0).getAsJsonObject();
+            String version = jsonObject.get("tag_name").getAsString();
+            if (version.startsWith("v"))
+            {
+                version = version.substring(1);
+                String releaseUrl = jsonObject.get("html_url").getAsString();
+                String releaseName = jsonObject.get("name").getAsString();
+                if (new ComparableVersion(version).compareTo(new ComparableVersion(VERSION)) > 0)
+                {
+                    this.logger.warn("Found update: " + releaseName);
+                    this.logger.warn("You can get the latest version at: " + releaseUrl);
+                }
+            }
+        }
+        catch (Exception ignored)
+        {
+            // do not bother offline users
+        }
+    }
+
     private void loadConfig() throws IOException
     {
         CommentedConfigurationNode root = config.load();
+        this.doCheckUpdate = root.getNode(PLUGIN_ID, "check-update").getBoolean(true);
+
         this.dispatcher.loadConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
         this.placeholderParser.loadConfig(root.getNode(PLUGIN_ID, "placeholders"));
         this.rootConfigNode = root;
@@ -76,6 +117,8 @@ public class VirtualChestPlugin
     private void saveConfig() throws IOException
     {
         CommentedConfigurationNode root = Optional.ofNullable(this.rootConfigNode).orElseGet(config::createEmptyNode);
+        root.getNode(PLUGIN_ID, "check-update").setValue(this.doCheckUpdate);
+
         this.dispatcher.saveConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
         this.placeholderParser.saveConfig(root.getNode(PLUGIN_ID, "placeholders"));
         config.save(root);
@@ -163,6 +206,10 @@ public class VirtualChestPlugin
         {
             this.logger.info("Start loading config ...");
             this.loadConfig();
+            if (this.doCheckUpdate)
+            {
+                new Thread(this::checkUpdate).start();
+            }
             this.saveConfig();
             this.logger.info("Loading config complete.");
         }
