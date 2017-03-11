@@ -80,6 +80,8 @@ public class VirtualChestCommandAliases
     {
         if (node.isVirtual() || node.getChildrenMap().isEmpty())
         {
+            node.getNode("m-e").setValue("example");
+            node.getNode("m-e2").setValue("example2");
             node.getNode("menu-example").setValue("example");
             node.getNode("menu-example2").setValue("example2");
         }
