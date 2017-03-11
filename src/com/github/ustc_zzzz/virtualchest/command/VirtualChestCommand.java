@@ -38,7 +38,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
 
         this.reloadCommand = CommandSpec.builder()
                 .description(this.translation.take("virtualchest.reload.description"))
-                .arguments(GenericArguments.none())
+                .arguments(GenericArguments.optional(GenericArguments.literal(Text.of("extract-examples"), "extract-examples")))
                 .executor(this::processReloadCommand).build();
 
         this.listCommand = CommandSpec.builder()
@@ -112,6 +112,10 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
         else
         {
             this.plugin.onReload(Cause.source(this.plugin)::build);
+            if (args.getOne("extract-examples").isPresent())
+            {
+                this.plugin.getDispatcher().releaseExample();
+            }
             return CommandResult.success();
         }
     }
