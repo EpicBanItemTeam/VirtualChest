@@ -87,7 +87,7 @@ public class VirtualChestInventoryDispatcher
                         .take("virtualchest.config.scanDir.comment").toPlain()));
     }
 
-    private List<String> releaseExample()
+    public List<String> releaseExample()
     {
         String defaultMenuDir = "menu/";
         File menuDir = this.plugin.getConfigDir().resolve(defaultMenuDir).toFile();
@@ -103,7 +103,7 @@ public class VirtualChestInventoryDispatcher
             }
             catch (IOException e)
             {
-                Throwables.propagate(e);
+                this.plugin.getLogger().warn("Cannot extract default chest GUI configurations", e);
             }
         }
         return Collections.singletonList(defaultMenuDir);

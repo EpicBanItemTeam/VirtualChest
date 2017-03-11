@@ -2,6 +2,7 @@ package com.github.ustc_zzzz.virtualchest;
 
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActions;
 import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommand;
+import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommandAliases;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryTranslator;
@@ -25,7 +26,7 @@ import org.spongepowered.api.event.Order;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.filter.cause.First;
 import org.spongepowered.api.event.game.GameReloadEvent;
-import org.spongepowered.api.event.game.state.GameAboutToStartServerEvent;
+import org.spongepowered.api.event.game.state.GamePostInitializationEvent;
 import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.event.item.inventory.InteractItemEvent;
@@ -69,6 +70,8 @@ public class VirtualChestPlugin
 
     private VirtualChestCommand virtualChestCommand;
 
+    private VirtualChestCommandAliases commandAliases;
+
     private VirtualChestInventoryDispatcher dispatcher;
 
     private VirtualChestPlaceholderParser placeholderParser;
@@ -109,8 +112,10 @@ public class VirtualChestPlugin
         CommentedConfigurationNode root = config.load();
         this.doCheckUpdate = root.getNode(PLUGIN_ID, "check-update").getBoolean(true);
 
+        this.commandAliases.loadConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.loadConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
         this.placeholderParser.loadConfig(root.getNode(PLUGIN_ID, "placeholders"));
+
         this.rootConfigNode = root;
     }
 
@@ -119,8 +124,10 @@ public class VirtualChestPlugin
         CommentedConfigurationNode root = Optional.ofNullable(this.rootConfigNode).orElseGet(config::createEmptyNode);
         root.getNode(PLUGIN_ID, "check-update").setValue(this.doCheckUpdate);
 
+        this.commandAliases.saveConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.saveConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
         this.placeholderParser.saveConfig(root.getNode(PLUGIN_ID, "placeholders"));
+
         config.save(root);
     }
 
@@ -184,11 +191,12 @@ public class VirtualChestPlugin
     }
 
     @Listener
-    public void onAboutToStartServer(GameAboutToStartServerEvent event)
+    public void onPostInitialization(GamePostInitializationEvent event)
     {
         this.translation = new VirtualChestTranslation(this);
         this.virtualChestActions = new VirtualChestActions(this);
         this.virtualChestCommand = new VirtualChestCommand(this);
+        this.commandAliases = new VirtualChestCommandAliases(this);
         this.dispatcher = new VirtualChestInventoryDispatcher(this);
         this.placeholderParser = new VirtualChestPlaceholderParser(this);
     }
@@ -248,4 +256,5 @@ public class VirtualChestPlugin
     {
         return this.placeholderParser;
     }
+
 }
