@@ -11,6 +11,7 @@ import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
+import org.spongepowered.api.event.cause.NamedCause;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.text.Text;
 
@@ -111,7 +112,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
         }
         else
         {
-            this.plugin.onReload(Cause.source(this.plugin)::build);
+            this.plugin.onReload(() -> Cause.of(NamedCause.source(source)));
             if (args.getOne("extract-examples").isPresent())
             {
                 this.plugin.getDispatcher().releaseExample();

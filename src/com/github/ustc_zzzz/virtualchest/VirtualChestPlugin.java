@@ -17,6 +17,7 @@ import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.config.DefaultConfig;
 import org.spongepowered.api.data.DataManager;
@@ -31,6 +32,8 @@ import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.event.item.inventory.InteractItemEvent;
 import org.spongepowered.api.plugin.Plugin;
+import org.spongepowered.api.text.Text;
+import org.spongepowered.api.text.channel.MessageChannel;
 import org.spongepowered.plugin.meta.version.ComparableVersion;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -172,10 +175,12 @@ public class VirtualChestPlugin
     {
         try
         {
-            this.logger.info("Start reloading ...");
+            CommandSource src = event.getCause().first(CommandSource.class).orElse(Sponge.getServer().getConsole());
+            MessageChannel channel = MessageChannel.combined(src.getMessageChannel(), MessageChannel.TO_CONSOLE);
+            channel.send(Text.of("Start reloading for VirtualChest ..."));
             this.loadConfig();
             this.saveConfig();
-            this.logger.info("Reloading complete.");
+            channel.send(Text.of("Reloading complete for VirtualChest."));
         }
         catch (IOException e)
         {
