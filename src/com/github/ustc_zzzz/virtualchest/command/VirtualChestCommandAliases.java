@@ -1,12 +1,9 @@
 package com.github.ustc_zzzz.virtualchest.command;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
-import com.google.common.collect.ImmutableList;
-import com.google.common.reflect.TypeToken;
+import com.google.common.collect.ImmutableSet;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
-import ninja.leaping.configurate.objectmapping.ObjectMappingException;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.*;
 import org.spongepowered.api.command.args.CommandContext;
@@ -14,6 +11,7 @@ import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.text.Text;
 
 import java.io.IOException;
@@ -37,33 +35,58 @@ public class VirtualChestCommandAliases
 
     private Set<String> getRegisteredAliases()
     {
-        return aliasToMapping.keySet();
+        return ImmutableSet.copyOf(aliasToMapping.keySet());
     }
 
-    private void removeMapping(String alias) throws InvalidVirtualChestCommandAliasException
+    private void removeMapping(String alias)
     {
-        Optional<CommandMapping> mapping = Optional.ofNullable(aliasToMapping.get(alias));
-        if (mapping.isPresent() && commandManager.containsMapping(mapping.get()))
+        Optional<CommandMapping> mapping = Optional.ofNullable(aliasToMapping.remove(alias));
+        if (!mapping.isPresent() || !commandManager.containsMapping(mapping.get()))
         {
-            commandManager.removeMapping(mapping.get());
+            throw new InvalidDataException("Command mapping does not exist for '" + alias + "'");
         }
-        else
-        {
-            throw new InvalidVirtualChestCommandAliasException("Command mapping does not exist for '" + alias + "'");
-        }
+        commandManager.removeMapping(mapping.get());
     }
 
     private void insertMapping(String alias, CommandCallable callable)
     {
-        if (commandManager.get(alias).isPresent())
+        Optional<CommandMapping> mapping = commandManager.register(this.plugin, callable, alias);
+        if (aliasToMapping.containsKey(alias) || !mapping.isPresent())
         {
-            throw new InvalidVirtualChestCommandAliasException("Command mapping has already exist for '" + alias + "'");
+            throw new InvalidDataException("Command mapping has already existed for '" + alias + "'");
         }
-        else
+        aliasToMapping.put(alias, testMapping(alias, mapping.get()));
+    }
+
+    private CommandMapping testMapping(String alias, CommandMapping mapping)
+    {
+        if (!commandManager.get(alias).get().equals(mapping))
         {
-            Optional<CommandMapping> mapping = commandManager.register(this.plugin, callable, alias);
-            mapping.ifPresent(m -> aliasToMapping.put(alias, m));
+            PluginContainer pluginContainer = commandManager.get(alias).flatMap(commandManager::getOwner).get();
+            this.plugin.getLogger().warn("The command '" + alias + "' is not actually registered because " +
+                    "it conflicts with the command '" + pluginContainer.getId() + ":" + alias + "'.");
+            this.plugin.getLogger().warn("Because of the low priority this command could only be used with " +
+                    "a prefix such as '" + VirtualChestPlugin.PLUGIN_ID + ":" + alias + "'.");
+            this.plugin.getLogger().warn("Please configure the part of command aliases in " +
+                    "'config/sponge/global.conf' to enable it manually:");
+            this.plugin.getLogger().warn("commands {");
+            this.plugin.getLogger().warn("    aliases {");
+            this.plugin.getLogger().warn("        " + alias + "=" + VirtualChestPlugin.PLUGIN_ID);
+            this.plugin.getLogger().warn("    }");
+            this.plugin.getLogger().warn("}");
+            this.plugin.getLogger().warn("For more information about command priorities, please refer to:");
+            this.plugin.getLogger().warn("https://docs.spongepowered.org/" +
+                    "stable/en/server/getting-started/configuration/sponge-conf.html");
         }
+        return mapping;
+    }
+
+    private CommandSpec generateCallable(String alias, String guiName)
+    {
+        return CommandSpec.builder()
+                .arguments(GenericArguments.playerOrSource(Text.of("player")))
+                .description(translation.take("virtualchest.commandAlias.description", alias, guiName))
+                .executor((src, args) -> this.processAliasCommand(guiName, src, args)).build();
     }
 
     private CommandResult processAliasCommand(String name, CommandSource src, CommandContext args) throws CommandException
@@ -85,26 +108,15 @@ public class VirtualChestCommandAliases
             node.getNode("menu-example").setValue("example");
             node.getNode("menu-example2").setValue("example2");
         }
-        try
+        for (String alias : getRegisteredAliases())
         {
-            for (String alias : getRegisteredAliases())
-            {
-                removeMapping(alias);
-            }
-            for (Map.Entry<Object, ? extends CommentedConfigurationNode> entry : node.getChildrenMap().entrySet())
-            {
-                String alias = String.valueOf(entry.getKey());
-                String guiName = entry.getValue().getString();
-                CommandSpec callable = CommandSpec.builder()
-                        .arguments(GenericArguments.playerOrSource(Text.of("player")))
-                        .description(translation.take("virtualchest.commandAlias.description", alias, guiName))
-                        .executor((src, args) -> this.processAliasCommand(guiName, src, args)).build();
-                insertMapping(alias, callable);
-            }
+            removeMapping(alias);
         }
-        catch (InvalidVirtualChestCommandAliasException e)
+        for (Map.Entry<Object, ? extends CommentedConfigurationNode> entry : node.getChildrenMap().entrySet())
         {
-            throw new IOException(e);
+            String alias = String.valueOf(entry.getKey());
+            String guiName = entry.getValue().getString();
+            insertMapping(alias, generateCallable(alias, guiName));
         }
     }
 
@@ -112,18 +124,5 @@ public class VirtualChestCommandAliases
     {
         node.setComment(node.getComment().orElse(this.translation
                 .take("virtualchest.config.commandAliases.comment").toPlain()));
-    }
-
-    public static class InvalidVirtualChestCommandAliasException extends InvalidDataException
-    {
-        public InvalidVirtualChestCommandAliasException()
-        {
-            super();
-        }
-
-        public InvalidVirtualChestCommandAliasException(String errorMessage)
-        {
-            super(errorMessage);
-        }
     }
 }
