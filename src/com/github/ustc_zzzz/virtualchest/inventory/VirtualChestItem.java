@@ -2,6 +2,7 @@ package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableList;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.data.*;
 import org.spongepowered.api.data.key.Keys;
@@ -14,6 +15,7 @@ import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.text.Text;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -27,6 +29,8 @@ public class VirtualChestItem
     public static final DataQuery KEEP_OPEN = DataQuery.of("KeepOpen");
     public static final DataQuery PRIMARY_ACTION = DataQuery.of("PrimaryAction");
     public static final DataQuery SECONDARY_ACTION = DataQuery.of("SecondaryAction");
+    public static final DataQuery REQUIRED_PERMISSIONS = DataQuery.of("RequiredPermissions");
+    public static final DataQuery REJECTED_PERMISSIONS = DataQuery.of("RejectedPermissions");
 
     private final VirtualChestPlugin plugin;
 
@@ -34,6 +38,8 @@ public class VirtualChestItem
     private final String primaryAction;
     private final String secondaryAction;
     private final boolean keepInventoryOpen;
+    private final List<String> requiredPermissions;
+    private final List<String> rejectedPermissions;
 
     public static DataContainer serialize(VirtualChestPlugin plugin, VirtualChestItem item) throws InvalidDataException
     {
@@ -46,25 +52,37 @@ public class VirtualChestItem
         {
             data.set(SECONDARY_ACTION, item.secondaryAction);
         }
+        if (!item.requiredPermissions.isEmpty())
+        {
+            data.set(REQUIRED_PERMISSIONS, item.requiredPermissions);
+        }
+        if (!item.rejectedPermissions.isEmpty())
+        {
+            data.set(REJECTED_PERMISSIONS, item.rejectedPermissions);
+        }
         return data;
     }
 
     public static VirtualChestItem deserialize(VirtualChestPlugin plugin, DataView data) throws InvalidDataException
     {
         return new VirtualChestItem(plugin, data.getView(ITEM).orElseThrow(() -> new InvalidDataException("Expected Item")),
-                data.getBoolean(KEEP_OPEN).orElse(Boolean.FALSE), data.getString(PRIMARY_ACTION).orElse(""),
-                data.getString(SECONDARY_ACTION).orElse(""));
+                data.getString(PRIMARY_ACTION).orElse(""), data.getString(SECONDARY_ACTION).orElse(""),
+                data.getBoolean(KEEP_OPEN).orElse(Boolean.FALSE),
+                data.getStringList(REQUIRED_PERMISSIONS).orElse(ImmutableList.of()),
+                data.getStringList(REJECTED_PERMISSIONS).orElse(ImmutableList.of()));
     }
 
-    private VirtualChestItem(VirtualChestPlugin plugin, DataView stack, boolean keeyOpen,
-                             String primaryAction, String secondaryAction)
+    private VirtualChestItem(VirtualChestPlugin plugin, DataView stack, String primaryAction, String secondaryAction,
+                             boolean keeyOpen, List<String> requiredPermissions, List<String> rejectedPermissions)
     {
         this.plugin = plugin;
 
         this.serializedStack = stack;
-        this.keepInventoryOpen = keeyOpen;
         this.primaryAction = primaryAction;
         this.secondaryAction = secondaryAction;
+        this.keepInventoryOpen = keeyOpen;
+        this.requiredPermissions = requiredPermissions;
+        this.rejectedPermissions = rejectedPermissions;
     }
 
     private void doAction(Player player, String actionCommand)
@@ -91,6 +109,20 @@ public class VirtualChestItem
         Optional<ItemStack> stackOptional = new VirtualChestItemStackBuilder(plugin, player).build(serializedStack);
         if (stackOptional.isPresent())
         {
+            for (String permission : this.requiredPermissions)
+            {
+                if (!player.hasPermission(permission))
+                {
+                    return false;
+                }
+            }
+            for (String permission : this.rejectedPermissions)
+            {
+                if (player.hasPermission(permission))
+                {
+                    return false;
+                }
+            }
             inventory.set(stackOptional.get());
             return true;
         }
@@ -115,9 +147,11 @@ public class VirtualChestItem
     {
         return Objects.toStringHelper(this)
                 .add("Item", this.serializedStack)
-                .add("KeepOpen", this.keepInventoryOpen)
                 .add("PrimaryAction", this.primaryAction)
                 .add("SecondaryAction", this.secondaryAction)
+                .add("KeepOpen", this.keepInventoryOpen)
+                .add("RequiredPermissions", this.requiredPermissions)
+                .add("RejectedPermissions", this.rejectedPermissions)
                 .toString();
     }
 
