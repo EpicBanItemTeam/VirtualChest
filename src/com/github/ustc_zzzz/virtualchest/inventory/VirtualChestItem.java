@@ -27,13 +27,6 @@ public class VirtualChestItem
     public static final DataQuery KEEP_OPEN = DataQuery.of("KeepOpen");
     public static final DataQuery PRIMARY_ACTION = DataQuery.of("PrimaryAction");
     public static final DataQuery SECONDARY_ACTION = DataQuery.of("SecondaryAction");
-    public static final DataQuery HIDE_ENCHANTMENTS = DataQuery.of("HideEnchantments");
-
-    public static final DataQuery LORE = Keys.ITEM_LORE.getQuery();
-    public static final DataQuery DISPLAY_NAME = Keys.DISPLAY_NAME.getQuery();
-    public static final DataQuery ENCHANTMENTS = Keys.ITEM_ENCHANTMENTS.getQuery();
-
-    private static final DataManager DATA_MANAGER = Sponge.getDataManager();
 
     private final VirtualChestPlugin plugin;
 
@@ -61,34 +54,6 @@ public class VirtualChestItem
         return new VirtualChestItem(plugin, data.getView(ITEM).orElseThrow(() -> new InvalidDataException("Expected Item")),
                 data.getBoolean(KEEP_OPEN).orElse(Boolean.FALSE), data.getString(PRIMARY_ACTION).orElse(""),
                 data.getString(SECONDARY_ACTION).orElse(""));
-    }
-
-    private static ItemEnchantment deserializeItemEnchantment(String e)
-    {
-        int colonFirstIndex = e.indexOf(':'), colonLastIndex = e.lastIndexOf(':');
-        int level = colonFirstIndex == colonLastIndex ? 1 : Integer.valueOf(e.substring(colonLastIndex + 1));
-        String enchantmentId = colonFirstIndex == colonLastIndex ? e : e.substring(0, colonLastIndex);
-        Optional<Enchantment> optional = Sponge.getRegistry().getType(Enchantment.class, enchantmentId);
-        Enchantment enchantment = optional.orElseThrow(() -> new InvalidDataException("Invalid enchantment"));
-        return new ItemEnchantment(enchantment, level);
-    }
-
-    private ItemStack deserializeItemStack(Player player)
-    {
-        ItemStack itemStack = DATA_MANAGER.deserialize(ItemStack.class, serializedStack).orElseThrow(InvalidDataException::new);
-        serializedStack.getStringList(LORE).ifPresent(l -> itemStack.offer(Keys.ITEM_LORE,
-                l.stream().map(getPlaceholderParser(player)).collect(Collectors.toList())));
-        serializedStack.getString(DISPLAY_NAME).ifPresent(d -> itemStack.offer(Keys.DISPLAY_NAME,
-                getPlaceholderParser(player).apply(d)));
-        serializedStack.getStringList(ENCHANTMENTS).ifPresent(e -> itemStack.offer(Keys.ITEM_ENCHANTMENTS,
-                e.stream().map(VirtualChestItem::deserializeItemEnchantment).collect(Collectors.toList())));
-        serializedStack.getBoolean(HIDE_ENCHANTMENTS).ifPresent(h -> itemStack.offer(Keys.HIDE_ENCHANTMENTS, h));
-        return itemStack;
-    }
-
-    private Function<String, Text> getPlaceholderParser(Player player)
-    {
-        return text -> this.plugin.getPlaceholderParser().parseItemText(player, text);
     }
 
     private VirtualChestItem(VirtualChestPlugin plugin, DataView stack, boolean keeyOpen,
@@ -121,9 +86,18 @@ public class VirtualChestItem
         return actionCommand;
     }
 
-    public void setInventory(Player player, Inventory inventory)
+    public boolean setInventory(Player player, Inventory inventory)
     {
-        inventory.set(deserializeItemStack(player));
+        Optional<ItemStack> stackOptional = new VirtualChestItemStackBuilder(plugin, player).build(serializedStack);
+        if (stackOptional.isPresent())
+        {
+            inventory.set(stackOptional.get());
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     public Action fireEvent(Player player, ClickInventoryEvent event)
