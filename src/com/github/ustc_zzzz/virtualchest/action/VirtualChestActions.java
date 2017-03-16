@@ -1,7 +1,6 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderParser;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.entity.living.player.Player;

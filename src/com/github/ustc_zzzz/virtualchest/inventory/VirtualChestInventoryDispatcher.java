@@ -2,7 +2,6 @@ package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.TypeToken;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
