@@ -112,11 +112,11 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
         }
         else
         {
-            this.plugin.onReload(() -> Cause.of(NamedCause.source(source)));
             if (args.getOne("extract-examples").isPresent())
             {
                 this.plugin.getDispatcher().releaseExample();
             }
+            this.plugin.onReload(() -> Cause.of(NamedCause.source(source)));
             return CommandResult.success();
         }
     }
