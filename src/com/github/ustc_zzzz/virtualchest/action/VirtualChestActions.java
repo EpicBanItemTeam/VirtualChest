@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.google.common.collect.ImmutableMap;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.entity.living.player.Player;
@@ -26,6 +27,8 @@ public final class VirtualChestActions
 
     private final VirtualChestPlugin plugin;
     private final Map<String, VirtualChestActionExecutor> executors = new HashMap<>();
+    private final Map<Player, LinkedList<Tuple<String, String>>> playersInAction = new WeakHashMap<>();
+    private final Map<Player, Callback> playerCallbacks = new WeakHashMap<>();
 
     public VirtualChestActions(VirtualChestPlugin plugin)
     {
@@ -44,6 +47,11 @@ public final class VirtualChestActions
     public void registerPrefix(String prefix, VirtualChestActionExecutor executor)
     {
         this.executors.put(prefix, executor);
+    }
+
+    public boolean isPlayerInAction(Player player)
+    {
+        return this.playersInAction.containsKey(player);
     }
 
     public void runCommand(Player player, String commandString)
@@ -67,7 +75,13 @@ public final class VirtualChestActions
                 return Tuple.of("", this.plugin.getPlaceholderParser().parseAction(player, command));
             }
         }).collect(Collectors.toCollection(LinkedList::new));
-        new Callback(player, commandList).accept(CommandResult.empty());
+        this.runCommand(new Callback(player, commandList));
+    }
+
+    private void runCommand(Callback callback)
+    {
+        Sponge.getScheduler().createTaskBuilder().name("VirtualChestItemActionCallback")
+                .delayTicks(1).execute(task -> callback.accept(CommandResult.empty())).submit(this.plugin);
     }
 
     private void process(Player player, String command, Consumer<CommandResult> callback)
@@ -170,27 +184,33 @@ public final class VirtualChestActions
     private class Callback implements Consumer<CommandResult>
     {
         private final WeakReference<Player> player;
-        private final LinkedList<Tuple<String, String>> commandList;
 
-        private Callback(Player player, LinkedList<Tuple<String, String>> commandList)
+        private Callback(Player p, LinkedList<Tuple<String, String>> commandList)
         {
-            this.player = new WeakReference<>(player);
-            this.commandList = commandList;
+            player = new WeakReference<>(p);
+            playersInAction.put(p, commandList);
+            playerCallbacks.put(p, this);
         }
 
         @Override
         public void accept(CommandResult commandResult)
         {
             Optional<Player> playerOptional = Optional.ofNullable(player.get());
-            if (!playerOptional.isPresent())
-            {
-                commandList.clear();
-            }
-            else if (!commandList.isEmpty())
+            if (playerOptional.isPresent())
             {
                 Player p = playerOptional.get();
-                Tuple<String, String> t = commandList.pop();
-                executors.get(t.getFirst()).doAction(p, t.getSecond(), this);
+                LinkedList<Tuple<String, String>> commandList = playersInAction.getOrDefault(p, new LinkedList<>());
+                if (commandList.isEmpty())
+                {
+                    playersInAction.remove(p);
+                    playerCallbacks.remove(p);
+                }
+                else
+                {
+                    Tuple<String, String> t = commandList.pop();
+                    Optional<Callback> callbackOptional = Optional.ofNullable(playerCallbacks.get(p));
+                    callbackOptional.ifPresent(c -> executors.get(t.getFirst()).doAction(p, t.getSecond(), c));
+                }
             }
         }
     }

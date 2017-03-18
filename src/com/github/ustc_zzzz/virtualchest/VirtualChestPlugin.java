@@ -6,6 +6,7 @@ import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommandAliases;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryTranslator;
+import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderParser;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.google.common.base.Charsets;
@@ -17,6 +18,7 @@ import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.command.CommandManager;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.config.DefaultConfig;
@@ -32,6 +34,8 @@ import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.event.item.inventory.InteractItemEvent;
 import org.spongepowered.api.plugin.Plugin;
+import org.spongepowered.api.service.ServiceManager;
+import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.channel.MessageChannel;
 import org.spongepowered.plugin.meta.version.ComparableVersion;
@@ -78,6 +82,8 @@ public class VirtualChestPlugin
     private VirtualChestInventoryDispatcher dispatcher;
 
     private VirtualChestPlaceholderParser placeholderParser;
+
+    private VirtualChestPermissionManager permissionManager;
 
     private boolean doCheckUpdate = true;
 
@@ -204,12 +210,26 @@ public class VirtualChestPlugin
         this.commandAliases = new VirtualChestCommandAliases(this);
         this.dispatcher = new VirtualChestInventoryDispatcher(this);
         this.placeholderParser = new VirtualChestPlaceholderParser(this);
+        this.permissionManager = new VirtualChestPermissionManager(this);
     }
 
     @Listener
     public void onStartingServer(GameStartedServerEvent event)
     {
-        Sponge.getCommandManager().register(this, this.virtualChestCommand.get(), "virtualchest", "vchest", "vc");
+        CommandManager commandManager = Sponge.getCommandManager();
+        commandManager.register(this, this.virtualChestCommand.get(), "virtualchest", "vchest", "vc");
+
+        ServiceManager serviceManager = Sponge.getServiceManager();
+        if (!serviceManager.provide(PermissionService.class).isPresent())
+        {
+            this.logger.warn("VirtualChest could not find the permission service. ");
+            this.logger.warn("Features related to permissions may not work normally.");
+        }
+        else
+        {
+            PermissionService permissionService = serviceManager.provideUnchecked(PermissionService.class);
+            permissionService.registerContextCalculator(this.permissionManager);
+        }
     }
 
     @Listener
@@ -262,4 +282,8 @@ public class VirtualChestPlugin
         return this.placeholderParser;
     }
 
+    public VirtualChestPermissionManager getPermissionManager()
+    {
+        return this.permissionManager;
+    }
 }
