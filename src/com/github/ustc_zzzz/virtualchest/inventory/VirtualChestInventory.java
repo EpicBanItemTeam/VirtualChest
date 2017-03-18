@@ -2,9 +2,8 @@ package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.*;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.Queries;
 import org.spongepowered.api.data.persistence.InvalidDataException;
@@ -12,7 +11,6 @@ import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.event.item.inventory.InteractInventoryEvent;
-import org.spongepowered.api.item.ItemType;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.InventoryArchetypes;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
@@ -24,10 +22,7 @@ import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 
-import java.util.Comparator;
-import java.util.Map;
-import java.util.Optional;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -41,74 +36,57 @@ public final class VirtualChestInventory
     public static final DataQuery UNSAFE_DAMAGE = DataQuery.of("UnsafeDamage");
     public static final DataQuery UPDATE_INTERVAL_TICK = DataQuery.of("UpdateIntervalTick");
     public static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
-    public static final DataQuery PRIMARY_ACTION = DataQuery.of("EnablePrimaryAction");
-    public static final DataQuery SECONDARY_ACTION = DataQuery.of("EnableSecondaryAction");
 
     private final VirtualChestPlugin plugin;
 
-    final Map<SlotPos, VirtualChestItem> items;
+    final Multimap<SlotPos, VirtualChestItem> items;
     final int height;
     final Text title;
-    final Optional<DataContainer> openItemPredicate;
-    final Optional<Integer> updateIntervalTick;
+    final VirtualChestTriggerItem triggerItem;
+    final int updateIntervalTick;
 
     VirtualChestInventory(
             VirtualChestPlugin plugin,
             Text title,
             int height,
-            Map<SlotPos, VirtualChestItem> items,
-            Optional<DataContainer> openItemPredicate,
-            Optional<Integer> updateIntervalTick)
+            Multimap<SlotPos, VirtualChestItem> items,
+            VirtualChestTriggerItem triggerItem,
+            int updateIntervalTick)
     {
         this.plugin = plugin;
         this.title = title;
         this.height = height;
-        this.items = ImmutableMap.copyOf(items);
-        this.openItemPredicate = openItemPredicate;
+        this.items = ImmutableMultimap.copyOf(items);
+        this.triggerItem = triggerItem;
         this.updateIntervalTick = updateIntervalTick;
-    }
-
-    private boolean matchItemForOpening(ItemStackSnapshot item)
-    {
-        if (openItemPredicate.isPresent())
-        {
-            DataContainer container = openItemPredicate.get();
-            ItemType itemType = item.getType();
-            Integer itemDamage = item.toContainer().getInt(UNSAFE_DAMAGE).get();
-            boolean matchItemType = container.getCatalogType(ITEM_TYPE, ItemType.class).filter(itemType::equals).isPresent();
-            boolean matchDamage = container.getInt(UNSAFE_DAMAGE).orElse(itemDamage).equals(itemDamage);
-            return matchItemType && matchDamage;
-        }
-        else
-        {
-            return false;
-        }
     }
 
     public boolean matchItemForOpeningWithPrimaryAction(ItemStackSnapshot item)
     {
-        return openItemPredicate.map(d -> matchItemForOpening(item) && d.getBoolean(PRIMARY_ACTION).orElse(true)).orElse(false);
+        return triggerItem.matchItemForOpeningWithPrimaryAction(item);
     }
 
     public boolean matchItemForOpeningWithSecondaryAction(ItemStackSnapshot item)
     {
-        return openItemPredicate.map(d -> matchItemForOpening(item) && d.getBoolean(SECONDARY_ACTION).orElse(true)).orElse(false);
+        return triggerItem.matchItemForOpeningWithSecondaryAction(item);
     }
 
     public Inventory createInventory(Player player)
     {
+        VirtualChestEventListener listener = new VirtualChestEventListener(player);
         Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
                 .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
                 // why is it 'NAM'?
                 .property(InventoryDimension.PROPERTY_NAM, new InventoryDimension(9, this.height))
-                .listener(InteractInventoryEvent.class, new VirtualChestEventListener(player)).build(this.plugin);
-        this.updateInventory(player, chestInventory);
+                .listener(InteractInventoryEvent.class, listener).build(this.plugin);
+        listener.refreshMappingFrom(chestInventory, this.updateInventory(player, chestInventory));
         return chestInventory;
     }
 
-    private void updateInventory(Player player, Inventory chestInventory)
+    private Map<SlotPos, VirtualChestItem> updateInventory(Player player, Inventory chestInventory)
     {
         int i = -1, j = 0;
+        ImmutableMap.Builder<SlotPos, VirtualChestItem> itemBuilder = ImmutableMap.builder();
         for (Slot slot : chestInventory.<Slot>slots())
         {
             if (++i >= 9)
@@ -116,8 +94,25 @@ public final class VirtualChestInventory
                 ++j;
                 i = 0;
             }
-            Optional.ofNullable(items.get(SlotPos.of(i, j))).ifPresent(item -> item.setInventory(player, slot));
+            SlotPos pos = SlotPos.of(i, j);
+            Collection<VirtualChestItem> items = Optional.ofNullable(this.items.get(pos)).orElseGet(ImmutableList::of);
+            setItemInInventory(player, items, slot).ifPresent(item -> itemBuilder.put(pos, item));
         }
+        return itemBuilder.build();
+    }
+
+    private Optional<VirtualChestItem> setItemInInventory(Player player, Collection<VirtualChestItem> items, Slot slot)
+    {
+        Optional<VirtualChestItem> result = Optional.empty();
+        for (VirtualChestItem item : items)
+        {
+            if (item.setInventory(player, slot))
+            {
+                result = Optional.of(item);
+                break;
+            }
+        }
+        return result;
     }
 
     public static String slotPosToKey(SlotPos slotPos) throws InvalidDataException
@@ -148,6 +143,7 @@ public final class VirtualChestInventory
 
     private class VirtualChestEventListener implements Consumer<InteractInventoryEvent>
     {
+        private final Comparator<Slot> slotComparator;
         private final Map<Slot, VirtualChestItem> slotToItem;
         private final Player player;
 
@@ -155,7 +151,8 @@ public final class VirtualChestInventory
 
         private VirtualChestEventListener(Player player)
         {
-            this.slotToItem = new TreeMap<>(Comparator.comparingInt(SpongeUnimplemented::getSlotOrdinal));
+            this.slotComparator = Comparator.comparingInt(SpongeUnimplemented::getSlotOrdinal);
+            this.slotToItem = new TreeMap<>(this.slotComparator);
             this.player = player;
         }
 
@@ -176,22 +173,30 @@ public final class VirtualChestInventory
             }
         }
 
-        private void fireOpenEvent(InteractInventoryEvent.Open e)
+        private void refreshMappingFrom(Inventory inventory, Map<SlotPos, VirtualChestItem> itemMap)
         {
+            this.slotToItem.clear();
             int i = -1, j = 0;
-            Inventory chestInventory = e.getTargetInventory().first();
-            for (Slot slot : chestInventory.<Slot>slots())
+            for (Slot slot : inventory.<Slot>slots())
             {
                 if (++i >= 9)
                 {
                     ++j;
                     i = 0;
                 }
-                Optional.ofNullable(items.get(SlotPos.of(i, j))).ifPresent(item -> slotToItem.put(slot, item));
+                Optional.ofNullable(itemMap.get(SlotPos.of(i, j))).ifPresent(item -> slotToItem.put(slot, item));
             }
-            updateIntervalTick.ifPresent(intervalTick -> autoUpdateTask = Optional.of(Sponge.getScheduler()
-                    .createTaskBuilder().intervalTicks(intervalTick)
-                    .execute(task -> updateInventory(player, chestInventory)).submit(plugin)));
+        }
+
+        private void fireOpenEvent(InteractInventoryEvent.Open e)
+        {
+            Inventory chestInventory = e.getTargetInventory().first();
+            if (updateIntervalTick > 0)
+            {
+                autoUpdateTask = Optional.of(Sponge.getScheduler().createTaskBuilder()
+                        .execute(task -> refreshMappingFrom(chestInventory, updateInventory(player, chestInventory)))
+                        .intervalTicks(updateIntervalTick).submit(plugin));
+            }
         }
 
         private void fireCloseEvent(InteractInventoryEvent.Close e)

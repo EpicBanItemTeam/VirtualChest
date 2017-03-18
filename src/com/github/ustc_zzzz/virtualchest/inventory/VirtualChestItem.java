@@ -103,9 +103,13 @@ public class VirtualChestItem
 
     public boolean setInventory(Player player, Inventory inventory)
     {
-        Optional<ItemStack> stackOptional = new VirtualChestItemStackBuilder(plugin, player).build(serializedStack);
-        if (stackOptional.isPresent())
+        try
         {
+            Optional<ItemStack> stackOptional = new VirtualChestItemStackBuilder(plugin, player).build(serializedStack);
+            if (!stackOptional.isPresent())
+            {
+                return false;
+            }
             for (String permission : this.requiredPermissions)
             {
                 if (!player.hasPermission(permission))
@@ -123,8 +127,9 @@ public class VirtualChestItem
             inventory.set(stackOptional.get());
             return true;
         }
-        else
+        catch (InvalidDataException e)
         {
+            this.plugin.getLogger().error("Find error when generating item at " + serializedStack.getName(), e);
             return false;
         }
     }
