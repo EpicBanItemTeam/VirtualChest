@@ -2,6 +2,7 @@ package com.github.ustc_zzzz.virtualchest.permission;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.google.common.collect.ImmutableSet;
+import org.slf4j.Logger;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.service.context.Context;
@@ -18,6 +19,7 @@ import java.util.*;
 public class VirtualChestPermissionManager implements ContextCalculator<Subject>
 {
     private final VirtualChestPlugin plugin;
+    private final Logger logger;
     private final Context contextInAction = new Context("virtualchest-action", "in-action");
     private final Context contextNotInAction = new Context("virtualchest-action", "not-in-action");
 
@@ -26,6 +28,7 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
     public VirtualChestPermissionManager(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
+        this.logger = plugin.getLogger();
     }
 
     public void setIgnoredPermissions(Player player, Collection<String> permissions)
@@ -37,6 +40,7 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
         ImmutableSet<String> newIgnoredPermissions = ImmutableSet.copyOf(permissions);
         newIgnoredPermissions.forEach(permission -> data.setPermission(contextSet, permission, Tristate.TRUE));
         this.playerIgnoredPermissions.put(player, newIgnoredPermissions);
+        this.logger.debug("Ignored permission(s) for player {}: {}", player.getName(), permissions);
     }
 
     @Override

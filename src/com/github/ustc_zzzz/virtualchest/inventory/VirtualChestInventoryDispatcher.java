@@ -61,6 +61,8 @@ public class VirtualChestInventoryDispatcher
 
     public Optional<Inventory> createInventory(String name, Player player)
     {
+        this.plugin.getLogger().debug("Player {} tries to " +
+                "create the chest GUI ({}) by a command", player.getName(), name);
         return getInventory(name).map(i -> i.createInventory(player));
     }
 

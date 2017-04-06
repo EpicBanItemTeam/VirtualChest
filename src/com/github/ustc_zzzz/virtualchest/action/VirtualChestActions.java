@@ -222,7 +222,12 @@ public final class VirtualChestActions
                 {
                     Tuple<String, String> t = commandList.pop();
                     Optional<Callback> callbackOptional = Optional.ofNullable(playerCallbacks.get(p));
-                    callbackOptional.ifPresent(c -> executors.get(t.getFirst()).doAction(p, t.getSecond(), c));
+                    callbackOptional.ifPresent(c ->
+                    {
+                        plugin.getLogger().debug("The chest GUI has put forward a request for action {}", t.getFirst());
+                        plugin.getLogger().debug("Player {}: {}", p.getName(), t.getSecond());
+                        executors.get(t.getFirst()).doAction(p, t.getSecond(), c);
+                    });
                 }
             }
         }

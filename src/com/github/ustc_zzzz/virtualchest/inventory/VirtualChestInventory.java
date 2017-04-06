@@ -78,7 +78,10 @@ public final class VirtualChestInventory
                 .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
                 // why is it 'NAM'?
                 .property(InventoryDimension.PROPERTY_NAM, new InventoryDimension(9, this.height))
-                .listener(InteractInventoryEvent.class, listener).build(this.plugin);
+                .listener(ClickInventoryEvent.class, listener::fireClickEvent)
+                .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
+                .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
+                .build(this.plugin);
         listener.refreshMappingFrom(chestInventory, this.updateInventory(player, chestInventory));
         return chestInventory;
     }
@@ -141,10 +144,11 @@ public final class VirtualChestInventory
         return SlotPos.of(Integer.valueOf(key.substring("Position-".length(), dashIndex)) - 1, Integer.valueOf(key.substring(dashIndex + 1)) - 1);
     }
 
-    private class VirtualChestEventListener implements Consumer<InteractInventoryEvent>
+    private class VirtualChestEventListener
     {
         private final Comparator<Slot> slotComparator;
         private final Map<Slot, VirtualChestItem> slotToItem;
+        private final Map<Slot, SlotPos> slotToSlotPos;
         private final Player player;
 
         private Optional<Task> autoUpdateTask = Optional.empty();
@@ -153,29 +157,14 @@ public final class VirtualChestInventory
         {
             this.slotComparator = Comparator.comparingInt(SpongeUnimplemented::getSlotOrdinal);
             this.slotToItem = new TreeMap<>(this.slotComparator);
+            this.slotToSlotPos = new TreeMap<>(this.slotComparator);
             this.player = player;
-        }
-
-        @Override
-        public void accept(InteractInventoryEvent event)
-        {
-            if (event instanceof ClickInventoryEvent)
-            {
-                fireClickEvent((ClickInventoryEvent) event);
-            }
-            else if (event instanceof InteractInventoryEvent.Open)
-            {
-                fireOpenEvent((InteractInventoryEvent.Open) event);
-            }
-            else if (event instanceof InteractInventoryEvent.Close)
-            {
-                fireCloseEvent((InteractInventoryEvent.Close) event);
-            }
         }
 
         private void refreshMappingFrom(Inventory inventory, Map<SlotPos, VirtualChestItem> itemMap)
         {
             this.slotToItem.clear();
+            this.slotToSlotPos.clear();
             int i = -1, j = 0;
             for (Slot slot : inventory.<Slot>slots())
             {
@@ -184,7 +173,12 @@ public final class VirtualChestInventory
                     ++j;
                     i = 0;
                 }
-                Optional.ofNullable(itemMap.get(SlotPos.of(i, j))).ifPresent(item -> slotToItem.put(slot, item));
+                SlotPos slotPos = SlotPos.of(i, j);
+                Optional.ofNullable(itemMap.get(slotPos)).ifPresent(item ->
+                {
+                    slotToItem.put(slot, item);
+                    slotToSlotPos.put(slot, slotPos);
+                });
             }
         }
 
@@ -197,12 +191,14 @@ public final class VirtualChestInventory
                         .execute(task -> refreshMappingFrom(chestInventory, updateInventory(player, chestInventory)))
                         .intervalTicks(updateIntervalTick).submit(plugin));
             }
+            plugin.getLogger().debug("Player {} opens the chest GUI", player.getName());
         }
 
         private void fireCloseEvent(InteractInventoryEvent.Close e)
         {
             autoUpdateTask.ifPresent(Task::cancel);
             autoUpdateTask = Optional.empty();
+            plugin.getLogger().debug("Player {} closes the chest GUI", player.getName());
         }
 
         private void fireClickEvent(ClickInventoryEvent e)
@@ -217,8 +213,11 @@ public final class VirtualChestInventory
                     e.setCancelled(true);
                     if (slotToItem.containsKey(slot))
                     {
+                        SlotPos slotPos = slotToSlotPos.get(slot);
                         VirtualChestItem virtualChestItem = slotToItem.get(slot);
-                        if (VirtualChestItem.Action.CLOSE_INVENTORY.equals(virtualChestItem.fireEvent(this.player, e)))
+                        plugin.getLogger().debug("Player {} tries to click the chest GUI at {}",
+                                player.getName(), slotPosToKey(slotPos));
+                        if (VirtualChestItem.Action.CLOSE_INVENTORY.equals(virtualChestItem.fireEvent(player, e)))
                         {
                             doCloseInventory = true;
                         }

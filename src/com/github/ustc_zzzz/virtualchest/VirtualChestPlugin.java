@@ -110,9 +110,10 @@ public class VirtualChestPlugin
                 }
             }
         }
-        catch (Exception ignored)
+        catch (Exception e)
         {
-            // do not bother offline users
+            // <strike>do not bother offline users</strike> maybe bother them is a better choice
+            this.logger.warn("Failed to check update", e);
         }
     }
 
@@ -150,6 +151,8 @@ public class VirtualChestPlugin
             {
                 if (player.hasPermission("virtualchest.open.self." + inventoryName))
                 {
+                    this.logger.debug("Player {} tries to " +
+                            "create the chest GUI ({}) by left clicking", player.getName(), inventoryName);
                     player.openInventory(inventory.createInventory(player), Cause.source(this).build());
                     event.setCancelled(true);
                     break;
@@ -168,6 +171,8 @@ public class VirtualChestPlugin
             {
                 if (player.hasPermission("virtualchest.open.self." + inventoryName))
                 {
+                    this.logger.debug("Player {} tries to " +
+                            "create the chest GUI ({}) by right clicking", player.getName(), inventoryName);
                     player.openInventory(inventory.createInventory(player), Cause.source(this).build());
                     event.setCancelled(true);
                     break;
