@@ -1,7 +1,6 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.google.common.collect.ImmutableMap;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.entity.living.player.Player;
@@ -39,9 +38,12 @@ public final class VirtualChestActions
         registerPrefix("broadcast", this::processBroadcast);
         registerPrefix("title", this::processTitle);
         registerPrefix("bigtitle", this::processBigtitle);
+        registerPrefix("subtitle", this::processSubtitle);
         registerPrefix("delay", this::processDelay);
 
         registerPrefix("", this::process);
+
+        TitleManager.enable(plugin);
     }
 
     public void registerPrefix(String prefix, VirtualChestActionExecutor executor)
@@ -110,7 +112,14 @@ public final class VirtualChestActions
     private void processBigtitle(Player player, String command, Consumer<CommandResult> callback)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
-        player.sendTitle(Title.of(text));
+        TitleManager.pushBigtitle(text, player);
+        callback.accept(CommandResult.success());
+    }
+
+    private void processSubtitle(Player player, String command, Consumer<CommandResult> callback)
+    {
+        Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
+        TitleManager.pushSubtitle(text, player);
         callback.accept(CommandResult.success());
     }
 
@@ -143,10 +152,10 @@ public final class VirtualChestActions
     {
         StringBuilder stringBuilder = new StringBuilder();
         List<String> commands = new LinkedList<>();
-        int i = 0, length = commandSequence.length();
+        int i = -1, length = commandSequence.length();
+        char c = SEQUENCE_SPLITTER;
         while (i < length)
         {
-            char c = commandSequence.charAt(i);
             if (c != SEQUENCE_SPLITTER)
             {
                 stringBuilder.append(c);
@@ -169,9 +178,13 @@ public final class VirtualChestActions
                 }
                 else
                 {
-                    stringBuilder.append(';');
+                    stringBuilder.append(SEQUENCE_SPLITTER);
                     ++i;
                 }
+            }
+            if (i < length)
+            {
+                c = commandSequence.charAt(i);
             }
         }
         if (stringBuilder.length() > 0)
@@ -211,6 +224,51 @@ public final class VirtualChestActions
                     Optional<Callback> callbackOptional = Optional.ofNullable(playerCallbacks.get(p));
                     callbackOptional.ifPresent(c -> executors.get(t.getFirst()).doAction(p, t.getSecond(), c));
                 }
+            }
+        }
+    }
+
+    private static class TitleManager
+    {
+        private static final Map<Player, Text> BIGTITLES = new WeakHashMap<>();
+        private static final Map<Player, Text> SUBTITLES = new WeakHashMap<>();
+
+        private static Optional<Task> task = Optional.empty();
+
+        private static void sendTitle(Task task)
+        {
+            Map<Player, Title.Builder> builderMap = new HashMap<>();
+            for (Map.Entry<Player, Text> entry : BIGTITLES.entrySet())
+            {
+                builderMap.compute(entry.getKey(), (player, builder) ->
+                        Optional.ofNullable(builder).orElse(Title.builder()).title(entry.getValue()));
+            }
+            BIGTITLES.clear();
+            for (Map.Entry<Player, Text> entry : SUBTITLES.entrySet())
+            {
+                builderMap.compute(entry.getKey(), (player, builder) ->
+                        Optional.ofNullable(builder).orElse(Title.builder()).subtitle(entry.getValue()));
+            }
+            SUBTITLES.clear();
+            builderMap.forEach((player, builder) -> player.sendTitle(builder.build()));
+        }
+
+        public static void pushBigtitle(Text title, Player player)
+        {
+            BIGTITLES.put(player, title);
+        }
+
+        public static void pushSubtitle(Text title, Player player)
+        {
+            SUBTITLES.put(player, title);
+        }
+
+        public static void enable(Object plugin)
+        {
+            if (!task.isPresent())
+            {
+                task = Optional.of(Sponge.getScheduler().createTaskBuilder().intervalTicks(1)
+                        .name("VirtualChestTitleManager").execute(TitleManager::sendTitle).submit(plugin));
             }
         }
     }
