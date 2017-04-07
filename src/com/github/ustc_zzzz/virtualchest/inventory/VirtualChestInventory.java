@@ -209,20 +209,16 @@ public final class VirtualChestInventory
             for (SlotTransaction slotTransaction : e.getTransactions())
             {
                 Slot slot = slotTransaction.getSlot();
-                Inventory parentInventory = slot.parent();
-                if (parentInventory.equals(e.getTargetInventory().first()))
+                if (SpongeUnimplemented.isSlotInInventory(slot, e.getTargetInventory()) && slotToItem.containsKey(slot))
                 {
                     e.setCancelled(true);
-                    if (slotToItem.containsKey(slot))
+                    SlotPos slotPos = slotToSlotPos.get(slot);
+                    VirtualChestItem virtualChestItem = slotToItem.get(slot);
+                    plugin.getLogger().debug("Player {} tries to " +
+                            "click the chest GUI at {}", player.getName(), slotPosToKey(slotPos));
+                    if (VirtualChestItem.Action.CLOSE_INVENTORY.equals(virtualChestItem.fireEvent(player, e)))
                     {
-                        SlotPos slotPos = slotToSlotPos.get(slot);
-                        VirtualChestItem virtualChestItem = slotToItem.get(slot);
-                        plugin.getLogger().debug("Player {} tries to click the chest GUI at {}",
-                                player.getName(), slotPosToKey(slotPos));
-                        if (VirtualChestItem.Action.CLOSE_INVENTORY.equals(virtualChestItem.fireEvent(player, e)))
-                        {
-                            doCloseInventory = true;
-                        }
+                        doCloseInventory = true;
                     }
                 }
             }

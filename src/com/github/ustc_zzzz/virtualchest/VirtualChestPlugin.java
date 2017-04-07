@@ -111,7 +111,7 @@ public class VirtualChestPlugin
         }
         catch (Exception e)
         {
-            // <strike>do not bother offline users</strike> maybe bother them is a better choice
+            // <strike>do not bother offline users</strike> maybe bothering them is a better choice
             this.logger.warn("Failed to check update", e);
         }
     }
