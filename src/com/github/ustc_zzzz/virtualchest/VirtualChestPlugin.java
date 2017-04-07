@@ -36,8 +36,7 @@ import org.spongepowered.api.event.item.inventory.InteractItemEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.service.ServiceManager;
 import org.spongepowered.api.service.permission.PermissionService;
-import org.spongepowered.api.text.Text;
-import org.spongepowered.api.text.channel.MessageChannel;
+import org.spongepowered.api.text.channel.MessageReceiver;
 import org.spongepowered.plugin.meta.version.ComparableVersion;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -186,12 +185,11 @@ public class VirtualChestPlugin
     {
         try
         {
-            CommandSource src = event.getCause().first(CommandSource.class).orElse(Sponge.getServer().getConsole());
-            MessageChannel channel = MessageChannel.combined(src.getMessageChannel(), MessageChannel.TO_CONSOLE);
-            channel.send(Text.of("Start reloading for VirtualChest ..."));
+            MessageReceiver src = event.getCause().first(CommandSource.class).orElse(Sponge.getServer().getConsole());
+            src.sendMessage(this.translation.take("virtualchest.reload.start"));
             this.loadConfig();
             this.saveConfig();
-            channel.send(Text.of("Reloading complete for VirtualChest."));
+            src.sendMessage(this.translation.take("virtualchest.reload.finish"));
         }
         catch (IOException e)
         {
