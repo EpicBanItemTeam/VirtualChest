@@ -9,12 +9,14 @@ import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.chat.ChatTypes;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.text.title.Title;
+import org.spongepowered.api.util.Tristate;
 import org.spongepowered.api.util.Tuple;
 
 import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author ustc_zzzz
@@ -58,7 +60,7 @@ public final class VirtualChestActions
 
     public void runCommand(Player player, String commandString)
     {
-        LinkedList<Tuple<String, String>> commandList = parseCommand(commandString).stream().map(command ->
+        LinkedList<Tuple<String, String>> commandList = parseCommand(commandString).stream().flatMap(command ->
         {
             int colonPos = command.indexOf(PREFIX_SPLITTER);
             String prefix = colonPos > 0 ? command.substring(0, colonPos) : "";
@@ -70,11 +72,15 @@ public final class VirtualChestActions
                     ++suffixPosition;
                 }
                 String suffix = command.substring(suffixPosition);
-                return Tuple.of(prefix, this.plugin.getPlaceholderParser().parseAction(player, suffix));
+                return Stream.of(Tuple.of(prefix, this.plugin.getPlaceholderParser().parseAction(player, suffix)));
+            }
+            else if (!command.isEmpty())
+            {
+                return Stream.of(Tuple.of("", this.plugin.getPlaceholderParser().parseAction(player, command)));
             }
             else
             {
-                return Tuple.of("", this.plugin.getPlaceholderParser().parseAction(player, command));
+                return Stream.empty();
             }
         }).collect(Collectors.toCollection(LinkedList::new));
         this.runCommand(new Callback(player, commandList));
@@ -152,45 +158,31 @@ public final class VirtualChestActions
     {
         StringBuilder stringBuilder = new StringBuilder();
         List<String> commands = new LinkedList<>();
-        int i = -1, length = commandSequence.length();
-        char c = SEQUENCE_SPLITTER;
-        while (i < length)
+        Tristate isCommandFinished = Tristate.TRUE;
+        for (char c : commandSequence.toCharArray())
         {
             if (c != SEQUENCE_SPLITTER)
             {
-                stringBuilder.append(c);
-                ++i;
-            }
-            else if (++i < length)
-            {
-                char next = commandSequence.charAt(i);
-                if (next != SEQUENCE_SPLITTER)
+                if (isCommandFinished == Tristate.UNDEFINED)
                 {
-                    while (i < length && Character.isWhitespace(commandSequence.charAt(i)))
-                    {
-                        ++i;
-                    }
-                    if (stringBuilder.length() > 0)
-                    {
-                        commands.add(stringBuilder.toString());
-                        stringBuilder.setLength(0);
-                    }
+                    commands.add(stringBuilder.toString());
+                    stringBuilder.setLength(0);
                 }
-                else
+                if (isCommandFinished != Tristate.FALSE && Character.isWhitespace(c))
                 {
-                    stringBuilder.append(SEQUENCE_SPLITTER);
-                    ++i;
+                    isCommandFinished = Tristate.TRUE;
+                    continue;
                 }
             }
-            if (i < length)
+            else if (isCommandFinished != Tristate.UNDEFINED)
             {
-                c = commandSequence.charAt(i);
+                isCommandFinished = Tristate.UNDEFINED;
+                continue;
             }
+            isCommandFinished = Tristate.FALSE;
+            stringBuilder.append(c);
         }
-        if (stringBuilder.length() > 0)
-        {
-            commands.add(stringBuilder.toString());
-        }
+        commands.add(stringBuilder.toString());
         return commands;
     }
 
