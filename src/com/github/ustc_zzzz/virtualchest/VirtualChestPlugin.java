@@ -33,6 +33,8 @@ import org.spongepowered.api.event.game.state.GamePostInitializationEvent;
 import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.event.item.inventory.InteractItemEvent;
+import org.spongepowered.api.network.ChannelBinding;
+import org.spongepowered.api.network.ChannelRegistrar;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.service.ServiceManager;
 import org.spongepowered.api.service.permission.PermissionService;
@@ -69,6 +71,8 @@ public class VirtualChestPlugin
     private ConfigurationLoader<CommentedConfigurationNode> config;
 
     private CommentedConfigurationNode rootConfigNode;
+
+    private ChannelBinding.RawDataChannel bungeeCordChannel;
 
     private VirtualChestTranslation translation;
 
@@ -233,6 +237,9 @@ public class VirtualChestPlugin
             PermissionService permissionService = serviceManager.provideUnchecked(PermissionService.class);
             permissionService.registerContextCalculator(this.permissionManager);
         }
+
+        ChannelRegistrar channelRegistrar = Sponge.getChannelRegistrar();
+        this.bungeeCordChannel = channelRegistrar.createRawChannel(this, "BungeeCord");
     }
 
     @Listener
@@ -263,6 +270,11 @@ public class VirtualChestPlugin
     public Path getConfigDir()
     {
         return this.configDir;
+    }
+
+    public ChannelBinding.RawDataChannel getBungeeCordChannel()
+    {
+        return this.bungeeCordChannel;
     }
 
     public VirtualChestTranslation getTranslation()

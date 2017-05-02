@@ -46,6 +46,7 @@ public final class VirtualChestActions
         registerPrefix("bigtitle", this::processBigtitle);
         registerPrefix("subtitle", this::processSubtitle);
         registerPrefix("delay", this::processDelay);
+        registerPrefix("connect", this::processConnect);
 
         registerPrefix("", this::process);
 
@@ -95,11 +96,20 @@ public final class VirtualChestActions
         callback.accept(Sponge.getCommandManager().process(player, command));
     }
 
+    private void processConnect(Player player, String command, Consumer<CommandResult> callback)
+    {
+        this.plugin.getBungeeCordChannel().sendTo(player, buf ->
+        {
+            buf.writeUTF("Connect");
+            buf.writeUTF(command.replaceFirst("\\s++$", ""));
+        });
+    }
+
     private void processDelay(Player player, String command, Consumer<CommandResult> callback)
     {
         try
         {
-            int delayTick = Integer.parseInt(command);
+            int delayTick = Integer.parseInt(command.replaceFirst("\\s++$", ""));
             if (delayTick <= 0)
             {
                 throw new NumberFormatException();
