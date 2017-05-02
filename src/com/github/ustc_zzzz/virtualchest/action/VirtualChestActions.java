@@ -4,6 +4,7 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.scheduler.SpongeExecutorService;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.chat.ChatTypes;
@@ -14,6 +15,7 @@ import org.spongepowered.api.util.Tuple;
 
 import java.lang.ref.WeakReference;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,10 +32,12 @@ public final class VirtualChestActions
     private final Map<String, VirtualChestActionExecutor> executors = new HashMap<>();
     private final Map<Player, LinkedList<Tuple<String, String>>> playersInAction = new WeakHashMap<>();
     private final Map<Player, Callback> playerCallbacks = new WeakHashMap<>();
+    private final SpongeExecutorService executorService;
 
     public VirtualChestActions(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
+        this.executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
         registerPrefix("console", this::processConsole);
         registerPrefix("tell", this::processTell);
@@ -83,13 +87,7 @@ public final class VirtualChestActions
                 return Stream.empty();
             }
         }).collect(Collectors.toCollection(LinkedList::new));
-        this.runCommand(new Callback(player, commandList));
-    }
-
-    private void runCommand(Callback callback)
-    {
-        Sponge.getScheduler().createTaskBuilder().name("VirtualChestItemActionCallback")
-                .delayTicks(1).execute(task -> callback.accept(CommandResult.empty())).submit(this.plugin);
+        this.executorService.submit(() -> new Callback(player, commandList).accept(CommandResult.empty()));
     }
 
     private void process(Player player, String command, Consumer<CommandResult> callback)
@@ -106,8 +104,8 @@ public final class VirtualChestActions
             {
                 throw new NumberFormatException();
             }
-            Consumer<Task> taskExecutor = task -> callback.accept(CommandResult.success());
-            Sponge.getScheduler().createTaskBuilder().delayTicks(delayTick).execute(taskExecutor).submit(this.plugin);
+            Runnable taskExecutor = () -> callback.accept(CommandResult.success());
+            this.executorService.schedule(taskExecutor, 50 * delayTick - 1, TimeUnit.MILLISECONDS);
         }
         catch (NumberFormatException e)
         {
