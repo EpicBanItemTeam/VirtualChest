@@ -40,7 +40,8 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
         ImmutableSet<String> newIgnoredPermissions = ImmutableSet.copyOf(permissions);
         newIgnoredPermissions.forEach(permission -> data.setPermission(contextSet, permission, Tristate.TRUE));
         this.playerIgnoredPermissions.put(player, newIgnoredPermissions);
-        this.logger.debug("Ignored permission(s) for player {}: {}", player.getName(), permissions);
+        this.logger.debug("Ignored permission(s) for player {}:", player.getName());
+        permissions.forEach(permission -> this.logger.debug("- {}", permission));
     }
 
     @Override
@@ -56,6 +57,10 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
                 if (this.plugin.getVirtualChestActions().isPlayerInAction(player))
                 {
                     accumulator.add(this.contextInAction);
+                    Map<String, Boolean> permissions = player
+                            .getTransientSubjectData().getPermissions(Collections.singleton(this.contextInAction));
+                    this.logger.debug("Ignored permission(s) for player {} (context):", player.getName());
+                    permissions.forEach((permission, state) -> this.logger.debug("- {} ({})", permission, state));
                 }
                 else
                 {
