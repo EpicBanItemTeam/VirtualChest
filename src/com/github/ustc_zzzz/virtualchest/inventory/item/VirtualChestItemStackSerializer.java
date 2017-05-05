@@ -1,4 +1,4 @@
-package com.github.ustc_zzzz.virtualchest.inventory;
+package com.github.ustc_zzzz.virtualchest.inventory.item;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderParser;
@@ -19,7 +19,6 @@ import org.spongepowered.api.data.DataTransactionResult;
 import org.spongepowered.api.data.DataView;
 import org.spongepowered.api.data.key.Key;
 import org.spongepowered.api.data.meta.ItemEnchantment;
-import org.spongepowered.api.data.persistence.DataBuilder;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.data.value.BaseValue;
 import org.spongepowered.api.entity.living.player.Player;
@@ -32,18 +31,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
  * @author ustc_zzzz
  */
 @NonnullByDefault
-public class VirtualChestItemStackBuilder implements DataBuilder<ItemStack>
+public class VirtualChestItemStackSerializer implements Function<DataView, ItemStack>
 {
+    private static final Set<DataQuery> EXCEPTIONS;
+    private static final TypeSerializer<ItemEnchantment> ITEM_ENCHANTMENT_SERIALIZER= new ItemEnchantmentSerializer();
+
     private static final DataManager DATA_MANAGER = Sponge.getDataManager();
     private static final Map<DataQuery, Key<?>> KEYS;
-    private static final Set<DataQuery> EXCEPTIONS;
-
-    private static final TypeSerializer<ItemEnchantment> ITEM_ENCHANTMENT_SERIALIZER = new ItemEnchantmentSerializer();
 
     static
     {
@@ -62,19 +62,17 @@ public class VirtualChestItemStackBuilder implements DataBuilder<ItemStack>
     }
 
     private final TypeSerializerCollection serializers;
-    private final ConfigurationOptions options;
     private final VirtualChestPlugin plugin;
 
-    public VirtualChestItemStackBuilder(VirtualChestPlugin plugin, Player player)
+    VirtualChestItemStackSerializer(VirtualChestPlugin plugin, Player player)
     {
         this.plugin = plugin;
         this.serializers = TypeSerializers.getDefaultSerializers().newChild()
                 .registerType(TypeToken.of(ItemEnchantment.class), ITEM_ENCHANTMENT_SERIALIZER)
                 .registerType(TypeToken.of(Text.class), new TextSerializer(player, plugin.getPlaceholderParser()));
-        this.options = ConfigurationOptions.defaults().setSerializers(this.serializers);
     }
 
-    private <T, U extends BaseValue<T>> void deserialize(
+    private <T, U extends BaseValue<T>> void deserializeForKeys(
             ConfigurationNode node, DataQuery dataQuery, BiConsumer<Key<U>, T> consumer) throws InvalidDataException
     {
         if (KEYS.containsKey(dataQuery))
@@ -99,18 +97,25 @@ public class VirtualChestItemStackBuilder implements DataBuilder<ItemStack>
         }
     }
 
-    @Override
-    public Optional<ItemStack> build(DataView view) throws InvalidDataException
+    private ConfigurationNode convertToConfigurationNode(DataView view)
     {
-        ItemStack itemStack = DATA_MANAGER.deserialize(ItemStack.class, view).orElseThrow(InvalidDataException::new);
-        ConfigurationNode node = SimpleConfigurationNode.root(this.options).setValue(view.getMap(DataQuery.of()).get());
+        ConfigurationOptions configurationOptions = ConfigurationOptions.defaults().setSerializers(this.serializers);
+        Map<?, ?> values = view.getMap(DataQuery.of()).orElseThrow(InvalidDataException::new);
+        return SimpleConfigurationNode.root(configurationOptions).setValue(values);
+    }
+
+    @Override
+    public ItemStack apply(DataView view) throws InvalidDataException
+    {
+        ItemStack stack = DATA_MANAGER.deserialize(ItemStack.class, view).orElseThrow(InvalidDataException::new);
+        ConfigurationNode node = convertToConfigurationNode(view);
         for (Map.Entry<Object, ? extends ConfigurationNode> entry : node.getChildrenMap().entrySet())
         {
             try
             {
-                this.deserialize(entry.getValue(), DataQuery.of(entry.getKey().toString()), (key, data) ->
+                this.deserializeForKeys(entry.getValue(), DataQuery.of(entry.getKey().toString()), (key, data) ->
                 {
-                    DataTransactionResult result = itemStack.offer(key, data);
+                    DataTransactionResult result = stack.offer(key, data);
                     if (!result.isSuccessful())
                     {
                         throw new InvalidDataException();
@@ -119,10 +124,11 @@ public class VirtualChestItemStackBuilder implements DataBuilder<ItemStack>
             }
             catch (InvalidDataException e)
             {
-                this.plugin.getLogger().warn("Cannot apply field '" + entry.getKey() + "' to the item, ignore it.", e);
+                this.plugin.getLogger()
+                        .warn("Cannot apply field '" + entry.getKey() + "' to the item, ignore it.", e);
             }
         }
-        return Optional.of(itemStack);
+        return stack;
     }
 
     private static final class TextSerializer implements TypeSerializer<Text>

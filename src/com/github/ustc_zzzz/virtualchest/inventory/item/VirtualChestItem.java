@@ -1,23 +1,16 @@
-package com.github.ustc_zzzz.virtualchest.inventory;
+package com.github.ustc_zzzz.virtualchest.inventory.item;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.data.DataContainer;
-import org.spongepowered.api.data.DataQuery;
-import org.spongepowered.api.data.DataView;
-import org.spongepowered.api.data.MemoryDataContainer;
+import org.spongepowered.api.data.*;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.item.inventory.Inventory;
-import org.spongepowered.api.item.inventory.ItemStack;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 
 /**
  * @author ustc_zzzz
@@ -44,28 +37,30 @@ public class VirtualChestItem
 
     public static DataContainer serialize(VirtualChestPlugin plugin, VirtualChestItem item) throws InvalidDataException
     {
-        DataContainer data = new MemoryDataContainer().set(ITEM, item.serializedStack).set(KEEP_OPEN, item.keepInventoryOpen);
+        DataContainer container = new MemoryDataContainer();
+        container.set(ITEM, item.serializedStack);
+        container.set(KEEP_OPEN, item.keepInventoryOpen);
         if (!item.primaryAction.isEmpty())
         {
-            data.set(PRIMARY_ACTION, item.primaryAction);
+            container.set(PRIMARY_ACTION, item.primaryAction);
         }
         if (!item.secondaryAction.isEmpty())
         {
-            data.set(SECONDARY_ACTION, item.secondaryAction);
+            container.set(SECONDARY_ACTION, item.secondaryAction);
         }
         if (!item.ignoredPermissions.isEmpty())
         {
-            data.set(IGNORED_PERMISSIONS, item.ignoredPermissions);
+            container.set(IGNORED_PERMISSIONS, item.ignoredPermissions);
         }
         if (!item.requiredPermissions.isEmpty())
         {
-            data.set(REQUIRED_PERMISSIONS, item.requiredPermissions);
+            container.set(REQUIRED_PERMISSIONS, item.requiredPermissions);
         }
         if (!item.rejectedPermissions.isEmpty())
         {
-            data.set(REJECTED_PERMISSIONS, item.rejectedPermissions);
+            container.set(REJECTED_PERMISSIONS, item.rejectedPermissions);
         }
-        return data;
+        return container;
     }
 
     public static VirtualChestItem deserialize(VirtualChestPlugin plugin, DataView data) throws InvalidDataException
@@ -123,28 +118,15 @@ public class VirtualChestItem
 
     public boolean setInventory(Player player, Inventory inventory)
     {
+        boolean allPermissionRequired = this.requiredPermissions.stream().allMatch(player::hasPermission);
+        boolean anyPermissionRejected = this.rejectedPermissions.stream().anyMatch(player::hasPermission);
+        if (!allPermissionRequired || anyPermissionRejected)
+        {
+            return false;
+        }
         try
         {
-            Optional<ItemStack> stackOptional = new VirtualChestItemStackBuilder(plugin, player).build(serializedStack);
-            if (!stackOptional.isPresent())
-            {
-                return false;
-            }
-            for (String permission : this.requiredPermissions)
-            {
-                if (!player.hasPermission(permission))
-                {
-                    return false;
-                }
-            }
-            for (String permission : this.rejectedPermissions)
-            {
-                if (player.hasPermission(permission))
-                {
-                    return false;
-                }
-            }
-            inventory.set(stackOptional.get());
+            inventory.set(new VirtualChestItemStackSerializer(plugin, player).apply(serializedStack));
             return true;
         }
         catch (InvalidDataException e)
@@ -181,4 +163,5 @@ public class VirtualChestItem
     {
         CLOSE_INVENTORY, KEEP_INVENTORY_OPEN
     }
+
 }

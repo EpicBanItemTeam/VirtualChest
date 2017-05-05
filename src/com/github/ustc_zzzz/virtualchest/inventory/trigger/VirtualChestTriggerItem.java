@@ -1,9 +1,7 @@
-package com.github.ustc_zzzz.virtualchest.inventory;
+package com.github.ustc_zzzz.virtualchest.inventory.trigger;
 
-import org.spongepowered.api.data.DataContainer;
-import org.spongepowered.api.data.DataQuery;
-import org.spongepowered.api.data.DataSerializable;
-import org.spongepowered.api.data.DataView;
+import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
+import org.spongepowered.api.data.*;
 import org.spongepowered.api.item.ItemType;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 
@@ -14,8 +12,8 @@ import java.util.function.Predicate;
  */
 public class VirtualChestTriggerItem implements DataSerializable
 {
-    public static final DataQuery ENABLE_PRIMARY_ACTION = DataQuery.of("EnablePrimaryAction");
-    public static final DataQuery ENABLE_SECONDARY_ACTION = DataQuery.of("EnableSecondaryAction");
+    private static final DataQuery ENABLE_PRIMARY_ACTION = DataQuery.of("EnablePrimaryAction");
+    private static final DataQuery ENABLE_SECONDARY_ACTION = DataQuery.of("EnableSecondaryAction");
 
     private final DataContainer container;
 
@@ -24,6 +22,17 @@ public class VirtualChestTriggerItem implements DataSerializable
 
     private final Predicate<ItemStackSnapshot> matchItemType;
     private final Predicate<ItemStackSnapshot> matchItemDamage;
+
+    public VirtualChestTriggerItem()
+    {
+        this.container = new MemoryDataContainer();
+
+        this.enablePrimary = false;
+        this.enableSecondary = false;
+
+        this.matchItemType = snapshot -> false;
+        this.matchItemDamage = snapshot -> false;
+    }
 
     public VirtualChestTriggerItem(DataView triggerItemConfiguration)
     {
@@ -38,12 +47,12 @@ public class VirtualChestTriggerItem implements DataSerializable
 
     public boolean matchItemForOpeningWithPrimaryAction(ItemStackSnapshot item)
     {
-        return this.matchItemType.and(this.matchItemDamage).test(item) && this.enablePrimary;
+        return this.enablePrimary && this.matchItemType.and(this.matchItemDamage).test(item);
     }
 
     public boolean matchItemForOpeningWithSecondaryAction(ItemStackSnapshot item)
     {
-        return this.matchItemType.and(this.matchItemDamage).test(item) && this.enableSecondary;
+        return this.enableSecondary && this.matchItemType.and(this.matchItemDamage).test(item);
     }
 
     private static boolean matchItemType(ItemStackSnapshot item, DataView container)
@@ -67,6 +76,6 @@ public class VirtualChestTriggerItem implements DataSerializable
     @Override
     public DataContainer toContainer()
     {
-        return this.container;
+        return this.container.copy();
     }
 }

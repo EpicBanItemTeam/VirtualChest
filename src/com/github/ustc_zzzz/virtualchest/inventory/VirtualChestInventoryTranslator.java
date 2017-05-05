@@ -1,8 +1,11 @@
 package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
+import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.reflect.TypeToken;
 import org.spongepowered.api.data.*;
 import org.spongepowered.api.data.persistence.DataTranslator;
@@ -10,7 +13,6 @@ import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
-import org.spongepowered.api.util.GuavaCollectors;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.*;
@@ -30,20 +32,63 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
         this.plugin = plugin;
     }
 
+    private Multimap<SlotPos, VirtualChestItem> translateItems(DataView view)
+    {
+        ImmutableMultimap.Builder<SlotPos, VirtualChestItem> itemsBuilder = ImmutableMultimap.builder();
+        for (DataQuery key : view.getKeys(false))
+        {
+            String keyString = key.toString();
+            if (keyString.startsWith(VirtualChestInventory.KEY_PREFIX))
+            {
+                SlotPos slotPos = VirtualChestInventory.keyToSlotPos(keyString);
+                for (DataView dataView : getViewListOrSingletonList(key, view))
+                {
+                    VirtualChestItem item = VirtualChestItem.deserialize(plugin, dataView);
+                    itemsBuilder.put(slotPos, item);
+                }
+            }
+        }
+        return itemsBuilder.build();
+    }
+
+    private VirtualChestTriggerItem translateTriggerItem(DataView view)
+    {
+        return view.getView(VirtualChestInventory.TRIGGER_ITEM)
+                .map(VirtualChestTriggerItem::new).orElseGet(VirtualChestTriggerItem::new);
+    }
+
+    private Integer translateUpdateIntervalTick(DataView view)
+    {
+        return view.getInt(VirtualChestInventory.UPDATE_INTERVAL_TICK).orElse(0);
+    }
+
+    private Integer translateHeight(DataView view)
+    {
+        return view.getInt(VirtualChestInventory.HEIGHT)
+                .orElseThrow(() -> new InvalidDataException("Expected height"));
+    }
+
+    private Text translateTitle(DataView view)
+    {
+        return view.getString(VirtualChestInventory.TITLE)
+                .map(TextSerializers.FORMATTING_CODE::deserialize)
+                .orElseThrow(() -> new InvalidDataException("Expected title"));
+    }
+
     private List<DataView> getViewListOrSingletonList(DataQuery key, DataView view)
     {
         Optional<List<?>> listOptional = view.getList(key);
-        if (listOptional.isPresent())
+        if (!listOptional.isPresent())
         {
-            // ignore invalid data
-            return listOptional.get().stream()
-                    .map(d -> new MemoryDataContainer(DataView.SafetyMode.NO_DATA_CLONED).set(key, d).getView(key))
-                    .filter(Optional::isPresent).map(Optional::get).collect(GuavaCollectors.toImmutableList());
+            return view.getView(key).map(Collections::singletonList).orElseGet(Collections::emptyList);
         }
-        else
+        ImmutableList.Builder<DataView> builder = ImmutableList.builder();
+        for (Object data : listOptional.get())
         {
-            return view.getView(key).map(Collections::singletonList).orElseGet(ImmutableList::of);
+            DataContainer container = new MemoryDataContainer(DataView.SafetyMode.NO_DATA_CLONED);
+            container.set(key, data).getView(key).ifPresent(builder::add);
         }
+        return builder.build();
     }
 
     @Override
@@ -55,56 +100,13 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
     @Override
     public VirtualChestInventory translate(DataView view) throws InvalidDataException
     {
-        Optional<Text> titleOptional = Optional.empty();
-        Optional<Integer> heightOptional = Optional.empty();
-        Optional<Integer> updateIntervalTickOptional = Optional.empty();
-        Optional<DataContainer> triggerItemOptional = Optional.empty();
-        ImmutableMultimap.Builder<SlotPos, VirtualChestItem> itemsBuilder = ImmutableMultimap.builder();
-        for (DataQuery key : view.getKeys(false))
-        {
-            if (VirtualChestInventory.TITLE.equals(key))
-            {
-                titleOptional = view.getString(VirtualChestInventory.TITLE).map(TextSerializers.FORMATTING_CODE::deserialize);
-                continue;
-            }
-            if (VirtualChestInventory.HEIGHT.equals(key))
-            {
-                heightOptional = view.getInt(VirtualChestInventory.HEIGHT);
-                continue;
-            }
-            if (VirtualChestInventory.UPDATE_INTERVAL_TICK.equals(key))
-            {
-                updateIntervalTickOptional = view.getInt(VirtualChestInventory.UPDATE_INTERVAL_TICK);
-                continue;
-            }
-            if (VirtualChestInventory.TRIGGER_ITEM.equals(key))
-            {
-                triggerItemOptional = view.getView(VirtualChestInventory.TRIGGER_ITEM).map(DataView::copy);
-                continue;
-            }
-            SlotPos slotPos;
-            try
-            {
-                slotPos = VirtualChestInventory.keyToSlotPos(key.toString());
-            }
-            catch (InvalidDataException ignored)
-            {
-                // invalid key, ignored
-                continue;
-            }
-            List<DataView> dataViews = getViewListOrSingletonList(key, view);
-            for (DataView dataView : dataViews)
-            {
-                VirtualChestItem item = VirtualChestItem.deserialize(plugin, dataView);
-                itemsBuilder.put(slotPos, item);
-            }
-        }
-        Text title = titleOptional.orElseThrow(() -> new InvalidDataException("Expected title"));
-        Integer height = heightOptional.orElseThrow(() -> new InvalidDataException("Expected height"));
-        ImmutableMultimap<SlotPos, VirtualChestItem> items = itemsBuilder.build();
-        VirtualChestTriggerItem triggerItem = new VirtualChestTriggerItem(triggerItemOptional.orElseGet(MemoryDataContainer::new));
-        int updateIntervalTick = updateIntervalTickOptional.orElse(0);
-        return new VirtualChestInventory(plugin, title, height, items, triggerItem, updateIntervalTick);
+        return new VirtualChestInventory(
+                plugin,
+                translateTitle(view),
+                translateHeight(view),
+                translateItems(view),
+                translateTriggerItem(view),
+                translateUpdateIntervalTick(view));
     }
 
     @Override

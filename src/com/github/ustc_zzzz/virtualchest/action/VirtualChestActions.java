@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.entity.living.player.Player;
@@ -103,6 +104,7 @@ public final class VirtualChestActions
             buf.writeUTF("Connect");
             buf.writeUTF(command.replaceFirst("\\s++$", ""));
         });
+        callback.accept(CommandResult.success());
     }
 
     private void processDelay(Player player, String command, Consumer<CommandResult> callback)
@@ -224,8 +226,10 @@ public final class VirtualChestActions
                     Optional<Callback> callbackOptional = Optional.ofNullable(playerCallbacks.get(p));
                     callbackOptional.ifPresent(c ->
                     {
-                        plugin.getLogger().debug("The chest GUI has put forward a request for action {}", t.getFirst());
-                        plugin.getLogger().debug("Player {}: {}", p.getName(), t.getSecond());
+                        Logger logger = plugin.getLogger();
+                        logger.debug("The chest GUI has put forward a request for player: {}", p.getName());
+                        String command = t.getFirst().isEmpty() ? t.getSecond() : t.getFirst() + ": " + t.getSecond();
+                        logger.debug("- {}", command);
                         executors.get(t.getFirst()).doAction(p, t.getSecond(), c);
                     });
                 }
@@ -238,7 +242,7 @@ public final class VirtualChestActions
         private static final Map<Player, Text> BIGTITLES = new WeakHashMap<>();
         private static final Map<Player, Text> SUBTITLES = new WeakHashMap<>();
 
-        private static Optional<Task> task = Optional.empty();
+        private static Task task;
 
         private static void sendTitle(Task task)
         {
@@ -246,35 +250,33 @@ public final class VirtualChestActions
             for (Map.Entry<Player, Text> entry : BIGTITLES.entrySet())
             {
                 builderMap.compute(entry.getKey(), (player, builder) ->
-                        Optional.ofNullable(builder).orElse(Title.builder()).title(entry.getValue()));
+                        Optional.ofNullable(builder).orElseGet(Title::builder).title(entry.getValue()));
             }
             BIGTITLES.clear();
             for (Map.Entry<Player, Text> entry : SUBTITLES.entrySet())
             {
                 builderMap.compute(entry.getKey(), (player, builder) ->
-                        Optional.ofNullable(builder).orElse(Title.builder()).subtitle(entry.getValue()));
+                        Optional.ofNullable(builder).orElseGet(Title::builder).subtitle(entry.getValue()));
             }
             SUBTITLES.clear();
             builderMap.forEach((player, builder) -> player.sendTitle(builder.build()));
         }
 
-        public static void pushBigtitle(Text title, Player player)
+        private static void pushBigtitle(Text title, Player player)
         {
             BIGTITLES.put(player, title);
         }
 
-        public static void pushSubtitle(Text title, Player player)
+        private static void pushSubtitle(Text title, Player player)
         {
             SUBTITLES.put(player, title);
         }
 
-        public static void enable(Object plugin)
+        private static void enable(Object plugin)
         {
-            if (!task.isPresent())
-            {
-                task = Optional.of(Sponge.getScheduler().createTaskBuilder().intervalTicks(1)
-                        .name("VirtualChestTitleManager").execute(TitleManager::sendTitle).submit(plugin));
-            }
+            Optional.ofNullable(task).ifPresent(Task::cancel);
+            Task.Builder builder = Sponge.getScheduler().createTaskBuilder().intervalTicks(1);
+            task = builder.name("VirtualChestTitleManager").execute(TitleManager::sendTitle).submit(plugin);
         }
     }
 }

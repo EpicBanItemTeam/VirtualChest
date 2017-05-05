@@ -1,6 +1,8 @@
 package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
+import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -38,6 +40,8 @@ public final class VirtualChestInventory
     public static final DataQuery UNSAFE_DAMAGE = DataQuery.of("UnsafeDamage");
     public static final DataQuery UPDATE_INTERVAL_TICK = DataQuery.of("UpdateIntervalTick");
     public static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
+
+    public static final String KEY_PREFIX = "Position-";
 
     private final VirtualChestPlugin plugin;
 
@@ -134,7 +138,7 @@ public final class VirtualChestInventory
     public static SlotPos keyToSlotPos(String key) throws InvalidDataException
     {
         // "2-3" will be converted to SlotPos(1, 2)
-        if (!key.startsWith("Position-"))
+        if (!key.startsWith(KEY_PREFIX))
         {
             throw new InvalidDataException("Invalid format of key representation (" + key + ")! It should starts with 'Position-', such as 'Position-1-1'.");
         }
@@ -143,7 +147,7 @@ public final class VirtualChestInventory
         {
             throw new InvalidDataException("Invalid key representation (" + key + ") for slot pos!");
         }
-        return SlotPos.of(Integer.valueOf(key.substring("Position-".length(), dashIndex)) - 1, Integer.valueOf(key.substring(dashIndex + 1)) - 1);
+        return SlotPos.of(Integer.valueOf(key.substring(KEY_PREFIX.length(), dashIndex)) - 1, Integer.valueOf(key.substring(dashIndex + 1)) - 1);
     }
 
     private class VirtualChestEventListener
