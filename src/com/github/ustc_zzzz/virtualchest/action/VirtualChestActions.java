@@ -42,6 +42,7 @@ public final class VirtualChestActions
 
         registerPrefix("console", this::processConsole);
         registerPrefix("tell", this::processTell);
+        registerPrefix("tellraw", this::processTellraw);
         registerPrefix("broadcast", this::processBroadcast);
         registerPrefix("title", this::processTitle);
         registerPrefix("bigtitle", this::processBigtitle);
@@ -150,6 +151,12 @@ public final class VirtualChestActions
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
         Sponge.getServer().getBroadcastChannel().send(text);
+        callback.accept(CommandResult.success());
+    }
+
+    private void processTellraw(Player player, String command, Consumer<CommandResult> callback)
+    {
+        player.sendMessage(TextSerializers.JSON.deserialize(command));
         callback.accept(CommandResult.success());
     }
 
