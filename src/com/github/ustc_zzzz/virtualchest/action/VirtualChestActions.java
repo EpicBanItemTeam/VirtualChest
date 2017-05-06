@@ -78,11 +78,11 @@ public final class VirtualChestActions
                     ++suffixPosition;
                 }
                 String suffix = command.substring(suffixPosition);
-                return Stream.of(Tuple.of(prefix, this.plugin.getPlaceholderParser().parseAction(player, suffix)));
+                return Stream.of(Tuple.of(prefix, this.plugin.getPlaceholderManager().parseAction(player, suffix)));
             }
             else if (!command.isEmpty())
             {
-                return Stream.of(Tuple.of("", this.plugin.getPlaceholderParser().parseAction(player, command)));
+                return Stream.of(Tuple.of("", this.plugin.getPlaceholderManager().parseAction(player, command)));
             }
             else
             {

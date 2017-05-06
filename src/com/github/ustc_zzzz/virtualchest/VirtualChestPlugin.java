@@ -7,7 +7,7 @@ import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryTranslator;
 import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
-import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderParser;
+import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -35,6 +35,7 @@ import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.event.item.inventory.InteractItemEvent;
 import org.spongepowered.api.network.ChannelBinding;
 import org.spongepowered.api.network.ChannelRegistrar;
+import org.spongepowered.api.plugin.Dependency;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.service.ServiceManager;
 import org.spongepowered.api.service.permission.PermissionService;
@@ -52,7 +53,8 @@ import java.util.Optional;
  * @author ustc_zzzz
  */
 @Plugin(id = VirtualChestPlugin.PLUGIN_ID, name = "VirtualChest", authors =
-        {"ustc_zzzz"}, version = VirtualChestPlugin.VERSION, description = VirtualChestPlugin.DESCRIPTION)
+        {"ustc_zzzz"}, dependencies = @Dependency(id = "placeholderapi", optional = true),
+        version = VirtualChestPlugin.VERSION, description = VirtualChestPlugin.DESCRIPTION)
 public class VirtualChestPlugin
 {
     public static final String PLUGIN_ID = "virtualchest";
@@ -84,9 +86,9 @@ public class VirtualChestPlugin
 
     private VirtualChestInventoryDispatcher dispatcher;
 
-    private VirtualChestPlaceholderParser placeholderParser;
-
     private VirtualChestPermissionManager permissionManager;
+
+    private VirtualChestPlaceholderManager placeholderManager;
 
     private boolean doCheckUpdate = true;
 
@@ -127,7 +129,7 @@ public class VirtualChestPlugin
 
         this.commandAliases.loadConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.loadConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
-        this.placeholderParser.loadConfig(root.getNode(PLUGIN_ID, "placeholders"));
+        this.placeholderManager.loadConfig(root.getNode(PLUGIN_ID, "placeholders"));
 
         this.rootConfigNode = root;
     }
@@ -139,7 +141,7 @@ public class VirtualChestPlugin
 
         this.commandAliases.saveConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.saveConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
-        this.placeholderParser.saveConfig(root.getNode(PLUGIN_ID, "placeholders"));
+        this.placeholderManager.saveConfig(root.getNode(PLUGIN_ID, "placeholders"));
 
         config.save(root);
     }
@@ -216,7 +218,7 @@ public class VirtualChestPlugin
         this.virtualChestCommand = new VirtualChestCommand(this);
         this.commandAliases = new VirtualChestCommandAliases(this);
         this.dispatcher = new VirtualChestInventoryDispatcher(this);
-        this.placeholderParser = new VirtualChestPlaceholderParser(this);
+        this.placeholderManager = new VirtualChestPlaceholderManager(this);
         this.permissionManager = new VirtualChestPermissionManager(this);
     }
 
@@ -292,13 +294,13 @@ public class VirtualChestPlugin
         return this.dispatcher;
     }
 
-    public VirtualChestPlaceholderParser getPlaceholderParser()
-    {
-        return this.placeholderParser;
-    }
-
     public VirtualChestPermissionManager getPermissionManager()
     {
         return this.permissionManager;
+    }
+
+    public VirtualChestPlaceholderManager getPlaceholderManager()
+    {
+        return this.placeholderManager;
     }
 }

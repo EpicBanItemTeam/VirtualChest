@@ -1,7 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.inventory.item;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderParser;
+import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.reflect.TypeToken;
@@ -69,7 +69,7 @@ public class VirtualChestItemStackSerializer implements Function<DataView, ItemS
         this.plugin = plugin;
         this.serializers = TypeSerializers.getDefaultSerializers().newChild()
                 .registerType(TypeToken.of(ItemEnchantment.class), ITEM_ENCHANTMENT_SERIALIZER)
-                .registerType(TypeToken.of(Text.class), new TextSerializer(player, plugin.getPlaceholderParser()));
+                .registerType(TypeToken.of(Text.class), new TextSerializer(player, plugin.getPlaceholderManager()));
     }
 
     private <T, U extends BaseValue<T>> void deserializeForKeys(
@@ -134,9 +134,9 @@ public class VirtualChestItemStackSerializer implements Function<DataView, ItemS
     private static final class TextSerializer implements TypeSerializer<Text>
     {
         private final Player player;
-        private final VirtualChestPlaceholderParser placeholderParser;
+        private final VirtualChestPlaceholderManager placeholderParser;
 
-        private TextSerializer(Player player, VirtualChestPlaceholderParser placeholderParser)
+        private TextSerializer(Player player, VirtualChestPlaceholderManager placeholderParser)
         {
             this.player = player;
             this.placeholderParser = placeholderParser;
