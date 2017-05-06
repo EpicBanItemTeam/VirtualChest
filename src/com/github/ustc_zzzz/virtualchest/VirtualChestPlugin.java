@@ -58,8 +58,12 @@ import java.util.Optional;
 public class VirtualChestPlugin
 {
     public static final String PLUGIN_ID = "virtualchest";
-    public static final String DESCRIPTION = "A plugin providing virtual chests";
+    public static final String DESCRIPTION = "A sponge plugin providing virtual chest GUIs for menus.";
     public static final String VERSION = "@version@";
+
+    public static final String API_URL = "https://api.github.com/repos/ustc-zzzz/VirtualChest/releases";
+    public static final String GITHUB_URL = "https://github.com/ustc-zzzz/VirtualChest";
+    public static final String WEBSITE_URL = "https://ore.spongepowered.org/zzzz/VirtualChest";
 
     @Inject
     private Logger logger;
@@ -96,7 +100,7 @@ public class VirtualChestPlugin
     {
         try
         {
-            URL url = new URL("https://api.github.com/repos/ustc-zzzz/VirtualChest/releases");
+            URL url = new URL(API_URL);
             HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             connection.getResponseCode();

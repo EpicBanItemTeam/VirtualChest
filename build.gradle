@@ -21,6 +21,20 @@ apply plugin: 'net.minecrell.vanilla.server.library'
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
 
+def getGitHash = {
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'rev-parse', '--short', 'HEAD'
+        standardOutput = stdout
+    }
+    return stdout.toString().trim()
+}
+
+def getReleaseDate = {
+    def format = new java.text.SimpleDateFormat("dd MMM yyyy")
+    return format.format(new Date())
+}
+
 repositories {
     mavenCentral()
     maven {
@@ -41,6 +55,8 @@ minecraft {
     mappings = 'snapshot_20161111'
 
     replace "@version@", project.version
+    replace "@git_hash@", getGitHash()
+    replace "@release_date@", getReleaseDate()
 }
 
 task apiJar(type: Jar, dependsOn: sourceJar) {

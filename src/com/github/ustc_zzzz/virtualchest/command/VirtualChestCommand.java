@@ -2,6 +2,7 @@ package com.github.ustc_zzzz.virtualchest.command;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.google.common.base.Throwables;
 import org.spongepowered.api.command.CommandCallable;
 import org.spongepowered.api.command.CommandException;
 import org.spongepowered.api.command.CommandResult;
@@ -14,8 +15,17 @@ import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.cause.NamedCause;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.text.action.TextActions;
+import org.spongepowered.api.text.format.TextColors;
+import org.spongepowered.api.text.format.TextStyles;
+import org.spongepowered.api.util.annotation.NonnullByDefault;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -23,14 +33,37 @@ import java.util.function.Supplier;
 /**
  * @author ustc_zzzz
  */
+@NonnullByDefault
 public class VirtualChestCommand implements Supplier<CommandCallable>
 {
+    private static final String GIT_COMMIT;
+    private static final Date RELEASE_DATE;
+
+    private static final String VERSION = VirtualChestPlugin.VERSION;
+    private static final String SUBTITLE = VirtualChestPlugin.DESCRIPTION;
+    private static final String GITHUB_URL = VirtualChestPlugin.GITHUB_URL;
+    private static final String WEBSITE_URL = VirtualChestPlugin.WEBSITE_URL;
+
+    static
+    {
+        try
+        {
+            GIT_COMMIT = "@git_hash@";
+            RELEASE_DATE = new SimpleDateFormat("dd MMM yyyy").parse("@release_date@");
+        }
+        catch (ParseException e)
+        {
+            throw Throwables.propagate(e);
+        }
+    }
+
     private final VirtualChestPlugin plugin;
     private final VirtualChestTranslation translation;
 
     private final CommandCallable reloadCommand;
     private final CommandCallable listCommand;
     private final CommandCallable openCommand;
+    private final CommandCallable versionCommand;
 
     public VirtualChestCommand(VirtualChestPlugin plugin)
     {
@@ -51,6 +84,44 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
                 .description(this.translation.take("virtualchest.open.description"))
                 .arguments(GenericArguments.string(Text.of("name")), GenericArguments.playerOrSource(Text.of("player")))
                 .executor(this::processOpenCommand).build();
+
+        this.versionCommand = CommandSpec.builder()
+                .description(this.translation.take("virtualchest.version.description"))
+                .arguments(GenericArguments.none())
+                .executor(this::processVersionCommand).build();
+    }
+
+    private CommandResult processVersionCommand(CommandSource source, CommandContext args) throws CommandException
+    {
+        source.sendMessage(Text.of("================================================================"));
+        source.sendMessage(this.translation.take("virtualchest.version.description.title", VERSION));
+        source.sendMessage(this.translation.take("virtualchest.version.description.subtitle", SUBTITLE));
+        source.sendMessage(Text.of("================================================================"));
+        try
+        {
+            source.sendMessage(this.translation
+                    .take("virtualchest.version.description.line1", RELEASE_DATE));
+            source.sendMessage(this.translation
+                    .take("virtualchest.version.description.line2", GIT_COMMIT));
+
+            Text urlWebsite = Text.builder(WEBSITE_URL)
+                    .color(TextColors.GREEN).style(TextStyles.BOLD)
+                    .onClick(TextActions.openUrl(new URL(WEBSITE_URL))).build();
+            Text urlGitHub = Text.builder(GITHUB_URL)
+                    .color(TextColors.GREEN).style(TextStyles.BOLD)
+                    .onClick(TextActions.openUrl(new URL(GITHUB_URL))).build();
+
+            source.sendMessage(Text.join(this.translation
+                    .take("virtualchest.version.description.line3", ""), urlWebsite));
+            source.sendMessage(Text.join(this.translation
+                    .take("virtualchest.version.description.line4", ""), urlGitHub));
+        }
+        catch (MalformedURLException e)
+        {
+            Throwables.propagate(e);
+        }
+        source.sendMessage(Text.of("================================================================"));
+        return CommandResult.success();
     }
 
     private CommandResult processOpenCommand(CommandSource source, CommandContext args) throws CommandException
@@ -142,6 +213,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
                 .child(this.reloadCommand, "reload", "r")
                 .child(this.listCommand, "list", "l")
                 .child(this.openCommand, "open", "o")
+                .child(this.versionCommand, "version", "v")
                 .build();
     }
 }
