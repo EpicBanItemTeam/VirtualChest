@@ -222,8 +222,8 @@ public class VirtualChestPlugin
         this.virtualChestCommand = new VirtualChestCommand(this);
         this.commandAliases = new VirtualChestCommandAliases(this);
         this.dispatcher = new VirtualChestInventoryDispatcher(this);
-        this.placeholderManager = new VirtualChestPlaceholderManager(this);
         this.permissionManager = new VirtualChestPermissionManager(this);
+        this.placeholderManager = new VirtualChestPlaceholderManager(this);
     }
 
     @Listener

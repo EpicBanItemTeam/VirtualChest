@@ -24,10 +24,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Collection;
-import java.util.Date;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Supplier;
 
 /**
@@ -36,26 +33,10 @@ import java.util.function.Supplier;
 @NonnullByDefault
 public class VirtualChestCommand implements Supplier<CommandCallable>
 {
-    private static final String GIT_COMMIT;
-    private static final Date RELEASE_DATE;
-
     private static final String VERSION = VirtualChestPlugin.VERSION;
     private static final String SUBTITLE = VirtualChestPlugin.DESCRIPTION;
     private static final String GITHUB_URL = VirtualChestPlugin.GITHUB_URL;
     private static final String WEBSITE_URL = VirtualChestPlugin.WEBSITE_URL;
-
-    static
-    {
-        try
-        {
-            GIT_COMMIT = "@git_hash@";
-            RELEASE_DATE = new SimpleDateFormat("dd MMM yyyy").parse("@release_date@");
-        }
-        catch (ParseException e)
-        {
-            throw Throwables.propagate(e);
-        }
-    }
 
     private final VirtualChestPlugin plugin;
     private final VirtualChestTranslation translation;
@@ -99,10 +80,14 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
         source.sendMessage(Text.of("================================================================"));
         try
         {
+            // RFC 3339
+            Date releaseDate = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).parse("@release_date@");
+            String gitCommitHash = "@git_hash@";
+
             source.sendMessage(this.translation
-                    .take("virtualchest.version.description.line1", RELEASE_DATE));
+                    .take("virtualchest.version.description.line1", releaseDate));
             source.sendMessage(this.translation
-                    .take("virtualchest.version.description.line2", GIT_COMMIT));
+                    .take("virtualchest.version.description.line2", gitCommitHash));
 
             Text urlWebsite = Text.builder(WEBSITE_URL)
                     .color(TextColors.GREEN).style(TextStyles.BOLD)
@@ -115,12 +100,13 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
                     .take("virtualchest.version.description.line3", ""), urlWebsite));
             source.sendMessage(Text.join(this.translation
                     .take("virtualchest.version.description.line4", ""), urlGitHub));
+
+            source.sendMessage(Text.of("================================================================"));
         }
-        catch (MalformedURLException e)
+        catch (MalformedURLException | ParseException e)
         {
             Throwables.propagate(e);
         }
-        source.sendMessage(Text.of("================================================================"));
         return CommandResult.success();
     }
 

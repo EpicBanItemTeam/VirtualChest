@@ -31,7 +31,7 @@ def getGitHash = {
 }
 
 def getReleaseDate = {
-    def format = new java.text.SimpleDateFormat("dd MMM yyyy")
+    def format = new java.text.SimpleDateFormat("yyyy-MM-dd") // RFC 3339
     return format.format(new Date())
 }
 
