@@ -1,6 +1,5 @@
 package com.github.ustc_zzzz.virtualchest.placeholder;
 
-import com.google.common.collect.Iterables;
 import me.rojo8399.placeholderapi.PlaceholderService;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.service.ServiceManager;
@@ -9,9 +8,11 @@ import org.spongepowered.api.text.TextRepresentable;
 import org.spongepowered.api.text.TextTemplate;
 import org.spongepowered.api.text.serializer.TextSerializer;
 import org.spongepowered.api.text.serializer.TextSerializers;
-import org.spongepowered.api.text.transform.TextFormatter;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
