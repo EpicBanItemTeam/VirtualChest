@@ -7,13 +7,10 @@ import com.google.common.reflect.TypeToken;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
 import ninja.leaping.configurate.objectmapping.ObjectMappingException;
+import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.asset.Asset;
 import org.spongepowered.api.asset.AssetManager;
-import org.spongepowered.api.data.DataContainer;
-import org.spongepowered.api.data.persistence.DataTranslator;
-import org.spongepowered.api.data.persistence.DataTranslators;
-import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.inventory.Inventory;
 
@@ -26,9 +23,9 @@ import java.util.*;
  */
 public class VirtualChestInventoryDispatcher
 {
+    private final Logger logger;
     private final VirtualChestPlugin plugin;
     private final VirtualChestTranslation translation;
-    private final DataTranslator<VirtualChestInventory> inventoryTranslator;
 
     private List<String> menuDirs = ImmutableList.of();
     private Map<String, VirtualChestInventory> inventories = new LinkedHashMap<>();
@@ -36,8 +33,8 @@ public class VirtualChestInventoryDispatcher
     public VirtualChestInventoryDispatcher(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
+        this.logger = plugin.getLogger();
         this.translation = plugin.getTranslation();
-        this.inventoryTranslator = Sponge.getDataManager().getTranslator(VirtualChestInventory.class).get();
     }
 
     public void updateInventories(Map<String, VirtualChestInventory> newInventories, boolean purgeOldOnes)
@@ -61,8 +58,7 @@ public class VirtualChestInventoryDispatcher
 
     public Optional<Inventory> createInventory(String name, Player player)
     {
-        this.plugin.getLogger().debug("Player {} tries to " +
-                "create the chest GUI ({}) by a command", player.getName(), name);
+        this.logger.debug("Player {} tries to create the chest GUI ({}) by a command", player.getName(), name);
         return getInventory(name).map(i -> i.createInventory(player));
     }
 
@@ -104,7 +100,7 @@ public class VirtualChestInventoryDispatcher
             }
             catch (IOException e)
             {
-                this.plugin.getLogger().warn("Cannot extract default chest GUI configurations", e);
+                this.logger.warn("Cannot extract default chest GUI configurations", e);
             }
         }
         return Collections.singletonList(defaultMenuDir);
@@ -120,20 +116,17 @@ public class VirtualChestInventoryDispatcher
                 String fileName = f.getName();
                 if (fileName.endsWith(".conf"))
                 {
-                    fileName = fileName.substring(0, fileName.lastIndexOf(".conf"));
+                    String chestName = fileName.substring(0, fileName.lastIndexOf(".conf"));
                     try
                     {
                         HoconConfigurationLoader loader = HoconConfigurationLoader.builder().setFile(f).build();
                         CommentedConfigurationNode menuRoot = loader.load().getNode(VirtualChestPlugin.PLUGIN_ID);
-                        DataContainer serializedMenu = DataTranslators.CONFIGURATION_NODE.translate(menuRoot);
-                        VirtualChestInventory inventory = inventoryTranslator.translate(serializedMenu);
-                        newInventories.put(fileName, inventory);
+                        newInventories.put(chestName, menuRoot.getValue(TypeToken.of(VirtualChestInventory.class)));
                     }
-                    catch (IOException | InvalidDataException e)
+                    catch (IOException | ObjectMappingException e)
                     {
-                        String error = "Find error when reading the file (" + fileName + "). "
-                                + "Don't worry, we will skip this one and continue to read others";
-                        this.plugin.getLogger().warn(error, e);
+                        this.logger.warn("Find error when reading a file (" + f.getAbsolutePath() +
+                                "). Don't worry, we will skip this one and continue to read others", e);
                     }
                 }
             }
