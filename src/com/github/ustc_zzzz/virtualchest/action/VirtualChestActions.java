@@ -17,6 +17,7 @@ import org.spongepowered.api.util.Tristate;
 import org.spongepowered.api.util.Tuple;
 
 import java.lang.ref.WeakReference;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -53,6 +54,7 @@ public final class VirtualChestActions
         registerPrefix("subtitle", this::processSubtitle);
         registerPrefix("delay", this::processDelay);
         registerPrefix("connect", this::processConnect);
+        registerPrefix("cost", this::processCost);
 
         registerPrefix("", this::process);
 
@@ -106,6 +108,15 @@ public final class VirtualChestActions
     private void process(Player player, String command, Consumer<CommandResult> callback)
     {
         callback.accept(Sponge.getCommandManager().process(player, command));
+    }
+
+    private void processCost(Player player, String command, Consumer<CommandResult> callback)
+    {
+        int index = command.lastIndexOf(':');
+        String currencyName = index < 0 ? "" : command.substring(0, index).toLowerCase();
+        BigDecimal cost = new BigDecimal(command.substring(index + 1).replaceFirst("\\s++$", ""));
+        boolean result = this.plugin.getEconomyManager().withdrawBalance(currencyName, player, cost, false);
+        callback.accept(result ? CommandResult.success() : CommandResult.empty());
     }
 
     private void processConnect(Player player, String command, Consumer<CommandResult> callback)
