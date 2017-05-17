@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.network.ChannelBinding;
+import org.spongepowered.api.network.ChannelRegistrar;
 import org.spongepowered.api.scheduler.SpongeExecutorService;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
@@ -35,6 +37,8 @@ public final class VirtualChestActions
     private final Map<Player, Callback> playerCallbacks = new WeakHashMap<>();
     private final SpongeExecutorService executorService;
 
+    private ChannelBinding.RawDataChannel bungeeCordChannel;
+
     public VirtualChestActions(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
@@ -53,6 +57,12 @@ public final class VirtualChestActions
         registerPrefix("", this::process);
 
         TitleManager.enable(plugin);
+    }
+
+    public void init()
+    {
+        ChannelRegistrar channelRegistrar = Sponge.getChannelRegistrar();
+        this.bungeeCordChannel = channelRegistrar.createRawChannel(this.plugin, "BungeeCord");
     }
 
     public void registerPrefix(String prefix, VirtualChestActionExecutor executor)
@@ -100,7 +110,7 @@ public final class VirtualChestActions
 
     private void processConnect(Player player, String command, Consumer<CommandResult> callback)
     {
-        this.plugin.getBungeeCordChannel().sendTo(player, buf ->
+        this.bungeeCordChannel.sendTo(player, buf ->
         {
             buf.writeUTF("Connect");
             buf.writeUTF(command.replaceFirst("\\s++$", ""));

@@ -3,6 +3,7 @@ package com.github.ustc_zzzz.virtualchest;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActions;
 import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommand;
 import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommandAliases;
+import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryTranslator;
@@ -18,7 +19,6 @@ import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.command.CommandManager;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.config.DefaultConfig;
@@ -33,12 +33,8 @@ import org.spongepowered.api.event.game.state.GamePostInitializationEvent;
 import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.event.item.inventory.InteractItemEvent;
-import org.spongepowered.api.network.ChannelBinding;
-import org.spongepowered.api.network.ChannelRegistrar;
 import org.spongepowered.api.plugin.Dependency;
 import org.spongepowered.api.plugin.Plugin;
-import org.spongepowered.api.service.ServiceManager;
-import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.text.channel.MessageReceiver;
 import org.spongepowered.plugin.meta.version.ComparableVersion;
 
@@ -78,8 +74,6 @@ public class VirtualChestPlugin
 
     private CommentedConfigurationNode rootConfigNode;
 
-    private ChannelBinding.RawDataChannel bungeeCordChannel;
-
     private VirtualChestTranslation translation;
 
     private VirtualChestActions virtualChestActions;
@@ -87,6 +81,8 @@ public class VirtualChestPlugin
     private VirtualChestCommand virtualChestCommand;
 
     private VirtualChestCommandAliases commandAliases;
+
+    private VirtualChestEconomyManager economyManager;
 
     private VirtualChestInventoryDispatcher dispatcher;
 
@@ -221,6 +217,7 @@ public class VirtualChestPlugin
         this.virtualChestActions = new VirtualChestActions(this);
         this.virtualChestCommand = new VirtualChestCommand(this);
         this.commandAliases = new VirtualChestCommandAliases(this);
+        this.economyManager = new VirtualChestEconomyManager(this);
         this.dispatcher = new VirtualChestInventoryDispatcher(this);
         this.permissionManager = new VirtualChestPermissionManager(this);
         this.placeholderManager = new VirtualChestPlaceholderManager(this);
@@ -229,23 +226,10 @@ public class VirtualChestPlugin
     @Listener
     public void onStartingServer(GameStartedServerEvent event)
     {
-        CommandManager commandManager = Sponge.getCommandManager();
-        commandManager.register(this, this.virtualChestCommand.get(), "virtualchest", "vchest", "vc");
-
-        ServiceManager serviceManager = Sponge.getServiceManager();
-        if (!serviceManager.provide(PermissionService.class).isPresent())
-        {
-            this.logger.warn("VirtualChest could not find the permission service. ");
-            this.logger.warn("Features related to permissions may not work normally.");
-        }
-        else
-        {
-            PermissionService permissionService = serviceManager.provideUnchecked(PermissionService.class);
-            permissionService.registerContextCalculator(this.permissionManager);
-        }
-
-        ChannelRegistrar channelRegistrar = Sponge.getChannelRegistrar();
-        this.bungeeCordChannel = channelRegistrar.createRawChannel(this, "BungeeCord");
+        this.virtualChestCommand.init();
+        this.economyManager.init();
+        this.permissionManager.init();
+        this.virtualChestActions.init();
     }
 
     @Listener
@@ -278,11 +262,6 @@ public class VirtualChestPlugin
         return this.configDir;
     }
 
-    public ChannelBinding.RawDataChannel getBungeeCordChannel()
-    {
-        return this.bungeeCordChannel;
-    }
-
     public VirtualChestTranslation getTranslation()
     {
         return this.translation;
@@ -291,6 +270,11 @@ public class VirtualChestPlugin
     public VirtualChestActions getVirtualChestActions()
     {
         return this.virtualChestActions;
+    }
+
+    public VirtualChestEconomyManager getEconomyManager()
+    {
+        return this.economyManager;
     }
 
     public VirtualChestInventoryDispatcher getDispatcher()

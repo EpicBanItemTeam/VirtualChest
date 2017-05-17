@@ -3,10 +3,8 @@ package com.github.ustc_zzzz.virtualchest.command;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.google.common.base.Throwables;
-import org.spongepowered.api.command.CommandCallable;
-import org.spongepowered.api.command.CommandException;
-import org.spongepowered.api.command.CommandResult;
-import org.spongepowered.api.command.CommandSource;
+import org.spongepowered.api.Sponge;
+import org.spongepowered.api.command.*;
 import org.spongepowered.api.command.args.CommandContext;
 import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
@@ -70,6 +68,12 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
                 .description(this.translation.take("virtualchest.version.description"))
                 .arguments(GenericArguments.none())
                 .executor(this::processVersionCommand).build();
+    }
+
+    public void init()
+    {
+        CommandManager commandManager = Sponge.getCommandManager();
+        commandManager.register(this.plugin, this.get(), "virtualchest", "vchest", "vc");
     }
 
     private CommandResult processVersionCommand(CommandSource source, CommandContext args) throws CommandException

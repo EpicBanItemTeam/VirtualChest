@@ -1,12 +1,15 @@
 package com.github.ustc_zzzz.virtualchest.permission;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
+import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.service.context.Context;
 import org.spongepowered.api.service.context.ContextCalculator;
+import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.service.permission.Subject;
 import org.spongepowered.api.service.permission.SubjectData;
 import org.spongepowered.api.util.Tristate;
@@ -29,6 +32,20 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
+    }
+
+    public void init()
+    {
+        PermissionService permissionService = Sponge.getServiceManager().provideUnchecked(PermissionService.class);
+        if (SpongeUnimplemented.isPermissionServiceProvidedBySponge(permissionService))
+        {
+            this.logger.warn("VirtualChest could not find the permission service. ");
+            this.logger.warn("Features related to permissions may not work normally.");
+        }
+        else
+        {
+            permissionService.registerContextCalculator(this);
+        }
     }
 
     public void setIgnoredPermissions(Player player, Collection<String> permissions)

@@ -3,6 +3,7 @@ package com.github.ustc_zzzz.virtualchest.unsafe;
 import com.google.common.base.Throwables;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.Slot;
+import org.spongepowered.api.service.permission.PermissionService;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -40,6 +41,11 @@ public class SpongeUnimplemented
         {
             throw new UnsupportedOperationException(throwable);
         }
+    }
+
+    public static boolean isPermissionServiceProvidedBySponge(PermissionService permissionService)
+    {
+        return permissionService.getClass().getName().startsWith("org.spongepowered");
     }
 
     static
