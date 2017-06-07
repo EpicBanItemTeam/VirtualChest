@@ -11,8 +11,6 @@ import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.asset.Asset;
 import org.spongepowered.api.asset.AssetManager;
-import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.item.inventory.Inventory;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,12 +52,6 @@ public class VirtualChestInventoryDispatcher
     public Optional<VirtualChestInventory> getInventory(String inventoryName)
     {
         return Optional.ofNullable(inventories.get(inventoryName));
-    }
-
-    public Optional<Inventory> createInventory(String name, Player player)
-    {
-        this.logger.debug("Player {} tries to create the chest GUI ({}) by a command", player.getName(), name);
-        return getInventory(name).map(i -> i.createInventory(player));
     }
 
     public void loadConfig(CommentedConfigurationNode node) throws IOException

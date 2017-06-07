@@ -1,17 +1,19 @@
 package com.github.ustc_zzzz.virtualchest.command;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.google.common.base.Throwables;
+import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.*;
 import org.spongepowered.api.command.args.CommandContext;
 import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
+import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.cause.NamedCause;
-import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.action.TextActions;
 import org.spongepowered.api.text.format.TextColors;
@@ -36,6 +38,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
     private static final String GITHUB_URL = VirtualChestPlugin.GITHUB_URL;
     private static final String WEBSITE_URL = VirtualChestPlugin.WEBSITE_URL;
 
+    private final Logger logger;
     private final VirtualChestPlugin plugin;
     private final VirtualChestTranslation translation;
 
@@ -47,6 +50,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
     public VirtualChestCommand(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
+        this.logger = plugin.getLogger();
         this.translation = plugin.getTranslation();
 
         this.reloadCommand = CommandSpec.builder()
@@ -184,10 +188,18 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
 
     private void openInventory(String name, Player player) throws CommandException
     {
-        Optional<Inventory> inventoryOptional = plugin.getDispatcher().createInventory(name, player);
+        this.logger.debug("Player {} tries to create the GUI ({}) by a command", player.getName(), name);
+        Optional<VirtualChestInventory> inventoryOptional = plugin.getDispatcher().getInventory(name);
         if (inventoryOptional.isPresent())
         {
-            player.openInventory(inventoryOptional.get(), Cause.source(plugin).build());
+            try
+            {
+                player.openInventory(inventoryOptional.get().createInventory(player), Cause.source(plugin).build());
+            }
+            catch (InvalidDataException e)
+            {
+                this.logger.error("There is something wrong with the GUI configuration (" + name + ")", e);
+            }
         }
         else
         {

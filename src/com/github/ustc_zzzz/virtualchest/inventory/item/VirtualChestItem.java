@@ -1,10 +1,12 @@
 package com.github.ustc_zzzz.virtualchest.inventory.item;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.google.common.base.Objects;
+import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
+import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
@@ -14,6 +16,7 @@ import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.item.inventory.Inventory;
+import org.spongepowered.api.item.inventory.property.SlotPos;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -42,6 +45,7 @@ public class VirtualChestItem
     private final List<String> ignoredPermissions;
     private final List<String> requiredPermissions;
     private final List<String> rejectedPermissions;
+    private final Logger logger;
 
     public static DataContainer serialize(VirtualChestPlugin plugin, VirtualChestItem item) throws InvalidDataException
     {
@@ -109,6 +113,7 @@ public class VirtualChestItem
             List<String> rejectedPermissions)
     {
         this.plugin = plugin;
+        this.logger = plugin.getLogger();
 
         this.serializedStack = stack;
         this.primaryAction = primaryAction;
@@ -140,13 +145,9 @@ public class VirtualChestItem
         return actionCommand;
     }
 
-    public boolean setInventory(Player player, Inventory inventory)
+    public boolean setInventory(Player player, Inventory inventory, SlotPos pos)
     {
-        boolean allCostPossessed = this.requiredBalances.entries().stream().allMatch(entry -> this.plugin
-                .getEconomyManager().withdrawBalance(entry.getKey(), player, entry.getValue(), true));
-        boolean allPermissionRequired = this.requiredPermissions.stream().allMatch(player::hasPermission);
-        boolean anyPermissionRejected = this.rejectedPermissions.stream().anyMatch(player::hasPermission);
-        if (!allCostPossessed || !allPermissionRequired || anyPermissionRejected)
+        if (!hasAllCostPossessed(player) || !hasAllPermissionRequired(player) || !hasNoPermissionRejected(player))
         {
             return false;
         }
@@ -157,9 +158,25 @@ public class VirtualChestItem
         }
         catch (InvalidDataException e)
         {
-            this.plugin.getLogger().error("Find error when generating item at " + serializedStack.getName(), e);
-            return false;
+            String posString = VirtualChestInventory.slotPosToKey(pos);
+            throw new InvalidDataException("Find error when generating item at " + posString, e);
         }
+    }
+
+    private boolean hasNoPermissionRejected(Player player)
+    {
+        return this.rejectedPermissions.stream().noneMatch(player::hasPermission);
+    }
+
+    private boolean hasAllPermissionRequired(Player player)
+    {
+        return this.requiredPermissions.stream().allMatch(player::hasPermission);
+    }
+
+    private boolean hasAllCostPossessed(Player player)
+    {
+        return this.requiredBalances.entries().stream().allMatch(entry -> this.plugin
+                .getEconomyManager().withdrawBalance(entry.getKey(), player, entry.getValue(), true));
     }
 
     public Action fireEvent(Player player, ClickInventoryEvent event)
@@ -175,7 +192,7 @@ public class VirtualChestItem
 
     public String toString()
     {
-        return Objects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this)
                 .add("Item", this.serializedStack)
                 .add("PrimaryAction", this.primaryAction)
                 .add("SecondaryAction", this.secondaryAction)

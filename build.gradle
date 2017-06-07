@@ -47,7 +47,7 @@ repositories {
     }
 }
 
-version = '0.3.6'
+version = '0.3.7'
 archivesBaseName = "VirtualChest"
 
 minecraft {

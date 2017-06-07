@@ -23,6 +23,7 @@ import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.config.DefaultConfig;
 import org.spongepowered.api.data.DataManager;
+import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
@@ -149,6 +150,8 @@ public class VirtualChestPlugin
     @Listener(order = Order.EARLY)
     public void onInteractItemPrimary(InteractItemEvent.Primary event, @First Player player)
     {
+        String name = "";
+        Optional<VirtualChestInventory> inventoryOptional = Optional.empty();
         for (String inventoryName : this.dispatcher.listInventories())
         {
             VirtualChestInventory inventory = this.dispatcher.getInventory(inventoryName).get();
@@ -156,12 +159,23 @@ public class VirtualChestPlugin
             {
                 if (player.hasPermission("virtualchest.open.self." + inventoryName))
                 {
-                    this.logger.debug("Player {} tries to " +
-                            "create the chest GUI ({}) by left clicking", player.getName(), inventoryName);
-                    player.openInventory(inventory.createInventory(player), Cause.source(this).build());
+                    name = inventoryName;
+                    inventoryOptional = Optional.of(inventory);
                     event.setCancelled(true);
                     break;
                 }
+            }
+        }
+        if (inventoryOptional.isPresent())
+        {
+            try
+            {
+                this.logger.debug("Player {} tries to create the GUI ({}) by primary action", player.getName(), name);
+                player.openInventory(inventoryOptional.get().createInventory(player), Cause.source(this).build());
+            }
+            catch (InvalidDataException e)
+            {
+                this.logger.error("There is something wrong with the GUI configuration (" + name + ")", e);
             }
         }
     }
@@ -169,6 +183,8 @@ public class VirtualChestPlugin
     @Listener(order = Order.EARLY)
     public void onInteractItemSecondary(InteractItemEvent.Secondary event, @First Player player)
     {
+        String name = "";
+        Optional<VirtualChestInventory> inventoryOptional = Optional.empty();
         for (String inventoryName : this.dispatcher.listInventories())
         {
             VirtualChestInventory inventory = this.dispatcher.getInventory(inventoryName).get();
@@ -176,12 +192,23 @@ public class VirtualChestPlugin
             {
                 if (player.hasPermission("virtualchest.open.self." + inventoryName))
                 {
-                    this.logger.debug("Player {} tries to " +
-                            "create the chest GUI ({}) by right clicking", player.getName(), inventoryName);
-                    player.openInventory(inventory.createInventory(player), Cause.source(this).build());
+                    name = inventoryName;
+                    inventoryOptional = Optional.of(inventory);
                     event.setCancelled(true);
                     break;
                 }
+            }
+        }
+        if (inventoryOptional.isPresent())
+        {
+            try
+            {
+                this.logger.debug("Player {} tries to create the GUI ({}) by secondary action", player.getName(), name);
+                player.openInventory(inventoryOptional.get().createInventory(player), Cause.source(this).build());
+            }
+            catch (InvalidDataException e)
+            {
+                this.logger.error("There is something wrong with the GUI configuration (" + name + ")", e);
             }
         }
     }

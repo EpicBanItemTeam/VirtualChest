@@ -104,24 +104,15 @@ public final class VirtualChestInventory
                 i = 0;
             }
             SlotPos pos = SlotPos.of(i, j);
-            Collection<VirtualChestItem> items = Optional.ofNullable(this.items.get(pos)).orElseGet(ImmutableList::of);
-            setItemInInventory(player, items, slot).ifPresent(item -> itemBuilder.put(pos, item));
+            this.setItemInInventory(player, slot, pos).ifPresent(item -> itemBuilder.put(pos, item));
         }
         return itemBuilder.build();
     }
 
-    private Optional<VirtualChestItem> setItemInInventory(Player player, Collection<VirtualChestItem> items, Slot slot)
+    private Optional<VirtualChestItem> setItemInInventory(Player player, Slot slot, SlotPos pos)
     {
-        Optional<VirtualChestItem> result = Optional.empty();
-        for (VirtualChestItem item : items)
-        {
-            if (item.setInventory(player, slot))
-            {
-                result = Optional.of(item);
-                break;
-            }
-        }
-        return result;
+        Collection<VirtualChestItem> items = this.items.get(pos);
+        return items.stream().filter(i -> i.setInventory(player, slot, pos)).findFirst();
     }
 
     public static String slotPosToKey(SlotPos slotPos) throws InvalidDataException
@@ -132,7 +123,7 @@ public final class VirtualChestInventory
         {
             throw new InvalidDataException("Y position (" + y + ") out of bound!");
         }
-        return String.format("Position-%d-%d", x + 1, y + 1);
+        return String.format(KEY_PREFIX + "%d-%d", x + 1, y + 1);
     }
 
     public static SlotPos keyToSlotPos(String key) throws InvalidDataException
