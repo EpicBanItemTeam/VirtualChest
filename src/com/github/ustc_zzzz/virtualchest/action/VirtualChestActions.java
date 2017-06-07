@@ -64,7 +64,7 @@ public final class VirtualChestActions
     public void init()
     {
         ChannelRegistrar channelRegistrar = Sponge.getChannelRegistrar();
-        this.bungeeCordChannel = channelRegistrar.createRawChannel(this.plugin, "BungeeCord");
+        this.bungeeCordChannel = channelRegistrar.getOrCreateRaw(this.plugin, "BungeeCord");
     }
 
     public void registerPrefix(String prefix, VirtualChestActionExecutor executor)
