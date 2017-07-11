@@ -36,6 +36,7 @@ public class VirtualChestItem
     public static final DataQuery REJECTED_PERMISSIONS = DataQuery.of("RejectedPermissions");
 
     private final VirtualChestPlugin plugin;
+    private final VirtualChestItemStackSerializer serializer;
 
     private final DataView serializedStack;
     private final String primaryAction;
@@ -45,7 +46,6 @@ public class VirtualChestItem
     private final List<String> ignoredPermissions;
     private final List<String> requiredPermissions;
     private final List<String> rejectedPermissions;
-    private final Logger logger;
 
     public static DataContainer serialize(VirtualChestPlugin plugin, VirtualChestItem item) throws InvalidDataException
     {
@@ -113,7 +113,7 @@ public class VirtualChestItem
             List<String> rejectedPermissions)
     {
         this.plugin = plugin;
-        this.logger = plugin.getLogger();
+        this.serializer = new VirtualChestItemStackSerializer(plugin);
 
         this.serializedStack = stack;
         this.primaryAction = primaryAction;
@@ -153,7 +153,7 @@ public class VirtualChestItem
         }
         try
         {
-            inventory.set(new VirtualChestItemStackSerializer(plugin, player).apply(serializedStack));
+            inventory.set(this.serializer.apply(player, this.serializedStack));
             return true;
         }
         catch (InvalidDataException e)

@@ -25,19 +25,21 @@ import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.Enchantment;
 import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
  * @author ustc_zzzz
  */
-@NonnullByDefault
-public class VirtualChestItemStackSerializer implements Function<DataView, ItemStack>
+public class VirtualChestItemStackSerializer implements BiFunction<Player, DataView, ItemStack>
 {
     private static final Set<DataQuery> EXCEPTIONS;
     private static final TypeSerializer<ItemEnchantment> ITEM_ENCHANTMENT_SERIALIZER= new ItemEnchantmentSerializer();
@@ -64,12 +66,12 @@ public class VirtualChestItemStackSerializer implements Function<DataView, ItemS
     private final TypeSerializerCollection serializers;
     private final VirtualChestPlugin plugin;
 
-    VirtualChestItemStackSerializer(VirtualChestPlugin plugin, Player player)
+    VirtualChestItemStackSerializer(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
         this.serializers = TypeSerializers.getDefaultSerializers().newChild()
-                .registerType(TypeToken.of(ItemEnchantment.class), ITEM_ENCHANTMENT_SERIALIZER)
-                .registerType(TypeToken.of(Text.class), new TextSerializer(player, plugin.getPlaceholderManager()));
+                .registerType(TypeToken.of(Text.class), new TextSerializer())
+                .registerType(TypeToken.of(ItemEnchantment.class), ITEM_ENCHANTMENT_SERIALIZER);
     }
 
     private <T, U extends BaseValue<T>> void deserializeForKeys(
@@ -104,54 +106,84 @@ public class VirtualChestItemStackSerializer implements Function<DataView, ItemS
         return SimpleConfigurationNode.root(configurationOptions).setValue(values);
     }
 
-    @Override
-    public ItemStack apply(DataView view) throws InvalidDataException
+    private ConfigurationNode applyPlaceholders(Player player, ConfigurationNode node)
     {
-        ItemStack stack = DATA_MANAGER.deserialize(ItemStack.class, view).orElseThrow(InvalidDataException::new);
-        ConfigurationNode node = convertToConfigurationNode(view);
-        for (Map.Entry<Object, ? extends ConfigurationNode> entry : node.getChildrenMap().entrySet())
+        if (node.hasListChildren())
         {
-            try
+            for (ConfigurationNode child : node.getChildrenList())
             {
-                this.deserializeForKeys(entry.getValue(), DataQuery.of(entry.getKey().toString()), (key, data) ->
-                {
-                    DataTransactionResult result = stack.offer(key, data);
-                    if (!result.isSuccessful())
-                    {
-                        throw new InvalidDataException();
-                    }
-                });
-            }
-            catch (InvalidDataException e)
-            {
-                this.plugin.getLogger()
-                        .warn("Cannot apply field '" + entry.getKey() + "' to the item, ignore it.", e);
+                this.applyPlaceholders(player, child);
             }
         }
-        return stack;
+        else if (node.hasMapChildren())
+        {
+            for (ConfigurationNode child : node.getChildrenMap().values())
+            {
+                this.applyPlaceholders(player, child);
+            }
+        }
+        else
+        {
+            String value = node.getString("");
+            String newValue = this.plugin.getPlaceholderManager().parseText(player, value);
+            if (!value.equals(newValue))
+            {
+                node.setValue(newValue);
+            }
+        }
+        return node;
+    }
+
+    @Override
+    public ItemStack apply(Player player, DataView view) throws InvalidDataException
+    {
+        try
+        {
+            ConfigurationNode node = this.applyPlaceholders(player, this.convertToConfigurationNode(view));
+            ItemStack stack = Objects.requireNonNull(node.getValue(TypeToken.of(ItemStack.class)));
+            for (Map.Entry<Object, ? extends ConfigurationNode> entry : node.getChildrenMap().entrySet())
+            {
+                try
+                {
+                    this.deserializeForKeys(entry.getValue(), DataQuery.of(entry.getKey().toString()), (key, data) ->
+                    {
+                        DataTransactionResult result = stack.offer(key, data);
+                        if (!result.isSuccessful())
+                        {
+                            throw new InvalidDataException();
+                        }
+                    });
+                }
+                catch (InvalidDataException e)
+                {
+                    String message = "Cannot apply field '" + entry.getKey() + "' to the item, ignore it.";
+                    this.plugin.getLogger().warn(message, e);
+                }
+            }
+            return stack;
+        }
+        catch (Exception e)
+        {
+            throw new InvalidDataException(e);
+        }
     }
 
     private static final class TextSerializer implements TypeSerializer<Text>
     {
-        private final Player player;
-        private final VirtualChestPlaceholderManager placeholderParser;
-
-        private TextSerializer(Player player, VirtualChestPlaceholderManager placeholderParser)
-        {
-            this.player = player;
-            this.placeholderParser = placeholderParser;
-        }
-
         @Override
         public Text deserialize(TypeToken<?> t, ConfigurationNode value) throws ObjectMappingException
         {
-            return this.placeholderParser.parseItemText(this.player, value.getString());
+            String string = value.getString();
+            return string == null ? null : TextSerializers.FORMATTING_CODE.deserialize(string);
         }
 
         @Override
         public void serialize(TypeToken<?> t, Text o, ConfigurationNode value) throws ObjectMappingException
         {
-            throw new ObjectMappingException(new UnsupportedOperationException());
+            if (o != null)
+            {
+                value.setValue(TextSerializers.FORMATTING_CODE.serialize(o));
+            }
         }
     }
 

@@ -38,14 +38,14 @@ public class VirtualChestPlaceholderManager
         this.translation = plugin.getTranslation();
     }
 
-    public Text parseItemText(Player player, String text)
+    public String parseText(Player player, String text)
     {
-        return TextSerializers.FORMATTING_CODE.deserialize(parser.replace(player, text, Function.identity()));
+        return parser.replace(player, text, Function.identity());
     }
 
     public String parseAction(Player player, String text)
     {
-        return this.enableReplacementsInActions ? parser.replace(player, text, Function.identity()) : text;
+        return this.enableReplacementsInActions ? this.parseText(player, text) : text;
     }
 
     private void pushPlaceholder(String placeholder, Function<Player, String> replacement)
