@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * @author ustc_zzzz
@@ -40,8 +41,8 @@ public class VirtualChestEconomyManager
         {
             economyService = serviceOptional.get();
             defaultCurrency = economyService.getDefaultCurrency();
-            currencies.put(defaultCurrency.getId().toLowerCase(), defaultCurrency);
-            economyService.getCurrencies().forEach(c -> currencies.put(c.getId().toLowerCase(), c));
+            economyService.getCurrencies().forEach(this::addCurrency);
+            Optional.ofNullable(defaultCurrency).ifPresent(this::addCurrency);
         }
         else
         {
@@ -54,18 +55,39 @@ public class VirtualChestEconomyManager
     {
         try
         {
-            Currency currency = Optional
-                    .ofNullable(currencyName.isEmpty() ? defaultCurrency : currencies.get(currencyName))
-                    .orElseThrow(() -> new IllegalArgumentException("Unsupported currency name: " + currencyName));
-            UniqueAccount account = economyService.getOrCreateAccount(player.getUniqueId())
-                    .orElseThrow(() -> new IllegalArgumentException("Unsupported account for given player"));
-            return withdrawBalance(currency, account, cost, simulate);
+            return withdrawBalance(getCurrencyByName(currencyName), getAccountByPlayer(player), cost, simulate);
         }
         catch (IllegalArgumentException e)
         {
             this.logger.warn("Find error when checking the balance of player '" + player.getName() + "'.", e);
             return false;
         }
+    }
+
+    private void addCurrency(Currency currency)
+    {
+        currencies.put(currency.getId().toLowerCase(), currency);
+    }
+
+    private Currency getCurrencyByName(String name)
+    {
+        if (name.isEmpty())
+        {
+            String message = "Default currency is not supported by the economy plugin";
+            return Optional.ofNullable(defaultCurrency).orElseThrow(() -> new IllegalArgumentException(message));
+        }
+        else
+        {
+            String message = "The specified currency name (" + name + ") is not supported by the economy plugin";
+            return Optional.ofNullable(currencies.get(name)).orElseThrow(() -> new IllegalArgumentException(message));
+        }
+    }
+
+    private UniqueAccount getAccountByPlayer(Player player)
+    {
+        UUID uniqueId = player.getUniqueId();
+        String message = "Unsupported account for uuid: " + uniqueId.toString();
+        return economyService.getOrCreateAccount(uniqueId).orElseThrow(() -> new IllegalArgumentException(message));
     }
 
     private boolean withdrawBalance(Currency currency, UniqueAccount account, BigDecimal cost, boolean simulate)
