@@ -2,13 +2,14 @@ package com.github.ustc_zzzz.virtualchest.inventory.util;
 
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import org.spongepowered.api.data.DataContainer;
+import org.spongepowered.api.data.DataSerializable;
 import org.spongepowered.api.item.ItemType;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 
 /**
  * @author ustc_zzzz
  */
-public class VirtualChestItemTemplate
+public class VirtualChestItemTemplate implements DataSerializable
 {
     private final DataContainer container;
 
@@ -32,5 +33,17 @@ public class VirtualChestItemTemplate
     {
         Integer d = item.toContainer().getInt(VirtualChestInventory.UNSAFE_DAMAGE).get();
         return container.getInt(VirtualChestInventory.UNSAFE_DAMAGE).orElse(d).equals(d);
+    }
+
+    @Override
+    public int getContentVersion()
+    {
+        return 0;
+    }
+
+    @Override
+    public DataContainer toContainer()
+    {
+        return container;
     }
 }

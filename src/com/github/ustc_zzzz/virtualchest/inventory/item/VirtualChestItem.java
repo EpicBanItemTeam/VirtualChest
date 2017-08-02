@@ -2,25 +2,24 @@ package com.github.ustc_zzzz.virtualchest.inventory.item;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
+import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestItemTemplateWithCount;
+import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
-import org.slf4j.Logger;
-import org.spongepowered.api.Sponge;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
 import org.spongepowered.api.data.MemoryDataContainer;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.item.inventory.Inventory;
-import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.property.SlotPos;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * @author ustc_zzzz
@@ -35,6 +34,8 @@ public class VirtualChestItem
     public static final DataQuery IGNORED_PERMISSIONS = DataQuery.of("IgnoredPermissions");
     public static final DataQuery REQUIRED_PERMISSIONS = DataQuery.of("RequiredPermissions");
     public static final DataQuery REJECTED_PERMISSIONS = DataQuery.of("RejectedPermissions");
+    public static final DataQuery PRIMARY_REQUIRED_ITEM = DataQuery.of("PrimaryRequiredItem");
+    public static final DataQuery SECONDARY_REQUIRED_ITEM = DataQuery.of("SecondaryRequiredItem");
 
     private final VirtualChestPlugin plugin;
     private final VirtualChestItemStackSerializer serializer;
@@ -47,6 +48,8 @@ public class VirtualChestItem
     private final List<String> ignoredPermissions;
     private final List<String> requiredPermissions;
     private final List<String> rejectedPermissions;
+    private final VirtualChestItemTemplateWithCount primaryRequiredItem;
+    private final VirtualChestItemTemplateWithCount secondaryRequiredItem;
 
     public static DataContainer serialize(VirtualChestPlugin plugin, VirtualChestItem item) throws InvalidDataException
     {
@@ -73,6 +76,8 @@ public class VirtualChestItem
         {
             container.set(REJECTED_PERMISSIONS, item.rejectedPermissions);
         }
+        container.set(PRIMARY_REQUIRED_ITEM, item.primaryRequiredItem);
+        container.set(SECONDARY_REQUIRED_ITEM, item.secondaryRequiredItem);
         return container;
     }
 
@@ -86,7 +91,9 @@ public class VirtualChestItem
                 deserializeRequiredBalances(data.getStringList(REQUIRED_BALANCES).orElse(ImmutableList.of())),
                 data.getStringList(IGNORED_PERMISSIONS).orElse(ImmutableList.of()),
                 data.getStringList(REQUIRED_PERMISSIONS).orElse(ImmutableList.of()),
-                data.getStringList(REJECTED_PERMISSIONS).orElse(ImmutableList.of()));
+                data.getStringList(REJECTED_PERMISSIONS).orElse(ImmutableList.of()),
+                deserializeRequiredItem(data.getView(PRIMARY_REQUIRED_ITEM)),
+                deserializeRequiredItem(data.getView(SECONDARY_REQUIRED_ITEM)));
     }
 
     private static Multimap<String, BigDecimal> deserializeRequiredBalances(List<String> list)
@@ -102,6 +109,11 @@ public class VirtualChestItem
         return builder.build();
     }
 
+    private static VirtualChestItemTemplateWithCount deserializeRequiredItem(Optional<DataView> view)
+    {
+        return view.map(VirtualChestItemTemplateWithCount::new).orElseGet(VirtualChestItemTemplateWithCount::new);
+    }
+
     private VirtualChestItem(
             VirtualChestPlugin plugin,
             DataView stack,
@@ -111,7 +123,9 @@ public class VirtualChestItem
             Multimap<String, BigDecimal> requiredBalances,
             List<String> ignoredPermissions,
             List<String> requiredPermissions,
-            List<String> rejectedPermissions)
+            List<String> rejectedPermissions,
+            VirtualChestItemTemplateWithCount primaryRequiredItem,
+            VirtualChestItemTemplateWithCount secondaryRequiredItem)
     {
         this.plugin = plugin;
         this.serializer = new VirtualChestItemStackSerializer(plugin);
@@ -124,6 +138,8 @@ public class VirtualChestItem
         this.ignoredPermissions = ignoredPermissions;
         this.requiredPermissions = requiredPermissions;
         this.rejectedPermissions = rejectedPermissions;
+        this.primaryRequiredItem = primaryRequiredItem;
+        this.secondaryRequiredItem = secondaryRequiredItem;
     }
 
     public boolean setInventory(Player player, Inventory inventory, SlotPos pos)
@@ -169,8 +185,11 @@ public class VirtualChestItem
     {
         if (!this.primaryAction.isEmpty())
         {
-            this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
-            this.plugin.getVirtualChestActions().runCommand(player, this.primaryAction);
+            if (this.primaryRequiredItem.matchItem(SpongeUnimplemented.getItemHeldByMouse(player)))
+            {
+                this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
+                this.plugin.getVirtualChestActions().runCommand(player, this.primaryAction);
+            }
         }
     }
 
@@ -178,8 +197,11 @@ public class VirtualChestItem
     {
         if (!this.secondaryAction.isEmpty())
         {
-            this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
-            this.plugin.getVirtualChestActions().runCommand(player, this.secondaryAction);
+            if (this.secondaryRequiredItem.matchItem(SpongeUnimplemented.getItemHeldByMouse(player)))
+            {
+                this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
+                this.plugin.getVirtualChestActions().runCommand(player, this.secondaryAction);
+            }
         }
     }
 
