@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
@@ -137,8 +138,17 @@ public final class VirtualChestActions
         int index = command.lastIndexOf(':');
         String currencyName = index < 0 ? "" : command.substring(0, index).toLowerCase();
         BigDecimal cost = new BigDecimal(command.substring(index + 1).replaceFirst("\\s++$", ""));
-        boolean result = this.plugin.getEconomyManager().withdrawBalance(currencyName, player, cost, false);
-        callback.accept(result ? CommandResult.success() : CommandResult.empty());
+        VirtualChestEconomyManager economyManager = this.plugin.getEconomyManager();
+        if (cost.signum() > 0)
+        {
+            boolean result = economyManager.withdrawBalance(currencyName, player, cost, false);
+            callback.accept(result ? CommandResult.success() : CommandResult.empty());
+        }
+        else
+        {
+            boolean result = economyManager.depositBalance(currencyName, player, cost.negate(), false);
+            callback.accept(result ? CommandResult.success() : CommandResult.empty());
+        }
     }
 
     private void processConnect(Player player, String command, Consumer<CommandResult> callback)

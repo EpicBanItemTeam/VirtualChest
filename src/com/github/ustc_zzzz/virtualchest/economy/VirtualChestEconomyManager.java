@@ -64,6 +64,19 @@ public class VirtualChestEconomyManager
         }
     }
 
+    public boolean depositBalance(String currencyName, Player player, BigDecimal cost, boolean simulate)
+    {
+        try
+        {
+            return depositBalance(getCurrencyByName(currencyName), getAccountByPlayer(player), cost, simulate);
+        }
+        catch (IllegalArgumentException e)
+        {
+            this.logger.warn("Find error when checking the balance of player '" + player.getName() + "'.", e);
+            return false;
+        }
+    }
+
     private void addCurrency(Currency currency)
     {
         currencies.put(currency.getId().toLowerCase(), currency);
@@ -94,6 +107,17 @@ public class VirtualChestEconomyManager
     {
         BigDecimal balance = account.getBalance(currency);
         ResultType result = account.withdraw(currency, cost, cause).getResult();
+        if (simulate)
+        {
+            account.setBalance(currency, balance, cause);
+        }
+        return ResultType.SUCCESS.equals(result);
+    }
+
+    private boolean depositBalance(Currency currency, UniqueAccount account, BigDecimal cost, boolean simulate)
+    {
+        BigDecimal balance = account.getBalance(currency);
+        ResultType result = account.deposit(currency, cost, cause).getResult();
         if (simulate)
         {
             account.setBalance(currency, balance, cause);
