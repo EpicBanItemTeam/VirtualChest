@@ -4,10 +4,10 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
+import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.Queries;
@@ -16,14 +16,12 @@ import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.event.item.inventory.InteractInventoryEvent;
-import org.spongepowered.api.item.inventory.Inventory;
-import org.spongepowered.api.item.inventory.InventoryArchetypes;
-import org.spongepowered.api.item.inventory.ItemStackSnapshot;
-import org.spongepowered.api.item.inventory.Slot;
+import org.spongepowered.api.item.inventory.*;
 import org.spongepowered.api.item.inventory.property.InventoryDimension;
 import org.spongepowered.api.item.inventory.property.InventoryTitle;
 import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
+import org.spongepowered.api.scheduler.SpongeExecutorService;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 
@@ -43,6 +41,7 @@ public final class VirtualChestInventory
 
     public static final String KEY_PREFIX = "Position-";
 
+    private Logger logger;
     private final VirtualChestPlugin plugin;
 
     final Multimap<SlotPos, VirtualChestItem> items;
@@ -60,6 +59,8 @@ public final class VirtualChestInventory
             int updateIntervalTick)
     {
         this.plugin = plugin;
+        this.logger = plugin.getLogger();
+
         this.title = title;
         this.height = height;
         this.items = ImmutableMultimap.copyOf(items);
@@ -149,6 +150,7 @@ public final class VirtualChestInventory
         private final Player player;
 
         private Optional<Task> autoUpdateTask = Optional.empty();
+        private SpongeExecutorService executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
         private VirtualChestEventListener(Player player)
         {
@@ -188,19 +190,19 @@ public final class VirtualChestInventory
                         .execute(task -> refreshMappingFrom(chestInventory, updateInventory(player, chestInventory)))
                         .intervalTicks(updateIntervalTick).submit(plugin));
             }
-            plugin.getLogger().debug("Player {} opens the chest GUI", player.getName());
+            logger.debug("Player {} opens the chest GUI", player.getName());
         }
 
         private void fireCloseEvent(InteractInventoryEvent.Close e)
         {
             autoUpdateTask.ifPresent(Task::cancel);
             autoUpdateTask = Optional.empty();
-            plugin.getLogger().debug("Player {} closes the chest GUI", player.getName());
+            logger.debug("Player {} closes the chest GUI", player.getName());
         }
 
         private void fireClickEvent(ClickInventoryEvent e)
         {
-            boolean doCloseInventory = false;
+            boolean shouldCloseInventory = false;
             for (SlotTransaction slotTransaction : e.getTransactions())
             {
                 Slot slot = slotTransaction.getSlot();
@@ -209,22 +211,33 @@ public final class VirtualChestInventory
                     e.setCancelled(true);
                     if (slotToItem.containsKey(slot))
                     {
-                        SlotPos slotPos = slotToSlotPos.get(slot);
-                        VirtualChestItem virtualChestItem = slotToItem.get(slot);
-                        plugin.getLogger().debug("Player {} tries to " +
-                                "click the chest GUI at {}", player.getName(), slotPosToKey(slotPos));
-                        if (VirtualChestItem.Action.CLOSE_INVENTORY.equals(virtualChestItem.fireEvent(player, e)))
+                        SlotPos pos = slotToSlotPos.get(slot);
+                        VirtualChestItem item = slotToItem.get(slot);
+                        if (transferEventsToItem(e, pos, item))
                         {
-                            doCloseInventory = true;
+                            shouldCloseInventory = true;
                         }
                     }
                 }
             }
-            if (doCloseInventory)
+            if (shouldCloseInventory)
             {
-                Sponge.getScheduler().createTaskBuilder().delayTicks(1)
-                        .execute(task -> player.closeInventory(Cause.source(plugin).build())).submit(plugin);
+                executorService.submit(() -> player.closeInventory(Cause.source(plugin).build()));
             }
+        }
+
+        private boolean transferEventsToItem(ClickInventoryEvent event, SlotPos pos, VirtualChestItem item)
+        {
+            logger.debug("Player {} tries to click the chest GUI at {}", player.getName(), slotPosToKey(pos));
+            if (event instanceof ClickInventoryEvent.Primary)
+            {
+                executorService.submit(() -> item.doPrimaryAction(player));
+            }
+            if (event instanceof ClickInventoryEvent.Secondary)
+            {
+                executorService.submit(() -> item.doSecondaryAction(player));
+            }
+            return item.shouldCloseInventory();
         }
     }
 }

@@ -16,6 +16,7 @@ import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.item.inventory.Inventory;
+import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.property.SlotPos;
 
 import java.math.BigDecimal;
@@ -125,26 +126,6 @@ public class VirtualChestItem
         this.rejectedPermissions = rejectedPermissions;
     }
 
-    private void doAction(Player player, String actionCommand)
-    {
-        this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
-        this.plugin.getVirtualChestActions().runCommand(player, actionCommand);
-    }
-
-    private String getActionCommand(ClickInventoryEvent event)
-    {
-        String actionCommand = "";
-        if (event instanceof ClickInventoryEvent.Primary)
-        {
-            actionCommand = primaryAction;
-        }
-        if (event instanceof ClickInventoryEvent.Secondary)
-        {
-            actionCommand = secondaryAction;
-        }
-        return actionCommand;
-    }
-
     public boolean setInventory(Player player, Inventory inventory, SlotPos pos)
     {
         if (!hasAllCostPossessed(player) || !hasAllPermissionRequired(player) || !hasNoPermissionRejected(player))
@@ -179,15 +160,27 @@ public class VirtualChestItem
                 .getEconomyManager().withdrawBalance(entry.getKey(), player, entry.getValue(), true));
     }
 
-    public Action fireEvent(Player player, ClickInventoryEvent event)
+    public boolean shouldCloseInventory()
     {
-        String actionCommandSequence = this.getActionCommand(event);
-        if (!actionCommandSequence.isEmpty())
+        return !this.keepInventoryOpen;
+    }
+
+    public void doPrimaryAction(Player player)
+    {
+        if (!this.primaryAction.isEmpty())
         {
-            Sponge.getScheduler().createTaskBuilder().delayTicks(1).name("VirtualChestItemAction")
-                    .execute(task -> this.doAction(player, actionCommandSequence)).submit(this.plugin);
+            this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
+            this.plugin.getVirtualChestActions().runCommand(player, this.primaryAction);
         }
-        return this.keepInventoryOpen ? Action.KEEP_INVENTORY_OPEN : Action.CLOSE_INVENTORY;
+    }
+
+    public void doSecondaryAction(Player player)
+    {
+        if (!this.secondaryAction.isEmpty())
+        {
+            this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
+            this.plugin.getVirtualChestActions().runCommand(player, this.secondaryAction);
+        }
     }
 
     public String toString()
@@ -201,10 +194,4 @@ public class VirtualChestItem
                 .add("RejectedPermissions", this.rejectedPermissions)
                 .toString();
     }
-
-    public enum Action
-    {
-        CLOSE_INVENTORY, KEEP_INVENTORY_OPEN
-    }
-
 }

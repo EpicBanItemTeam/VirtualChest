@@ -44,7 +44,6 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
     private static final Set<DataQuery> EXCEPTIONS;
     private static final TypeSerializer<ItemEnchantment> ITEM_ENCHANTMENT_SERIALIZER= new ItemEnchantmentSerializer();
 
-    private static final DataManager DATA_MANAGER = Sponge.getDataManager();
     private static final Map<DataQuery, Key<?>> KEYS;
 
     static

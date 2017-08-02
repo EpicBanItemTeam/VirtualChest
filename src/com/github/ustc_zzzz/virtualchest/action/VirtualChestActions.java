@@ -1,10 +1,13 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.item.inventory.ItemStack;
+import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.network.ChannelBinding;
 import org.spongepowered.api.network.ChannelRegistrar;
 import org.spongepowered.api.scheduler.SpongeExecutorService;
@@ -55,6 +58,7 @@ public final class VirtualChestActions
         registerPrefix("delay", this::processDelay);
         registerPrefix("connect", this::processConnect);
         registerPrefix("cost", this::processCost);
+        registerPrefix("cost-item", this::processCostItem);
 
         registerPrefix("", this::process);
 
@@ -108,6 +112,24 @@ public final class VirtualChestActions
     private void process(Player player, String command, Consumer<CommandResult> callback)
     {
         callback.accept(Sponge.getCommandManager().process(player, command));
+    }
+
+    private void processCostItem(Player player, String command, Consumer<CommandResult> callback)
+    {
+        int count = Integer.parseInt(command.replaceFirst("\\s++$", ""));
+        ItemStack stackUsed = SpongeUnimplemented.getItemHeldByMouse(player).createStack();
+        int stackUsedQuantity = stackUsed.getQuantity();
+        if (stackUsedQuantity > count)
+        {
+            stackUsed.setQuantity(stackUsedQuantity - count);
+            SpongeUnimplemented.setItemHeldByMouse(player, stackUsed.createSnapshot());
+            callback.accept(CommandResult.success());
+        }
+        else
+        {
+            SpongeUnimplemented.setItemHeldByMouse(player, ItemStackSnapshot.NONE);
+            callback.accept(CommandResult.empty());
+        }
     }
 
     private void processCost(Player player, String command, Consumer<CommandResult> callback)
