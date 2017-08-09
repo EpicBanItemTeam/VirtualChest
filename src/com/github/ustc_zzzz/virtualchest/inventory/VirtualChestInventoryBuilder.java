@@ -1,0 +1,158 @@
+package com.github.ustc_zzzz.virtualchest.inventory;
+
+import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
+import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Multimap;
+import org.spongepowered.api.data.DataContainer;
+import org.spongepowered.api.data.DataQuery;
+import org.spongepowered.api.data.DataView;
+import org.spongepowered.api.data.MemoryDataContainer;
+import org.spongepowered.api.data.persistence.DataBuilder;
+import org.spongepowered.api.data.persistence.InvalidDataException;
+import org.spongepowered.api.item.inventory.property.SlotPos;
+import org.spongepowered.api.text.Text;
+import org.spongepowered.api.text.serializer.TextSerializers;
+import org.spongepowered.api.util.annotation.NonnullByDefault;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * @author ustc_zzzz
+ */
+@NonnullByDefault
+public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInventory>
+{
+    private final VirtualChestPlugin plugin;
+
+    int height = 0;
+    Text title = Text.of();
+    int updateIntervalTick = 0;
+    VirtualChestTriggerItem triggerItem = new VirtualChestTriggerItem();
+    Multimap<SlotPos, VirtualChestItem> items = ArrayListMultimap.create();
+
+    public VirtualChestInventoryBuilder(VirtualChestPlugin plugin)
+    {
+        this.plugin = plugin;
+    }
+
+
+    public VirtualChestInventoryBuilder title(Text title)
+    {
+        this.title = title;
+        return this;
+    }
+
+    public VirtualChestInventoryBuilder height(int height)
+    {
+        this.height = height;
+        return this;
+    }
+
+    public VirtualChestInventoryBuilder item(SlotPos pos, VirtualChestItem item)
+    {
+        this.items.put(pos, item);
+        return this;
+    }
+
+    public VirtualChestInventoryBuilder updateIntervalTick(int updateIntervalTick)
+    {
+        this.updateIntervalTick = updateIntervalTick;
+        return this;
+    }
+
+    public VirtualChestInventoryBuilder triggerItem(VirtualChestTriggerItem triggerItem)
+    {
+        this.triggerItem = triggerItem;
+        return this;
+    }
+
+    public VirtualChestInventory build()
+    {
+        if (this.title.isEmpty())
+        {
+            throw new InvalidDataException("Expected title");
+        }
+        if (this.height == 0)
+        {
+            throw new InvalidDataException("Expected height");
+        }
+        return new VirtualChestInventory(this.plugin, this);
+    }
+
+    private List<DataView> getViewListOrSingletonList(DataQuery key, DataView view)
+    {
+        Optional<List<?>> listOptional = view.getList(key);
+        if (!listOptional.isPresent())
+        {
+            return view.getView(key).map(Collections::singletonList).orElseGet(Collections::emptyList);
+        }
+        ImmutableList.Builder<DataView> builder = ImmutableList.builder();
+        for (Object data : listOptional.get())
+        {
+            DataContainer container = new MemoryDataContainer(DataView.SafetyMode.NO_DATA_CLONED);
+            container.set(key, data).getView(key).ifPresent(builder::add);
+        }
+        return builder.build();
+    }
+
+    @Override
+    public Optional<VirtualChestInventory> build(DataView view) throws InvalidDataException
+    {
+        this.items.clear();
+        for (DataQuery key : view.getKeys(false))
+        {
+            String keyString = key.toString();
+            if (keyString.startsWith(VirtualChestInventory.KEY_PREFIX))
+            {
+                SlotPos slotPos = VirtualChestInventory.keyToSlotPos(keyString);
+                for (DataView dataView : getViewListOrSingletonList(key, view))
+                {
+                    VirtualChestItem item = VirtualChestItem.deserialize(plugin, dataView);
+                    this.items.put(slotPos, item);
+                }
+            }
+        }
+
+        this.title = view.getString(VirtualChestInventory.TITLE)
+                .map(TextSerializers.FORMATTING_CODE::deserialize)
+                .orElseThrow(() -> new InvalidDataException("Expected title"));
+
+        this.height = view.getInt(VirtualChestInventory.HEIGHT)
+                .orElseThrow(() -> new InvalidDataException("Expected height"));
+
+        this.triggerItem = view.getView(VirtualChestInventory.TRIGGER_ITEM)
+                .map(VirtualChestTriggerItem::new).orElseGet(VirtualChestTriggerItem::new);
+
+        this.updateIntervalTick = view.getInt(VirtualChestInventory.UPDATE_INTERVAL_TICK).orElse(0);
+
+        return Optional.of(new VirtualChestInventory(this.plugin, this));
+    }
+
+    @Override
+    public VirtualChestInventoryBuilder from(VirtualChestInventory value)
+    {
+        this.title = value.title;
+        this.height = value.height;
+        this.triggerItem = value.triggerItem;
+        this.updateIntervalTick = value.updateIntervalTick;
+        this.items.clear();
+        this.items.putAll(value.items);
+        return this;
+    }
+
+    @Override
+    public VirtualChestInventoryBuilder reset()
+    {
+        this.height = 0;
+        this.title = Text.of();
+        this.updateIntervalTick = 0;
+        this.triggerItem = new VirtualChestTriggerItem();
+        this.items.clear();
+        return this;
+    }
+}

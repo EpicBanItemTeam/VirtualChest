@@ -5,8 +5,8 @@ import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommand;
 import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommandAliases;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
+import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryBuilder;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
-import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryTranslator;
 import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
@@ -234,7 +234,7 @@ public class VirtualChestPlugin
     public void onPreInitialization(GamePreInitializationEvent event)
     {
         DataManager dataManager = Sponge.getDataManager();
-        dataManager.registerTranslator(VirtualChestInventory.class, new VirtualChestInventoryTranslator(this));
+        dataManager.registerBuilder(VirtualChestInventory.class, new VirtualChestInventoryBuilder(this));
     }
 
     @Listener

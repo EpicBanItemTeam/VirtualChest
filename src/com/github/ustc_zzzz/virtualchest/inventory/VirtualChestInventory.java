@@ -9,8 +9,8 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.data.DataQuery;
-import org.spongepowered.api.data.Queries;
+import org.spongepowered.api.data.*;
+import org.spongepowered.api.data.persistence.DataBuilder;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
@@ -24,13 +24,16 @@ import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
 import org.spongepowered.api.scheduler.SpongeExecutorService;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author ustc_zzzz
  */
-public final class VirtualChestInventory
+@NonnullByDefault
+public final class VirtualChestInventory implements DataSerializable
 {
     public static final DataQuery TITLE = Queries.TEXT_TITLE;
     public static final DataQuery HEIGHT = DataQuery.of("Rows");
@@ -50,22 +53,16 @@ public final class VirtualChestInventory
     final VirtualChestTriggerItem triggerItem;
     final int updateIntervalTick;
 
-    VirtualChestInventory(
-            VirtualChestPlugin plugin,
-            Text title,
-            int height,
-            Multimap<SlotPos, VirtualChestItem> items,
-            VirtualChestTriggerItem triggerItem,
-            int updateIntervalTick)
+    VirtualChestInventory(VirtualChestPlugin plugin, VirtualChestInventoryBuilder builder)
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
 
-        this.title = title;
-        this.height = height;
-        this.items = ImmutableMultimap.copyOf(items);
-        this.triggerItem = triggerItem;
-        this.updateIntervalTick = updateIntervalTick;
+        this.title = builder.title;
+        this.height = builder.height;
+        this.triggerItem = builder.triggerItem;
+        this.updateIntervalTick = builder.updateIntervalTick;
+        this.items = ImmutableMultimap.copyOf(builder.items);
     }
 
     public boolean matchItemForOpeningWithPrimaryAction(ItemStackSnapshot item)
@@ -140,6 +137,40 @@ public final class VirtualChestInventory
             throw new InvalidDataException("Invalid key representation (" + key + ") for slot pos!");
         }
         return SlotPos.of(Integer.valueOf(key.substring(KEY_PREFIX.length(), dashIndex)) - 1, Integer.valueOf(key.substring(dashIndex + 1)) - 1);
+    }
+
+    @Override
+    public int getContentVersion()
+    {
+        return 0;
+    }
+
+    @Override
+    public DataContainer toContainer()
+    {
+        DataContainer container = new MemoryDataContainer();
+        container.set(VirtualChestInventory.TITLE, this.title);
+        container.set(VirtualChestInventory.HEIGHT, this.height);
+        container.set(VirtualChestInventory.TRIGGER_ITEM, this.triggerItem);
+        container.set(VirtualChestInventory.UPDATE_INTERVAL_TICK, this.updateIntervalTick);
+        for (Map.Entry<SlotPos, Collection<VirtualChestItem>> entry : this.items.asMap().entrySet())
+        {
+            Collection<VirtualChestItem> items = entry.getValue();
+            switch (items.size())
+            {
+            case 0:
+                break;
+            case 1:
+                DataContainer data = VirtualChestItem.serialize(this.plugin, items.iterator().next());
+                container.set(DataQuery.of(VirtualChestInventory.slotPosToKey(entry.getKey())), data);
+                break;
+            default:
+                List<DataContainer> containerList = new LinkedList<>();
+                items.forEach(item -> containerList.add(VirtualChestItem.serialize(this.plugin, item)));
+                container.set(DataQuery.of(VirtualChestInventory.slotPosToKey(entry.getKey())), containerList);
+            }
+        }
+        return container;
     }
 
     private class VirtualChestEventListener
