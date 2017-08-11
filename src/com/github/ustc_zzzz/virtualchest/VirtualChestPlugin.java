@@ -44,6 +44,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.file.Path;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -61,6 +64,10 @@ public class VirtualChestPlugin
     public static final String API_URL = "https://api.github.com/repos/ustc-zzzz/VirtualChest/releases";
     public static final String GITHUB_URL = "https://github.com/ustc-zzzz/VirtualChest";
     public static final String WEBSITE_URL = "https://ore.spongepowered.org/zzzz/VirtualChest";
+
+    public static final SimpleDateFormat RFC3339 = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+    public static final SimpleDateFormat ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ENGLISH);
+
 
     @Inject
     private Logger logger;
@@ -107,12 +114,16 @@ public class VirtualChestPlugin
             if (version.startsWith("v"))
             {
                 version = version.substring(1);
-                String releaseUrl = jsonObject.get("html_url").getAsString();
                 String releaseName = jsonObject.get("name").getAsString();
-                if (new ComparableVersion(version).compareTo(new ComparableVersion(VERSION)) > 0)
+                String releaseUrl = jsonObject.get("html_url").getAsString();
+                String releaseDate = RFC3339.format(ISO8601.parse(jsonObject.get("published_at").getAsString()));
+                if (new ComparableVersion(version).compareTo(new ComparableVersion(VERSION)) > Integer.MIN_VALUE)
                 {
+                    this.logger.warn("================================================================");
                     this.logger.warn("Found update: " + releaseName);
+                    this.logger.warn("The update is released at: " + releaseDate);
                     this.logger.warn("You can get the latest version at: " + releaseUrl);
+                    this.logger.warn("================================================================");
                 }
             }
         }
@@ -130,7 +141,6 @@ public class VirtualChestPlugin
 
         this.commandAliases.loadConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.loadConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
-        this.placeholderManager.loadConfig(root.getNode(PLUGIN_ID, "placeholders"));
 
         this.rootConfigNode = root;
     }
@@ -142,7 +152,6 @@ public class VirtualChestPlugin
 
         this.commandAliases.saveConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.saveConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
-        this.placeholderManager.saveConfig(root.getNode(PLUGIN_ID, "placeholders"));
 
         config.save(root);
     }
@@ -257,6 +266,7 @@ public class VirtualChestPlugin
         this.economyManager.init();
         this.permissionManager.init();
         this.virtualChestActions.init();
+        this.placeholderManager.init();
     }
 
     @Listener

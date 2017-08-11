@@ -98,11 +98,11 @@ public final class VirtualChestActions
                     ++suffixPosition;
                 }
                 String suffix = command.substring(suffixPosition);
-                commandList.add(Tuple.of(prefix, placeholderManager.parseAction(player, suffix)));
+                commandList.add(Tuple.of(prefix, placeholderManager.parseText(player, suffix)));
             }
             else if (!command.isEmpty())
             {
-                commandList.add(Tuple.of("", placeholderManager.parseAction(player, command)));
+                commandList.add(Tuple.of("", placeholderManager.parseText(player, command)));
             }
         }
         this.executorService.submit(() -> new Callback(player, commandList).accept(CommandResult.empty()));

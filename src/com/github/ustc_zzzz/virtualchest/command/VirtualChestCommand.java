@@ -89,7 +89,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
         try
         {
             // RFC 3339
-            Date releaseDate = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).parse("@release_date@");
+            Date releaseDate = VirtualChestPlugin.RFC3339.parse("@release_date@");
             String gitCommitHash = "@git_hash@";
 
             source.sendMessage(this.translation
