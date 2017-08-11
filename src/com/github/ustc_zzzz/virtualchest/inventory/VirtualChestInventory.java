@@ -4,6 +4,7 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
@@ -27,6 +28,7 @@ import org.spongepowered.api.text.Text;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -233,7 +235,7 @@ public final class VirtualChestInventory implements DataSerializable
 
         private void fireClickEvent(ClickInventoryEvent e)
         {
-            boolean shouldCloseInventory = false;
+            CompletableFuture<Boolean> future = CompletableFuture.completedFuture(Boolean.TRUE);
             for (SlotTransaction slotTransaction : e.getTransactions())
             {
                 Slot slot = slotTransaction.getSlot();
@@ -244,31 +246,32 @@ public final class VirtualChestInventory implements DataSerializable
                     {
                         SlotPos pos = slotToSlotPos.get(slot);
                         VirtualChestItem item = slotToItem.get(slot);
-                        if (transferEventsToItem(e, pos, item))
+                        future = future.thenApplyAsync(previous ->
                         {
-                            shouldCloseInventory = true;
-                        }
+                            String playerName = player.getName();
+                            logger.debug("Player {} tries to click the chest GUI at {}", playerName, slotPosToKey(pos));
+                            if (e instanceof ClickInventoryEvent.Primary)
+                            {
+                                return item.doPrimaryAction(player) && previous;
+                            }
+                            if (e instanceof ClickInventoryEvent.Secondary)
+                            {
+                                return item.doSecondaryAction(player) && previous;
+                            }
+                            return previous;
+                        }, executorService);
                     }
                 }
             }
-            if (shouldCloseInventory)
-            {
-                executorService.submit(() -> player.closeInventory(Cause.source(plugin).build()));
-            }
+            future.thenAccept(this::closeInventoryIfRequested);
         }
 
-        private boolean transferEventsToItem(ClickInventoryEvent event, SlotPos pos, VirtualChestItem item)
+        private void closeInventoryIfRequested(boolean shouldKeepInventoryOpen)
         {
-            logger.debug("Player {} tries to click the chest GUI at {}", player.getName(), slotPosToKey(pos));
-            if (event instanceof ClickInventoryEvent.Primary)
+            if (!shouldKeepInventoryOpen)
             {
-                executorService.submit(() -> item.doPrimaryAction(player));
+                player.closeInventory(Cause.source(plugin).build());
             }
-            if (event instanceof ClickInventoryEvent.Secondary)
-            {
-                executorService.submit(() -> item.doSecondaryAction(player));
-            }
-            return item.shouldCloseInventory();
         }
     }
 }

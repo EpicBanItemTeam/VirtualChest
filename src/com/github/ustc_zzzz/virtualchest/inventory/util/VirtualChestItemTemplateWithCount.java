@@ -4,10 +4,12 @@ import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
 import org.spongepowered.api.data.MemoryDataContainer;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
+import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 /**
  * @author ustc_zzzz
  */
+@NonnullByDefault
 public class VirtualChestItemTemplateWithCount extends VirtualChestItemTemplate
 {
     private static final DataQuery COUNT = DataQuery.of("Count");

@@ -4,12 +4,9 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
-import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
-import org.spongepowered.api.data.MemoryDataContainer;
 import org.spongepowered.api.data.persistence.DataBuilder;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.item.inventory.property.SlotPos;
@@ -17,8 +14,6 @@ import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -84,22 +79,6 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
         return new VirtualChestInventory(this.plugin, this);
     }
 
-    private List<DataView> getViewListOrSingletonList(DataQuery key, DataView view)
-    {
-        Optional<List<?>> listOptional = view.getList(key);
-        if (!listOptional.isPresent())
-        {
-            return view.getView(key).map(Collections::singletonList).orElseGet(Collections::emptyList);
-        }
-        ImmutableList.Builder<DataView> builder = ImmutableList.builder();
-        for (Object data : listOptional.get())
-        {
-            DataContainer container = new MemoryDataContainer(DataView.SafetyMode.NO_DATA_CLONED);
-            container.set(key, data).getView(key).ifPresent(builder::add);
-        }
-        return builder.build();
-    }
-
     @Override
     public Optional<VirtualChestInventory> build(DataView view) throws InvalidDataException
     {
@@ -110,7 +89,7 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
             if (keyString.startsWith(VirtualChestInventory.KEY_PREFIX))
             {
                 SlotPos slotPos = VirtualChestInventory.keyToSlotPos(keyString);
-                for (DataView dataView : getViewListOrSingletonList(key, view))
+                for (DataView dataView : VirtualChestItem.getViewListOrSingletonList(key, view))
                 {
                     VirtualChestItem item = VirtualChestItem.deserialize(plugin, dataView);
                     this.items.put(slotPos, item);

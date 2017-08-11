@@ -2,6 +2,7 @@ package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
+import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
@@ -17,7 +18,6 @@ import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.chat.ChatTypes;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.text.title.Title;
-import org.spongepowered.api.util.Tristate;
 import org.spongepowered.api.util.Tuple;
 
 import java.lang.ref.WeakReference;
@@ -33,7 +33,6 @@ import java.util.stream.Stream;
  */
 public final class VirtualChestActions
 {
-    private static final char SEQUENCE_SPLITTER = ';';
     private static final char PREFIX_SPLITTER = ':';
 
     private final VirtualChestPlugin plugin;
@@ -82,9 +81,12 @@ public final class VirtualChestActions
         return this.playersInAction.containsKey(player);
     }
 
-    public void runCommand(Player player, String commandString)
+    public void submitCommands(Player player, List<String> commands)
     {
-        LinkedList<Tuple<String, String>> commandList = parseCommand(commandString).stream().flatMap(command ->
+        plugin.getLogger().debug("Player {} tries to run {}", player, commands);
+        VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
+        LinkedList<Tuple<String, String>> commandList = new LinkedList<>();
+        for (String command : commands)
         {
             int colonPos = command.indexOf(PREFIX_SPLITTER);
             String prefix = colonPos > 0 ? command.substring(0, colonPos) : "";
@@ -96,17 +98,13 @@ public final class VirtualChestActions
                     ++suffixPosition;
                 }
                 String suffix = command.substring(suffixPosition);
-                return Stream.of(Tuple.of(prefix, this.plugin.getPlaceholderManager().parseAction(player, suffix)));
+                commandList.add(Tuple.of(prefix, placeholderManager.parseAction(player, suffix)));
             }
             else if (!command.isEmpty())
             {
-                return Stream.of(Tuple.of("", this.plugin.getPlaceholderManager().parseAction(player, command)));
+                commandList.add(Tuple.of("", placeholderManager.parseAction(player, command)));
             }
-            else
-            {
-                return Stream.empty();
-            }
-        }).collect(Collectors.toCollection(LinkedList::new));
+        }
         this.executorService.submit(() -> new Callback(player, commandList).accept(CommandResult.empty()));
     }
 
@@ -224,38 +222,6 @@ public final class VirtualChestActions
         callback.accept(Sponge.getCommandManager().process(Sponge.getServer().getConsole(), command));
     }
 
-    private static List<String> parseCommand(String commandSequence)
-    {
-        StringBuilder stringBuilder = new StringBuilder();
-        List<String> commands = new LinkedList<>();
-        Tristate isCommandFinished = Tristate.TRUE;
-        for (char c : commandSequence.toCharArray())
-        {
-            if (c != SEQUENCE_SPLITTER)
-            {
-                if (isCommandFinished == Tristate.UNDEFINED)
-                {
-                    commands.add(stringBuilder.toString());
-                    stringBuilder.setLength(0);
-                }
-                if (isCommandFinished != Tristate.FALSE && Character.isWhitespace(c))
-                {
-                    isCommandFinished = Tristate.TRUE;
-                    continue;
-                }
-            }
-            else if (isCommandFinished != Tristate.UNDEFINED)
-            {
-                isCommandFinished = Tristate.UNDEFINED;
-                continue;
-            }
-            isCommandFinished = Tristate.FALSE;
-            stringBuilder.append(c);
-        }
-        commands.add(stringBuilder.toString());
-        return commands;
-    }
-
     private class Callback implements Consumer<CommandResult>
     {
         private final WeakReference<Player> player;
@@ -286,10 +252,8 @@ public final class VirtualChestActions
                     Optional<Callback> callbackOptional = Optional.ofNullable(playerCallbacks.get(p));
                     callbackOptional.ifPresent(c ->
                     {
-                        Logger logger = plugin.getLogger();
-                        logger.debug("The chest GUI has put forward a request for player: {}", p.getName());
                         String command = t.getFirst().isEmpty() ? t.getSecond() : t.getFirst() + ": " + t.getSecond();
-                        logger.debug("- {}", command);
+                        plugin.getLogger().debug("Player {}, is now executing {}", p.getName(), command);
                         executors.get(t.getFirst()).doAction(p, t.getSecond(), c);
                     });
                 }
