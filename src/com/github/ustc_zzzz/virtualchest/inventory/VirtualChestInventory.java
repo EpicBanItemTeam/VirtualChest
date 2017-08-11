@@ -4,20 +4,21 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.data.*;
-import org.spongepowered.api.data.persistence.DataBuilder;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.event.item.inventory.InteractInventoryEvent;
-import org.spongepowered.api.item.inventory.*;
+import org.spongepowered.api.item.inventory.Inventory;
+import org.spongepowered.api.item.inventory.InventoryArchetypes;
+import org.spongepowered.api.item.inventory.ItemStackSnapshot;
+import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.item.inventory.property.InventoryDimension;
 import org.spongepowered.api.item.inventory.property.InventoryTitle;
 import org.spongepowered.api.item.inventory.property.SlotPos;
@@ -29,7 +30,6 @@ import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
  * @author ustc_zzzz

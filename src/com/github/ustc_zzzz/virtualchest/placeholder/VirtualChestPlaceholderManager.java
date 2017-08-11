@@ -1,16 +1,12 @@
 package com.github.ustc_zzzz.virtualchest.placeholder;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.github.ustc_zzzz.virtualchest.unsafe.PlaceholderAPIUtils;
-import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import org.slf4j.Logger;
-import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.TextRepresentable;
 import org.spongepowered.api.text.TextTemplate;
-import org.spongepowered.api.text.serializer.TextSerializer;
 import org.spongepowered.api.text.serializer.TextSerializers;
 
 import java.util.HashMap;

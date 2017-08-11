@@ -1,15 +1,11 @@
 package com.github.ustc_zzzz.virtualchest.inventory.util;
 
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
-import com.google.common.base.Objects;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataSerializable;
-import org.spongepowered.api.data.MemoryDataView;
 import org.spongepowered.api.item.ItemType;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
-
-import javax.annotation.Nullable;
 
 /**
  * @author ustc_zzzz

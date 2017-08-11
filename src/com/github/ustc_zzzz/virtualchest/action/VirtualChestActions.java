@@ -4,7 +4,6 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.entity.living.player.Player;
@@ -25,8 +24,6 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @author ustc_zzzz
