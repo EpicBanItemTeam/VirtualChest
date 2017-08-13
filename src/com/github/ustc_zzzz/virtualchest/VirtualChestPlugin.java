@@ -116,7 +116,7 @@ public class VirtualChestPlugin
                 String releaseName = jsonObject.get("name").getAsString();
                 String releaseUrl = jsonObject.get("html_url").getAsString();
                 String releaseDate = RFC3339.format(ISO8601.parse(jsonObject.get("published_at").getAsString()));
-                if (new ComparableVersion(version).compareTo(new ComparableVersion(VERSION)) > Integer.MIN_VALUE)
+                if (new ComparableVersion(version).compareTo(new ComparableVersion(VERSION)) > 0)
                 {
                     this.logger.warn("================================================================");
                     this.logger.warn("Found update: " + releaseName);
