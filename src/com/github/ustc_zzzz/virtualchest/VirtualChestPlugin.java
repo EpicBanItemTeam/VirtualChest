@@ -9,6 +9,7 @@ import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryBuilder;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
 import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
+import com.github.ustc_zzzz.virtualchest.script.VirtualChestJavaScriptManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -92,6 +93,8 @@ public class VirtualChestPlugin
     private VirtualChestEconomyManager economyManager;
 
     private VirtualChestInventoryDispatcher dispatcher;
+
+    private VirtualChestJavaScriptManager scriptManager;
 
     private VirtualChestPermissionManager permissionManager;
 
@@ -254,6 +257,7 @@ public class VirtualChestPlugin
         this.commandAliases = new VirtualChestCommandAliases(this);
         this.economyManager = new VirtualChestEconomyManager(this);
         this.dispatcher = new VirtualChestInventoryDispatcher(this);
+        this.scriptManager = new VirtualChestJavaScriptManager(this);
         this.permissionManager = new VirtualChestPermissionManager(this);
         this.placeholderManager = new VirtualChestPlaceholderManager(this);
     }
@@ -318,6 +322,11 @@ public class VirtualChestPlugin
         return this.dispatcher;
     }
 
+    public VirtualChestJavaScriptManager getScriptManager()
+    {
+        return this.scriptManager;
+    }
+
     public VirtualChestPermissionManager getPermissionManager()
     {
         return this.permissionManager;
@@ -327,4 +336,5 @@ public class VirtualChestPlugin
     {
         return this.placeholderManager;
     }
+
 }
