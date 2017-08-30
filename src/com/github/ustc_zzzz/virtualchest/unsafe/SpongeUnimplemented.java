@@ -5,11 +5,13 @@ import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.Slot;
+import org.spongepowered.api.item.inventory.property.SlotIndex;
 import org.spongepowered.api.service.permission.PermissionService;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.Collection;
 
 /**
  * @author ustc_zzzz
@@ -20,9 +22,6 @@ public class SpongeUnimplemented
     private static final Class<?> NMS_INVENTORY_PLAYER_CLASS;
     private static final Class<?> ITEM_STACK_UTIL_CLASS;
     private static final Class<?> NMS_ITEM_STACK_CLASS;
-    private static final Class<?> SLOT_ADAPTER_CLASS;
-
-    private static final MethodHandle GET_ORDINAL;
 
     private static final MethodHandle GET_ITEM_STACK;
     private static final MethodHandle SET_ITEM_STACK;
@@ -33,28 +32,22 @@ public class SpongeUnimplemented
 
     public static boolean isSlotInInventory(Slot slot, Inventory targetInventory)
     {
-        Inventory parent = slot.parent();
-        // Sponge has changed the implementation of inventory since
-        // SpongeVanilla: 1.11.2-6.0.0-BETA-239 (https://github.com/SpongePowered/SpongeVanilla/commit/e9b056b),
-        // SpongeForge: 1.10.2-2254-5.2.0-BETA-2264 (https://github.com/SpongePowered/SpongeForge/commit/c57e4e7),
-        // so there should be two ways to distinguish.
-        return parent.equals(targetInventory) || parent.equals(targetInventory.first());
+        return slot.parent().equals(targetInventory);
     }
 
     public static int getSlotOrdinal(Slot slot)
     {
-        if (!SLOT_ADAPTER_CLASS.isInstance(slot))
+        Collection<SlotIndex> properties = slot.parent().getProperties(slot, SlotIndex.class);
+        if (properties.isEmpty())
         {
             throw new UnsupportedOperationException("Not recognized");
         }
-        try
+        Integer value = properties.iterator().next().getValue();
+        if (value == null)
         {
-            return (int) GET_ORDINAL.invoke(slot);
+            throw new UnsupportedOperationException("Not recognized");
         }
-        catch (Throwable throwable)
-        {
-            throw new UnsupportedOperationException(throwable);
-        }
+        return value;
     }
 
     public static boolean isPermissionServiceProvidedBySponge(PermissionService permissionService)
@@ -97,16 +90,13 @@ public class SpongeUnimplemented
             NMS_ENTITY_PLAYER_MP_CLASS = Class.forName("net.minecraft.entity.player.EntityPlayerMP");
             NMS_INVENTORY_PLAYER_CLASS = Class.forName("net.minecraft.entity.player.InventoryPlayer");
             ITEM_STACK_UTIL_CLASS = Class.forName("org.spongepowered.common.item.inventory.util.ItemStackUtil");
-            SLOT_ADAPTER_CLASS = Class.forName("org.spongepowered.common.item.inventory.adapter.impl.slots.SlotAdapter");
 
-            MethodType getOrdinalType = MethodType.methodType(int.class);
             MethodType updateHeldItemType = MethodType.methodType(void.class);
             MethodType getItemStackType = MethodType.methodType(NMS_ITEM_STACK_CLASS);
             MethodType setItemStackType = MethodType.methodType(void.class, NMS_ITEM_STACK_CLASS);
             MethodType snapshotOfType = MethodType.methodType(ItemStackSnapshot.class, NMS_ITEM_STACK_CLASS);
             MethodType fromSnapshotToNativeType = MethodType.methodType(NMS_ITEM_STACK_CLASS, ItemStackSnapshot.class);
 
-            GET_ORDINAL = lookup.findVirtual(SLOT_ADAPTER_CLASS, "getOrdinal", getOrdinalType);
             GET_ITEM_STACK = lookup.findVirtual(NMS_INVENTORY_PLAYER_CLASS, "func_70445_o", getItemStackType);
             SET_ITEM_STACK = lookup.findVirtual(NMS_INVENTORY_PLAYER_CLASS, "func_70437_b", setItemStackType);
             UPDATE_HELD_ITEM = lookup.findVirtual(NMS_ENTITY_PLAYER_MP_CLASS, "func_71113_k", updateHeldItemType);

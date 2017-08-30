@@ -206,7 +206,8 @@ public final class VirtualChestInventory
             for (SlotTransaction slotTransaction : e.getTransactions())
             {
                 Slot slot = slotTransaction.getSlot();
-                if (SpongeUnimplemented.isSlotInInventory(slot, e.getTargetInventory()))
+                if (SpongeUnimplemented.isSlotInInventory(slot, e.getTargetInventory())
+                        && SpongeUnimplemented.getSlotOrdinal(slot) < height * 9)
                 {
                     e.setCancelled(true);
                     if (slotToItem.containsKey(slot))
