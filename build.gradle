@@ -41,13 +41,13 @@ repositories {
         name = 'sponge'
         url = 'http://repo.spongepowered.org/maven'
     }
-    maven {
-        name = 'jitpack'
-        url = 'https://jitpack.io'
-    }
+//  maven {
+//      name = 'jitpack'
+//      url = 'https://jitpack.io'
+//  }
 }
 
-version = '0.3.8'
+version = '0.3.9'
 archivesBaseName = "VirtualChest"
 
 minecraft {
@@ -80,7 +80,7 @@ artifacts {
 dependencies {
     compile 'org.spongepowered:spongeapi:5.1.0'
     compile 'org.spongepowered:spongecommon:5.1.0-SNAPSHOT:dev'
-    compile 'com.github.rojo8399:PlaceholderAPI:master-SNAPSHOT'
+//  compile 'com.github.rojo8399:PlaceholderAPI:master-SNAPSHOT'
 }
 
 sourceSets {

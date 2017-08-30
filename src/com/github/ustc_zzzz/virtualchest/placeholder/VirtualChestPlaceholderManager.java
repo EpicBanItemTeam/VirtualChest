@@ -2,12 +2,11 @@ package com.github.ustc_zzzz.virtualchest.placeholder;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.github.ustc_zzzz.virtualchest.unsafe.PlaceholderAPIUtils;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.text.Text;
-import org.spongepowered.api.text.serializer.TextSerializers;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -86,15 +85,15 @@ public class VirtualChestPlaceholderManager
 
         if (this.usePlaceholderAPI)
         {
-            try
+            if (PlaceholderAPIUtils.isPlaceholderAPIAvailable())
             {
-                parser = new PlaceholderAPIParser(Sponge.getServiceManager());
+                parser = new PlaceholderAPIParser();
                 return;
             }
-            catch (Throwable t)
+            else
             {
                 this.logger.info("Tries to load the PlaceholderAPI service ... ");
-                this.logger.debug("Error occurred when the plugin tries to load the PlaceholderAPI service.", t);
+                this.logger.debug("Error occurred when the plugin tries to load the PlaceholderAPI service.");
                 this.logger.warn("VirtualChest could not find the PlaceholderAPI service. ");
                 this.logger.warn("Features related to PlaceholderAPI may not work normally. ");
                 this.logger.warn("Maybe you should look for a PlaceholderAPI plugin and download it?");

@@ -1,8 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.placeholder;
 
-import me.rojo8399.placeholderapi.PlaceholderService;
+import com.github.ustc_zzzz.virtualchest.unsafe.PlaceholderAPIUtils;
 import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.service.ServiceManager;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.TextRepresentable;
 import org.spongepowered.api.text.TextTemplate;
@@ -24,13 +23,6 @@ class PlaceholderAPIParser implements VirtualChestPlaceholderManager.Parser
 {
     private static final TextSerializer PLAIN_FORMATTER = TextSerializers.PLAIN;
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("[%]([^%]+)[%]", Pattern.CASE_INSENSITIVE);
-
-    private final PlaceholderService placeholderService;
-
-    PlaceholderAPIParser(ServiceManager serviceManager)
-    {
-        this.placeholderService = serviceManager.provideUnchecked(PlaceholderService.class);
-    }
 
     private TextTemplate toTemplate(String text)
     {
@@ -55,7 +47,7 @@ class PlaceholderAPIParser implements VirtualChestPlaceholderManager.Parser
     {
         Map<String, Object> args = new HashMap<>();
         TextTemplate template = this.toTemplate(textToBeReplaced);
-        for (Map.Entry<String, Object> entry : this.placeholderService.fillPlaceholders(player, template).entrySet())
+        for (Map.Entry<String, Object> entry : PlaceholderAPIUtils.fillPlaceholders(template, player).entrySet())
         {
             String replacement = PLAIN_FORMATTER.serialize(Text.of(entry.getValue()));
             args.put(entry.getKey(), transformation.apply(replacement));
