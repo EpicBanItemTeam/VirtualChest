@@ -9,6 +9,7 @@ import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
 import org.spongepowered.api.data.persistence.DataBuilder;
 import org.spongepowered.api.data.persistence.InvalidDataException;
+import org.spongepowered.api.item.inventory.property.SlotIndex;
 import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
@@ -28,7 +29,7 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
     Text title = Text.of();
     int updateIntervalTick = 0;
     VirtualChestTriggerItem triggerItem = new VirtualChestTriggerItem();
-    Multimap<SlotPos, VirtualChestItem> items = ArrayListMultimap.create();
+    Multimap<SlotIndex, VirtualChestItem> items = ArrayListMultimap.create();
 
     public VirtualChestInventoryBuilder(VirtualChestPlugin plugin)
     {
@@ -48,7 +49,7 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
         return this;
     }
 
-    public VirtualChestInventoryBuilder item(SlotPos pos, VirtualChestItem item)
+    public VirtualChestInventoryBuilder item(SlotIndex pos, VirtualChestItem item)
     {
         this.items.put(pos, item);
         return this;
@@ -88,11 +89,11 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
             String keyString = key.toString();
             if (keyString.startsWith(VirtualChestInventory.KEY_PREFIX))
             {
-                SlotPos slotPos = VirtualChestInventory.keyToSlotPos(keyString);
+                SlotIndex slotIndex = VirtualChestInventory.keyToSlotPos(keyString);
                 for (DataView dataView : VirtualChestItem.getViewListOrSingletonList(key, view))
                 {
                     VirtualChestItem item = VirtualChestItem.deserialize(plugin, dataView);
-                    this.items.put(slotPos, item);
+                    this.items.put(slotIndex, item);
                 }
             }
         }

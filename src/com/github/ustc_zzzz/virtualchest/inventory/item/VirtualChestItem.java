@@ -14,6 +14,7 @@ import org.spongepowered.api.data.MemoryDataContainer;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.inventory.Inventory;
+import org.spongepowered.api.item.inventory.property.SlotIndex;
 import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.util.Tuple;
 
@@ -105,7 +106,7 @@ public class VirtualChestItem
         return builder.build();
     }
 
-    public boolean setInventory(Player player, Inventory inventory, SlotPos pos)
+    public boolean setInventory(Player player, Inventory inventory, SlotIndex pos)
     {
         if (!this.plugin.getScriptManager().execute(player, this.requirements))
         {

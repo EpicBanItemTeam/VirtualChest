@@ -4,6 +4,7 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
@@ -21,6 +22,7 @@ import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.item.inventory.property.InventoryDimension;
 import org.spongepowered.api.item.inventory.property.InventoryTitle;
+import org.spongepowered.api.item.inventory.property.SlotIndex;
 import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
 import org.spongepowered.api.scheduler.SpongeExecutorService;
@@ -49,7 +51,7 @@ public final class VirtualChestInventory implements DataSerializable
     private Logger logger;
     private final VirtualChestPlugin plugin;
 
-    final Multimap<SlotPos, VirtualChestItem> items;
+    final Multimap<SlotIndex, VirtualChestItem> items;
     final int height;
     final Text title;
     final VirtualChestTriggerItem triggerItem;
@@ -90,41 +92,33 @@ public final class VirtualChestInventory implements DataSerializable
                 .build(this.plugin);
     }
 
-    private Map<SlotPos, VirtualChestItem> updateInventory(Player player, Inventory chestInventory)
+    private Map<SlotIndex, VirtualChestItem> updateInventory(Player player, Inventory chestInventory)
     {
-        int i = -1, j = 0;
-        ImmutableMap.Builder<SlotPos, VirtualChestItem> itemBuilder = ImmutableMap.builder();
+        int i = 0;
+        ImmutableMap.Builder<SlotIndex, VirtualChestItem> itemBuilder = ImmutableMap.builder();
         for (Slot slot : chestInventory.<Slot>slots())
         {
-            if (++i >= 9)
-            {
-                ++j;
-                i = 0;
-            }
-            SlotPos pos = SlotPos.of(i, j);
+            SlotIndex pos = SlotIndex.of(i++);
             this.setItemInInventory(player, slot, pos).ifPresent(item -> itemBuilder.put(pos, item));
         }
         return itemBuilder.build();
     }
 
-    private Optional<VirtualChestItem> setItemInInventory(Player player, Slot slot, SlotPos pos)
+    private Optional<VirtualChestItem> setItemInInventory(Player player, Slot slot, SlotIndex pos)
     {
         Collection<VirtualChestItem> items = this.items.get(pos);
         return items.stream().filter(i -> i.setInventory(player, slot, pos)).findFirst();
     }
 
-    public static String slotPosToKey(SlotPos slotPos) throws InvalidDataException
+    public static String slotPosToKey(SlotIndex index) throws InvalidDataException
     {
         // SlotPos(2, 3) will be converted to "Position-3-4"
-        int x = slotPos.getX(), y = slotPos.getY();
-        if (y < 0 || y >= 9)
-        {
-            throw new InvalidDataException("Y position (" + y + ") out of bound!");
-        }
+        int value = Objects.requireNonNull(index.getValue());
+        int x = value % 9, y = value / 9;
         return String.format(KEY_PREFIX + "%d-%d", x + 1, y + 1);
     }
 
-    public static SlotPos keyToSlotPos(String key) throws InvalidDataException
+    public static SlotIndex keyToSlotPos(String key) throws InvalidDataException
     {
         // "2-3" will be converted to SlotPos(1, 2)
         if (!key.startsWith(KEY_PREFIX))
@@ -136,7 +130,9 @@ public final class VirtualChestInventory implements DataSerializable
         {
             throw new InvalidDataException("Invalid key representation (" + key + ") for slot pos!");
         }
-        return SlotPos.of(Integer.valueOf(key.substring(KEY_PREFIX.length(), dashIndex)) - 1, Integer.valueOf(key.substring(dashIndex + 1)) - 1);
+        int x = Integer.valueOf(key.substring(KEY_PREFIX.length(), dashIndex)) - 1;
+        int y = Integer.valueOf(key.substring(dashIndex + 1)) - 1;
+        return SlotIndex.of(x + y * 9);
     }
 
     @Override
@@ -153,7 +149,7 @@ public final class VirtualChestInventory implements DataSerializable
         container.set(VirtualChestInventory.HEIGHT, this.height);
         container.set(VirtualChestInventory.TRIGGER_ITEM, this.triggerItem);
         container.set(VirtualChestInventory.UPDATE_INTERVAL_TICK, this.updateIntervalTick);
-        for (Map.Entry<SlotPos, Collection<VirtualChestItem>> entry : this.items.asMap().entrySet())
+        for (Map.Entry<SlotIndex, Collection<VirtualChestItem>> entry : this.items.asMap().entrySet())
         {
             Collection<VirtualChestItem> items = entry.getValue();
             switch (items.size())
@@ -175,10 +171,9 @@ public final class VirtualChestInventory implements DataSerializable
 
     private class VirtualChestEventListener
     {
-        private final Comparator<Slot> slotComparator;
-        private final Map<Slot, VirtualChestItem> slotToItem;
-        private final Map<Slot, SlotPos> slotToSlotPos;
         private final Player player;
+        private final SlotIndex slotToListen;
+        private final Map<SlotIndex, VirtualChestItem> itemsInSlots;
 
         private final SpongeExecutorService executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
@@ -186,31 +181,15 @@ public final class VirtualChestInventory implements DataSerializable
 
         private VirtualChestEventListener(Player player)
         {
-            this.slotComparator = Comparator.comparingInt(SpongeUnimplemented::getSlotOrdinal);
-            this.slotToItem = new TreeMap<>(this.slotComparator);
-            this.slotToSlotPos = new TreeMap<>(this.slotComparator);
             this.player = player;
+            this.itemsInSlots = new TreeMap<>();
+            this.slotToListen = SlotIndex.lessThan(height * 9);
         }
 
-        private void refreshMappingFrom(Inventory inventory, Map<SlotPos, VirtualChestItem> itemMap)
+        private void refreshMappingFrom(Inventory inventory, Map<SlotIndex, VirtualChestItem> itemMap)
         {
-            this.slotToItem.clear();
-            this.slotToSlotPos.clear();
-            int i = -1, j = 0;
-            for (Slot slot : inventory.<Slot>slots())
-            {
-                if (++i >= 9)
-                {
-                    ++j;
-                    i = 0;
-                }
-                SlotPos slotPos = SlotPos.of(i, j);
-                Optional.ofNullable(itemMap.get(slotPos)).ifPresent(item ->
-                {
-                    slotToItem.put(slot, item);
-                    slotToSlotPos.put(slot, slotPos);
-                });
-            }
+            this.itemsInSlots.clear();
+            this.itemsInSlots.putAll(itemMap);
         }
 
         private void fireOpenEvent(InteractInventoryEvent.Open e)
@@ -240,14 +219,13 @@ public final class VirtualChestInventory implements DataSerializable
             for (SlotTransaction slotTransaction : e.getTransactions())
             {
                 Slot slot = slotTransaction.getSlot();
-                if (SpongeUnimplemented.isSlotInInventory(slot, e.getTargetInventory())
-                        && SpongeUnimplemented.getSlotOrdinal(slot) < height * 9)
+                SlotIndex pos = SpongeUnimplemented.getSlotOrdinal(slot);
+                if (SpongeUnimplemented.isSlotInInventory(slot, e.getTargetInventory()) && slotToListen.matches(pos))
                 {
                     e.setCancelled(true);
-                    if (slotToItem.containsKey(slot))
+                    if (itemsInSlots.containsKey(pos))
                     {
-                        SlotPos pos = slotToSlotPos.get(slot);
-                        VirtualChestItem item = slotToItem.get(slot);
+                        VirtualChestItem item = itemsInSlots.get(pos);
                         future = future.thenApplyAsync(previous ->
                         {
                             String playerName = player.getName();

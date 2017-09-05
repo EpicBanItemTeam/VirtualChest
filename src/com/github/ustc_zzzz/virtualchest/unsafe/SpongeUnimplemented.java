@@ -6,6 +6,7 @@ import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.item.inventory.property.SlotIndex;
+import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.service.permission.PermissionService;
 
 import java.lang.invoke.MethodHandle;
@@ -35,19 +36,14 @@ public class SpongeUnimplemented
         return slot.parent().equals(targetInventory);
     }
 
-    public static int getSlotOrdinal(Slot slot)
+    public static SlotIndex getSlotOrdinal(Slot slot)
     {
         Collection<SlotIndex> properties = slot.parent().getProperties(slot, SlotIndex.class);
         if (properties.isEmpty())
         {
             throw new UnsupportedOperationException("Not recognized");
         }
-        Integer value = properties.iterator().next().getValue();
-        if (value == null)
-        {
-            throw new UnsupportedOperationException("Not recognized");
-        }
-        return value;
+        return properties.iterator().next();
     }
 
     public static boolean isPermissionServiceProvidedBySponge(PermissionService permissionService)
