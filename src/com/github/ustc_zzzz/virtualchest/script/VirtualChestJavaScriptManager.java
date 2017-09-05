@@ -1,7 +1,6 @@
 package com.github.ustc_zzzz.virtualchest.script;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
@@ -10,6 +9,8 @@ import org.spongepowered.api.util.Tuple;
 
 import javax.script.*;
 import java.util.Map;
+import java.util.Objects;
+import java.util.WeakHashMap;
 import java.util.function.Function;
 
 /**
@@ -19,15 +20,26 @@ public class VirtualChestJavaScriptManager
 {
     private final Logger logger;
     private final VirtualChestPlugin plugin;
-    private final ScriptEngine engine = new ScriptEngineManager(null).getEngineByName("nashorn");
+    private final ScriptEngine scriptEngine;
 
-    private final CompiledScript nonsenseTrue = new CompiledScriptNonsense(this.engine, Boolean.TRUE);
-    private final CompiledScript nonsenseFalse = new CompiledScriptNonsense(this.engine, Boolean.FALSE);
+    private final CompiledScript nonsenseTrue;
+    private final CompiledScript nonsenseFalse;
+
+    private final Map<Player, Long> tickWhileOpeningInventory = new WeakHashMap<>();
 
     public VirtualChestJavaScriptManager(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
+        this.scriptEngine = Objects.requireNonNull(new ScriptEngineManager(null).getEngineByName("nashorn"));
+
+        this.nonsenseTrue = new CompiledScriptNonsense(this.scriptEngine, Boolean.TRUE);
+        this.nonsenseFalse = new CompiledScriptNonsense(this.scriptEngine, Boolean.FALSE);
+    }
+
+    public void onOpeningInventory(Player player)
+    {
+        this.tickWhileOpeningInventory.put(player, player.getWorld().getProperties().getTotalTime());
     }
 
     public Tuple<String, CompiledScript> prepare(String scriptLiteral)
@@ -40,7 +52,7 @@ public class VirtualChestJavaScriptManager
         try
         {
             this.logger.debug("Compile script \"{}\" for preparation", script);
-            return Tuple.of(scriptLiteral, ((Compilable) this.engine).compile(script));
+            return Tuple.of(scriptLiteral, ((Compilable) this.scriptEngine).compile(script));
         }
         catch (ScriptException e)
         {
@@ -77,10 +89,19 @@ public class VirtualChestJavaScriptManager
 
         bindings.put("player", player);
         bindings.put("server", Sponge.getServer());
-        bindings.put("tick", player.getWorld().getProperties().getTotalTime());
+        bindings.put("tick", this.getTickFromOpeningInventory(player));
         bindings.put("papi", (Function<String, ?>) s -> map.containsKey(s) ? Text.of(map.get(s)).toPlain() : null);
 
         return bindings;
+    }
+
+    private Long getTickFromOpeningInventory(Player player)
+    {
+        if (this.tickWhileOpeningInventory.containsKey(player))
+        {
+            return player.getWorld().getProperties().getTotalTime() - this.tickWhileOpeningInventory.get(player);
+        }
+        return 0L;
     }
 
     private static class CompiledScriptNonsense extends CompiledScript

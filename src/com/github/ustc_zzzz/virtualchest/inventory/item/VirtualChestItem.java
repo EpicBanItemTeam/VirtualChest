@@ -71,19 +71,6 @@ public class VirtualChestItem
         );
     }
 
-    private static Multimap<String, BigDecimal> deserializeRequiredBalances(List<String> list)
-    {
-        ImmutableMultimap.Builder<String, BigDecimal> builder = ImmutableMultimap.builder();
-        for (String s : list)
-        {
-            int index = s.lastIndexOf(':');
-            String currencyName = index < 0 ? "" : s.substring(0, index).toLowerCase();
-            BigDecimal cost = new BigDecimal(s.substring(index + 1));
-            builder.put(currencyName, cost);
-        }
-        return builder.build();
-    }
-
     private VirtualChestItem(
             VirtualChestPlugin plugin,
             DataView serializedStack,

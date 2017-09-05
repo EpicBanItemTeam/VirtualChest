@@ -80,7 +80,7 @@ public final class VirtualChestInventory implements DataSerializable
     public Inventory createInventory(Player player)
     {
         VirtualChestEventListener listener = new VirtualChestEventListener(player);
-        Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
+        return Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
                 .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
                 // why is it 'NAM'?
                 .property(InventoryDimension.PROPERTY_NAM, new InventoryDimension(9, this.height))
@@ -88,8 +88,6 @@ public final class VirtualChestInventory implements DataSerializable
                 .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
                 .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
                 .build(this.plugin);
-        listener.refreshMappingFrom(chestInventory, this.updateInventory(player, chestInventory));
-        return chestInventory;
     }
 
     private Map<SlotPos, VirtualChestItem> updateInventory(Player player, Inventory chestInventory)
@@ -182,8 +180,9 @@ public final class VirtualChestInventory implements DataSerializable
         private final Map<Slot, SlotPos> slotToSlotPos;
         private final Player player;
 
+        private final SpongeExecutorService executorService = Sponge.getScheduler().createSyncExecutor(plugin);
+
         private Optional<Task> autoUpdateTask = Optional.empty();
-        private SpongeExecutorService executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
         private VirtualChestEventListener(Player player)
         {
@@ -216,14 +215,16 @@ public final class VirtualChestInventory implements DataSerializable
 
         private void fireOpenEvent(InteractInventoryEvent.Open e)
         {
-            Inventory chestInventory = e.getTargetInventory().first();
+            Inventory i = e.getTargetInventory().first();
             if (updateIntervalTick > 0)
             {
                 autoUpdateTask = Optional.of(Sponge.getScheduler().createTaskBuilder()
-                        .execute(task -> refreshMappingFrom(chestInventory, updateInventory(player, chestInventory)))
-                        .intervalTicks(updateIntervalTick).submit(plugin));
+                        .execute(task -> refreshMappingFrom(i, updateInventory(player, i)))
+                        .delayTicks(updateIntervalTick).intervalTicks(updateIntervalTick).submit(plugin));
             }
             logger.debug("Player {} opens the chest GUI", player.getName());
+            plugin.getScriptManager().onOpeningInventory(player);
+            refreshMappingFrom(i, updateInventory(player, i));
         }
 
         private void fireCloseEvent(InteractInventoryEvent.Close e)
