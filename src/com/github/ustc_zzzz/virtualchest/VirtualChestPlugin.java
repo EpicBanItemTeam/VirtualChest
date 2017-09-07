@@ -44,6 +44,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.file.Path;
+import java.text.SimpleDateFormat;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -61,6 +63,10 @@ public class VirtualChestPlugin
     public static final String API_URL = "https://api.github.com/repos/ustc-zzzz/VirtualChest/releases";
     public static final String GITHUB_URL = "https://github.com/ustc-zzzz/VirtualChest";
     public static final String WEBSITE_URL = "https://ore.spongepowered.org/zzzz/VirtualChest";
+
+    public static final SimpleDateFormat RFC3339 = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+    public static final SimpleDateFormat ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ENGLISH);
+
 
     @Inject
     private Logger logger;
@@ -109,10 +115,22 @@ public class VirtualChestPlugin
                 version = version.substring(1);
                 String releaseUrl = jsonObject.get("html_url").getAsString();
                 String releaseName = jsonObject.get("name").getAsString();
+                String releaseDate = RFC3339.format(ISO8601.parse(jsonObject.get("published_at").getAsString()));
                 if (new ComparableVersion(version).compareTo(new ComparableVersion(VERSION)) > 0)
                 {
-                    this.logger.warn("Found update: " + releaseName);
+                    this.logger.info("================================================================");
+                    this.logger.warn("   #   # ##### #   #      #   # ####  ####    #   ##### #####   ");
+                    this.logger.warn("   #   # #     # # #      #   # #   #  #  #  # #    #   #       ");
+                    this.logger.warn("   ##  # #     # # #      #   # #   #  #  # #   #   #   #       ");
+                    this.logger.warn("   # # # ##### # # #      #   # ####   #  # #   #   #   #####   ");
+                    this.logger.warn("   #  ## #     ## ##      #   # #      #  # #####   #   #       ");
+                    this.logger.warn("   #   # #     #   #      #   # #      #  # #   #   #   #       ");
+                    this.logger.warn("   #   # ##### #   #       ###  #     ####  #   #   #   #####   ");
+                    this.logger.warn("================================================================");
+                    this.logger.warn("An update was found: " + releaseName);
+                    this.logger.warn("This new update was released at: " + releaseDate);
                     this.logger.warn("You can get the latest version at: " + releaseUrl);
+                    this.logger.info("================================================================");
                 }
             }
         }
