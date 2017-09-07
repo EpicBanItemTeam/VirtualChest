@@ -121,11 +121,19 @@ public class VirtualChestPlugin
                 String releaseDate = RFC3339.format(ISO8601.parse(jsonObject.get("published_at").getAsString()));
                 if (new ComparableVersion(version).compareTo(new ComparableVersion(VERSION)) > 0)
                 {
+                    this.logger.info("================================================================");
+                    this.logger.warn("   #   # ##### #   #      #   # ####  ####    #   ##### #####   ");
+                    this.logger.warn("   #   # #     # # #      #   # #   #  #  #  # #    #   #       ");
+                    this.logger.warn("   ##  # #     # # #      #   # #   #  #  # #   #   #   #       ");
+                    this.logger.warn("   # # # ##### # # #      #   # ####   #  # #   #   #   #####   ");
+                    this.logger.warn("   #  ## #     ## ##      #   # #      #  # #####   #   #       ");
+                    this.logger.warn("   #   # #     #   #      #   # #      #  # #   #   #   #       ");
+                    this.logger.warn("   #   # ##### #   #       ###  #     ####  #   #   #   #####   ");
                     this.logger.warn("================================================================");
-                    this.logger.warn("Found update: " + releaseName);
-                    this.logger.warn("The update is released at: " + releaseDate);
+                    this.logger.warn("An update was found: " + releaseName);
+                    this.logger.warn("This new update was released at: " + releaseDate);
                     this.logger.warn("You can get the latest version at: " + releaseUrl);
-                    this.logger.warn("================================================================");
+                    this.logger.info("================================================================");
                 }
             }
         }
