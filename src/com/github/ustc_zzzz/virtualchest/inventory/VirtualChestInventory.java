@@ -4,7 +4,6 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
@@ -23,7 +22,6 @@ import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.item.inventory.property.InventoryDimension;
 import org.spongepowered.api.item.inventory.property.InventoryTitle;
 import org.spongepowered.api.item.inventory.property.SlotIndex;
-import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
 import org.spongepowered.api.scheduler.SpongeExecutorService;
 import org.spongepowered.api.scheduler.Task;
@@ -46,7 +44,7 @@ public final class VirtualChestInventory implements DataSerializable
     public static final DataQuery UPDATE_INTERVAL_TICK = DataQuery.of("UpdateIntervalTick");
     public static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
 
-    public static final String KEY_PREFIX = "Position-";
+    public static final String KEY_PREFIX = "Slot";
 
     private Logger logger;
     private final VirtualChestPlugin plugin;
@@ -110,29 +108,16 @@ public final class VirtualChestInventory implements DataSerializable
         return items.stream().filter(i -> i.setInventory(player, slot, pos)).findFirst();
     }
 
-    public static String slotPosToKey(SlotIndex index) throws InvalidDataException
+    public static String slotIndexToKey(SlotIndex index) throws InvalidDataException
     {
-        // SlotPos(2, 3) will be converted to "Position-3-4"
-        int value = Objects.requireNonNull(index.getValue());
-        int x = value % 9, y = value / 9;
-        return String.format(KEY_PREFIX + "%d-%d", x + 1, y + 1);
+        // SlotIndex(21) will be converted to "Slot21"
+        return KEY_PREFIX + index.getValue();
     }
 
-    public static SlotIndex keyToSlotPos(String key) throws InvalidDataException
+    public static SlotIndex keyToSlotIndex(String key) throws InvalidDataException
     {
-        // "2-3" will be converted to SlotPos(1, 2)
-        if (!key.startsWith(KEY_PREFIX))
-        {
-            throw new InvalidDataException("Invalid format of key representation (" + key + ")! It should starts with 'Position-', such as 'Position-1-1'.");
-        }
-        int length = key.length(), dashIndex = length - 2;
-        if (dashIndex < 0 || key.charAt(dashIndex) != '-')
-        {
-            throw new InvalidDataException("Invalid key representation (" + key + ") for slot pos!");
-        }
-        int x = Integer.valueOf(key.substring(KEY_PREFIX.length(), dashIndex)) - 1;
-        int y = Integer.valueOf(key.substring(dashIndex + 1)) - 1;
-        return SlotIndex.of(x + y * 9);
+        // "Slot21" will be converted to SlotIndex(21)
+        return SlotIndex.of(key.substring(KEY_PREFIX.length()));
     }
 
     @Override
@@ -158,12 +143,12 @@ public final class VirtualChestInventory implements DataSerializable
                 break;
             case 1:
                 DataContainer data = VirtualChestItem.serialize(this.plugin, items.iterator().next());
-                container.set(DataQuery.of(VirtualChestInventory.slotPosToKey(entry.getKey())), data);
+                container.set(DataQuery.of(VirtualChestInventory.slotIndexToKey(entry.getKey())), data);
                 break;
             default:
                 List<DataContainer> containerList = new LinkedList<>();
                 items.forEach(item -> containerList.add(VirtualChestItem.serialize(this.plugin, item)));
-                container.set(DataQuery.of(VirtualChestInventory.slotPosToKey(entry.getKey())), containerList);
+                container.set(DataQuery.of(VirtualChestInventory.slotIndexToKey(entry.getKey())), containerList);
             }
         }
         return container;
@@ -229,7 +214,7 @@ public final class VirtualChestInventory implements DataSerializable
                         future = future.thenApplyAsync(previous ->
                         {
                             String playerName = player.getName();
-                            logger.debug("Player {} tries to click the chest GUI at {}", playerName, slotPosToKey(pos));
+                            logger.debug("Player {} tries to click the chest GUI at {}", playerName, slotIndexToKey(pos));
                             if (e instanceof ClickInventoryEvent.Primary)
                             {
                                 return item.doPrimaryAction(player) && previous;

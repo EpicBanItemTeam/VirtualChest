@@ -5,8 +5,6 @@ import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionDispatcher;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.Multimap;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
@@ -15,11 +13,9 @@ import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.property.SlotIndex;
-import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.util.Tuple;
 
 import javax.script.CompiledScript;
-import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -119,7 +115,7 @@ public class VirtualChestItem
         }
         catch (InvalidDataException e)
         {
-            String posString = VirtualChestInventory.slotPosToKey(pos);
+            String posString = VirtualChestInventory.slotIndexToKey(pos);
             throw new InvalidDataException("Find error when generating item at " + posString, e);
         }
     }

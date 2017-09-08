@@ -10,7 +10,6 @@ import org.spongepowered.api.data.DataView;
 import org.spongepowered.api.data.persistence.DataBuilder;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.item.inventory.property.SlotIndex;
-import org.spongepowered.api.item.inventory.property.SlotPos;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
@@ -89,7 +88,7 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
             String keyString = key.toString();
             if (keyString.startsWith(VirtualChestInventory.KEY_PREFIX))
             {
-                SlotIndex slotIndex = VirtualChestInventory.keyToSlotPos(keyString);
+                SlotIndex slotIndex = VirtualChestInventory.keyToSlotIndex(keyString);
                 for (DataView dataView : VirtualChestItem.getViewListOrSingletonList(key, view))
                 {
                     VirtualChestItem item = VirtualChestItem.deserialize(plugin, dataView);
