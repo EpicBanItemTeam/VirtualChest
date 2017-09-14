@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
@@ -37,18 +38,21 @@ public final class VirtualChestInventory
     public static final DataQuery ITEM_TYPE = DataQuery.of("ItemType");
     public static final DataQuery UNSAFE_DAMAGE = DataQuery.of("UnsafeDamage");
     public static final DataQuery UPDATE_INTERVAL_TICK = DataQuery.of("UpdateIntervalTick");
+    public static final DataQuery ACCEPTABLE_ACTION_INTERVAL_TICK = DataQuery.of("AcceptableActionIntervalTick");
     public static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
 
     public static final String KEY_PREFIX = "Position-";
 
-    private Logger logger;
+    private final Logger logger;
     private final VirtualChestPlugin plugin;
+    private final VirtualChestActionIntervalManager actionIntervalManager;
 
     final Multimap<SlotPos, VirtualChestItem> items;
     final int height;
     final Text title;
     final VirtualChestTriggerItem triggerItem;
     final int updateIntervalTick;
+    final OptionalInt acceptableActionIntervalTick;
 
     VirtualChestInventory(
             VirtualChestPlugin plugin,
@@ -56,16 +60,19 @@ public final class VirtualChestInventory
             int height,
             Multimap<SlotPos, VirtualChestItem> items,
             VirtualChestTriggerItem triggerItem,
-            int updateIntervalTick)
+            int updateIntervalTick,
+            OptionalInt acceptableActionIntervalTick)
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
+        this.actionIntervalManager = plugin.getActionIntervalManager();
 
         this.title = title;
         this.height = height;
         this.items = ImmutableMultimap.copyOf(items);
         this.triggerItem = triggerItem;
         this.updateIntervalTick = updateIntervalTick;
+        this.acceptableActionIntervalTick = acceptableActionIntervalTick;
     }
 
     public boolean matchItemForOpeningWithPrimaryAction(ItemStackSnapshot item)
@@ -197,26 +204,31 @@ public final class VirtualChestInventory
         {
             autoUpdateTask.ifPresent(Task::cancel);
             autoUpdateTask = Optional.empty();
+            actionIntervalManager.onClosingInventory(player);
             logger.debug("Player {} closes the chest GUI", player.getName());
         }
 
         private void fireClickEvent(ClickInventoryEvent e)
         {
             boolean shouldCloseInventory = false;
+            Inventory inventory = e.getTargetInventory();
             for (SlotTransaction slotTransaction : e.getTransactions())
             {
                 Slot slot = slotTransaction.getSlot();
-                if (SpongeUnimplemented.isSlotInInventory(slot, e.getTargetInventory())
+                if (SpongeUnimplemented.isSlotInInventory(slot, inventory)
                         && SpongeUnimplemented.getSlotOrdinal(slot) < height * 9)
                 {
                     e.setCancelled(true);
-                    if (slotToItem.containsKey(slot))
+                    if (actionIntervalManager.allowAction(player, acceptableActionIntervalTick))
                     {
-                        SlotPos pos = slotToSlotPos.get(slot);
-                        VirtualChestItem item = slotToItem.get(slot);
-                        if (transferEventsToItem(e, pos, item))
+                        if (slotToItem.containsKey(slot))
                         {
-                            shouldCloseInventory = true;
+                            SlotPos pos = slotToSlotPos.get(slot);
+                            VirtualChestItem item = slotToItem.get(slot);
+                            if (transferEventsToItem(e, pos, item))
+                            {
+                                shouldCloseInventory = true;
+                            }
                         }
                     }
                 }

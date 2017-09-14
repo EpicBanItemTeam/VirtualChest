@@ -62,6 +62,12 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
         return view.getInt(VirtualChestInventory.UPDATE_INTERVAL_TICK).orElse(0);
     }
 
+    private OptionalInt translateAcceptableActionIntervalTick(DataView view)
+    {
+        Optional<Integer> optional = view.getInt(VirtualChestInventory.ACCEPTABLE_ACTION_INTERVAL_TICK);
+        return optional.isPresent() ? OptionalInt.of(optional.get()) : OptionalInt.empty();
+    }
+
     private Integer translateHeight(DataView view)
     {
         return view.getInt(VirtualChestInventory.HEIGHT)
@@ -106,7 +112,8 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
                 translateHeight(view),
                 translateItems(view),
                 translateTriggerItem(view),
-                translateUpdateIntervalTick(view));
+                translateUpdateIntervalTick(view),
+                translateAcceptableActionIntervalTick(view));
     }
 
     @Override
@@ -118,6 +125,11 @@ public class VirtualChestInventoryTranslator implements DataTranslator<VirtualCh
         container.set(VirtualChestInventory.HEIGHT, obj.height);
         container.set(VirtualChestInventory.UPDATE_INTERVAL_TICK, obj.updateIntervalTick);
         container.set(VirtualChestInventory.TRIGGER_ITEM, obj.triggerItem);
+        obj.acceptableActionIntervalTick.ifPresent(tick ->
+        {
+            DataQuery query = VirtualChestInventory.ACCEPTABLE_ACTION_INTERVAL_TICK;
+            container.set(query, tick);
+        });
         for (Map.Entry<SlotPos, Collection<VirtualChestItem>> entry : obj.items.asMap().entrySet())
         {
             Collection<VirtualChestItem> items = entry.getValue();
