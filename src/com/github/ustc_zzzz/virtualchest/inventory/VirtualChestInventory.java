@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
@@ -42,29 +43,34 @@ public final class VirtualChestInventory implements DataSerializable
     public static final DataQuery ITEM_TYPE = DataQuery.of("ItemType");
     public static final DataQuery UNSAFE_DAMAGE = DataQuery.of("UnsafeDamage");
     public static final DataQuery UPDATE_INTERVAL_TICK = DataQuery.of("UpdateIntervalTick");
+    public static final DataQuery ACCEPTABLE_ACTION_INTERVAL_TICK = DataQuery.of("AcceptableActionIntervalTick");
     public static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
 
     public static final String KEY_PREFIX = "Slot";
 
-    private Logger logger;
+    private final Logger logger;
     private final VirtualChestPlugin plugin;
+    private final VirtualChestActionIntervalManager actionIntervalManager;
 
     final Multimap<SlotIndex, VirtualChestItem> items;
     final int height;
     final Text title;
     final VirtualChestTriggerItem triggerItem;
     final int updateIntervalTick;
+    final OptionalInt acceptableActionIntervalTick;
 
     VirtualChestInventory(VirtualChestPlugin plugin, VirtualChestInventoryBuilder builder)
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
+        this.actionIntervalManager = plugin.getActionIntervalManager();
 
         this.title = builder.title;
         this.height = builder.height;
         this.triggerItem = builder.triggerItem;
         this.updateIntervalTick = builder.updateIntervalTick;
         this.items = ImmutableMultimap.copyOf(builder.items);
+        this.acceptableActionIntervalTick = builder.actionIntervalTick.map(OptionalInt::of).orElse(OptionalInt.empty());
     }
 
     public boolean matchItemForOpeningWithPrimaryAction(ItemStackSnapshot item)
@@ -195,6 +201,7 @@ public final class VirtualChestInventory implements DataSerializable
         {
             autoUpdateTask.ifPresent(Task::cancel);
             autoUpdateTask = Optional.empty();
+            actionIntervalManager.onClosingInventory(player);
             logger.debug("Player {} closes the chest GUI", player.getName());
         }
 
@@ -208,7 +215,8 @@ public final class VirtualChestInventory implements DataSerializable
                 if (SpongeUnimplemented.isSlotInInventory(slot, e.getTargetInventory()) && slotToListen.matches(pos))
                 {
                     e.setCancelled(true);
-                    if (itemsInSlots.containsKey(pos))
+                    boolean allowAction = actionIntervalManager.allowAction(player, acceptableActionIntervalTick);
+                    if (allowAction && itemsInSlots.containsKey(pos))
                     {
                         VirtualChestItem item = itemsInSlots.get(pos);
                         future = future.thenApplyAsync(previous ->

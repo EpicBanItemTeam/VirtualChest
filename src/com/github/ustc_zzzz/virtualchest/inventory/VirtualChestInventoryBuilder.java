@@ -29,12 +29,12 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
     int updateIntervalTick = 0;
     VirtualChestTriggerItem triggerItem = new VirtualChestTriggerItem();
     Multimap<SlotIndex, VirtualChestItem> items = ArrayListMultimap.create();
+    Optional<Integer> actionIntervalTick = Optional.empty();
 
     public VirtualChestInventoryBuilder(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
     }
-
 
     public VirtualChestInventoryBuilder title(Text title)
     {
@@ -57,6 +57,12 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
     public VirtualChestInventoryBuilder updateIntervalTick(int updateIntervalTick)
     {
         this.updateIntervalTick = updateIntervalTick;
+        return this;
+    }
+
+    public VirtualChestInventoryBuilder acceptableActionIntervalTick(int acceptableActionIntervalTick)
+    {
+        this.actionIntervalTick = Optional.of(acceptableActionIntervalTick);
         return this;
     }
 
@@ -108,6 +114,8 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
                 .map(VirtualChestTriggerItem::new).orElseGet(VirtualChestTriggerItem::new);
 
         this.updateIntervalTick = view.getInt(VirtualChestInventory.UPDATE_INTERVAL_TICK).orElse(0);
+
+        this.actionIntervalTick = view.getInt(VirtualChestInventory.ACCEPTABLE_ACTION_INTERVAL_TICK);
 
         return Optional.of(new VirtualChestInventory(this.plugin, this));
     }

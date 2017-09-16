@@ -1,5 +1,6 @@
 package com.github.ustc_zzzz.virtualchest;
 
+import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActions;
 import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommand;
 import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommandAliases;
@@ -100,6 +101,8 @@ public class VirtualChestPlugin
 
     private VirtualChestPlaceholderManager placeholderManager;
 
+    private VirtualChestActionIntervalManager actionIntervalManager;
+
     private boolean doCheckUpdate = true;
 
     private void checkUpdate()
@@ -151,6 +154,7 @@ public class VirtualChestPlugin
 
         this.commandAliases.loadConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.loadConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
+        this.actionIntervalManager.loadConfig(root.getNode(PLUGIN_ID, "acceptable-action-interval-tick"));
 
         this.rootConfigNode = root;
     }
@@ -162,6 +166,7 @@ public class VirtualChestPlugin
 
         this.commandAliases.saveConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.saveConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
+        this.actionIntervalManager.saveConfig(root.getNode(PLUGIN_ID, "acceptable-action-interval-tick"));
 
         config.save(root);
     }
@@ -268,6 +273,7 @@ public class VirtualChestPlugin
         this.scriptManager = new VirtualChestJavaScriptManager(this);
         this.permissionManager = new VirtualChestPermissionManager(this);
         this.placeholderManager = new VirtualChestPlaceholderManager(this);
+        this.actionIntervalManager = new VirtualChestActionIntervalManager(this);
     }
 
     @Listener
@@ -345,4 +351,8 @@ public class VirtualChestPlugin
         return this.placeholderManager;
     }
 
+    public VirtualChestActionIntervalManager getActionIntervalManager()
+    {
+        return this.actionIntervalManager;
+    }
 }
