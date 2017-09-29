@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.economy;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
@@ -31,7 +32,7 @@ public class VirtualChestEconomyManager
     public VirtualChestEconomyManager(VirtualChestPlugin plugin)
     {
         this.logger = plugin.getLogger();
-        this.cause = Cause.source(plugin).build();
+        this.cause = SpongeUnimplemented.createCause(plugin);
     }
 
     public void init()

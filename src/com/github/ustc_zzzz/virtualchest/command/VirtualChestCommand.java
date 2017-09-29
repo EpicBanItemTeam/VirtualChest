@@ -3,6 +3,7 @@ package com.github.ustc_zzzz.virtualchest.command;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
@@ -13,7 +14,6 @@ import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
-import org.spongepowered.api.event.cause.NamedCause;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.action.TextActions;
 import org.spongepowered.api.text.format.TextColors;
@@ -183,7 +183,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
             {
                 this.plugin.getDispatcher().releaseExample();
             }
-            this.plugin.onReload(() -> Cause.of(NamedCause.source(source)));
+            this.plugin.onReload(() -> SpongeUnimplemented.createCause(source));
             return CommandResult.success();
         }
     }
@@ -196,7 +196,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
         {
             try
             {
-                player.openInventory(inventoryOptional.get().createInventory(player), Cause.source(plugin).build());
+                SpongeUnimplemented.openInventory(player, inventoryOptional.get().createInventory(player), this);
             }
             catch (InvalidDataException e)
             {

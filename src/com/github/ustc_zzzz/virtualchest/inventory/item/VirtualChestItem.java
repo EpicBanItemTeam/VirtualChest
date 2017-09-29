@@ -132,14 +132,14 @@ public class VirtualChestItem
         return this.secondaryAction.runCommand(this.plugin, player);
     }
 
-    public String toString()
-    {
-        return Objects.toStringHelper(this)
-                .add("Item", this.serializedStack)
-                .add("Requirements", this.requirements)
-                .add("IgnoredPermissions", this.ignoredPermissions)
-                .add("PrimaryAction", this.primaryAction)
-                .add("SecondaryAction", this.secondaryAction)
-                .toString();
-    }
+//    public String toString()
+//    {
+//        return Objects.toStringHelper(this)
+//                .add("Item", this.serializedStack)
+//                .add("Requirements", this.requirements)
+//                .add("IgnoredPermissions", this.ignoredPermissions)
+//                .add("PrimaryAction", this.primaryAction)
+//                .add("SecondaryAction", this.secondaryAction)
+//                .toString();
+//    }
 }

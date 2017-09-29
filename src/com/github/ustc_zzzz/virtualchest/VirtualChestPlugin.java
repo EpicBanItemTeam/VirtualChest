@@ -12,6 +12,7 @@ import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManage
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.script.VirtualChestJavaScriptManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.gson.JsonObject;
@@ -195,7 +196,7 @@ public class VirtualChestPlugin
             try
             {
                 this.logger.debug("Player {} tries to create the GUI ({}) by primary action", player.getName(), name);
-                player.openInventory(inventoryOptional.get().createInventory(player), Cause.source(this).build());
+                SpongeUnimplemented.openInventory(player, inventoryOptional.get().createInventory(player), this);
             }
             catch (InvalidDataException e)
             {
@@ -228,7 +229,7 @@ public class VirtualChestPlugin
             try
             {
                 this.logger.debug("Player {} tries to create the GUI ({}) by secondary action", player.getName(), name);
-                player.openInventory(inventoryOptional.get().createInventory(player), Cause.source(this).build());
+                SpongeUnimplemented.openInventory(player, inventoryOptional.get().createInventory(player), this);
             }
             catch (InvalidDataException e)
             {

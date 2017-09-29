@@ -127,6 +127,8 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
         this.height = value.height;
         this.triggerItem = value.triggerItem;
         this.updateIntervalTick = value.updateIntervalTick;
+        this.actionIntervalTick = value.acceptableActionIntervalTick.isPresent()
+                ? Optional.of(value.acceptableActionIntervalTick.getAsInt()) : Optional.empty();
         this.items.clear();
         this.items.putAll(value.items);
         return this;
@@ -138,6 +140,7 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
         this.height = 0;
         this.title = Text.of();
         this.updateIntervalTick = 0;
+        this.actionIntervalTick = Optional.empty();
         this.triggerItem = new VirtualChestTriggerItem();
         this.items.clear();
         return this;

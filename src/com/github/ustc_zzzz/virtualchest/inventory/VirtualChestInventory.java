@@ -13,7 +13,6 @@ import org.spongepowered.api.Sponge;
 import org.spongepowered.api.data.*;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.event.item.inventory.InteractInventoryEvent;
 import org.spongepowered.api.item.inventory.Inventory;
@@ -88,8 +87,8 @@ public final class VirtualChestInventory implements DataSerializable
         VirtualChestEventListener listener = new VirtualChestEventListener(player);
         return Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
                 .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
-                // why is it 'NAM'?
-                .property(InventoryDimension.PROPERTY_NAM, new InventoryDimension(9, this.height))
+                // before v7.0.0 it's InventoryDimension.PROPERTY_NAM, after which it's InventoryDimension.PROPERTY_NAME
+                .property("inventorydimension", new InventoryDimension(9, this.height))
                 .listener(ClickInventoryEvent.class, listener::fireClickEvent)
                 .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
                 .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
@@ -243,7 +242,7 @@ public final class VirtualChestInventory implements DataSerializable
         {
             if (!shouldKeepInventoryOpen)
             {
-                player.closeInventory(Cause.source(plugin).build());
+                SpongeUnimplemented.closeInventory(player, plugin);
             }
         }
     }
