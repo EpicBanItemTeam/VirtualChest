@@ -2,7 +2,7 @@ package com.github.ustc_zzzz.virtualchest;
 
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActions;
-import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommand;
+import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommandManager;
 import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommandAliases;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
@@ -30,7 +30,6 @@ import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
-import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.filter.cause.First;
 import org.spongepowered.api.event.game.GameReloadEvent;
 import org.spongepowered.api.event.game.state.GamePostInitializationEvent;
@@ -88,7 +87,7 @@ public class VirtualChestPlugin
 
     private VirtualChestActions virtualChestActions;
 
-    private VirtualChestCommand virtualChestCommand;
+    private VirtualChestCommandManager virtualChestCommandManager;
 
     private VirtualChestCommandAliases commandAliases;
 
@@ -267,20 +266,20 @@ public class VirtualChestPlugin
     {
         this.translation = new VirtualChestTranslation(this);
         this.virtualChestActions = new VirtualChestActions(this);
-        this.virtualChestCommand = new VirtualChestCommand(this);
         this.commandAliases = new VirtualChestCommandAliases(this);
         this.economyManager = new VirtualChestEconomyManager(this);
         this.dispatcher = new VirtualChestInventoryDispatcher(this);
         this.scriptManager = new VirtualChestJavaScriptManager(this);
         this.permissionManager = new VirtualChestPermissionManager(this);
         this.placeholderManager = new VirtualChestPlaceholderManager(this);
+        this.virtualChestCommandManager = new VirtualChestCommandManager(this);
         this.actionIntervalManager = new VirtualChestActionIntervalManager(this);
     }
 
     @Listener
     public void onStartingServer(GameStartedServerEvent event)
     {
-        this.virtualChestCommand.init();
+        this.virtualChestCommandManager.init();
         this.economyManager.init();
         this.permissionManager.init();
         this.virtualChestActions.init();

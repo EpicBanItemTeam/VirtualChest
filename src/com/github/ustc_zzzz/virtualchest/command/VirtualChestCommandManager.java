@@ -2,6 +2,7 @@ package com.github.ustc_zzzz.virtualchest.command;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
+import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.base.Throwables;
@@ -13,11 +14,12 @@ import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.action.TextActions;
 import org.spongepowered.api.text.format.TextColors;
 import org.spongepowered.api.text.format.TextStyles;
+import org.spongepowered.api.util.GuavaCollectors;
+import org.spongepowered.api.util.Tuple;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.net.MalformedURLException;
@@ -25,15 +27,15 @@ import java.net.URL;
 import java.text.ParseException;
 import java.util.Collection;
 import java.util.Date;
-import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
  * @author ustc_zzzz
  */
 @NonnullByDefault
-public class VirtualChestCommand implements Supplier<CommandCallable>
+public class VirtualChestCommandManager implements Supplier<CommandCallable>
 {
     private static final String VERSION = VirtualChestPlugin.VERSION;
     private static final String SUBTITLE = VirtualChestPlugin.DESCRIPTION;
@@ -49,7 +51,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
     private final CommandCallable openCommand;
     private final CommandCallable versionCommand;
 
-    public VirtualChestCommand(VirtualChestPlugin plugin)
+    public VirtualChestCommandManager(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
@@ -57,7 +59,8 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
 
         this.reloadCommand = CommandSpec.builder()
                 .description(this.translation.take("virtualchest.reload.description"))
-                .arguments(GenericArguments.optional(GenericArguments.literal(Text.of("extract-examples"), "extract-examples")))
+                .arguments(GenericArguments.optional(
+                        GenericArguments.literal(Text.of("extract-examples"), "extract-examples")))
                 .executor(this::processReloadCommand).build();
 
         this.listCommand = CommandSpec.builder()
@@ -67,7 +70,9 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
 
         this.openCommand = CommandSpec.builder()
                 .description(this.translation.take("virtualchest.open.description"))
-                .arguments(GenericArguments.string(Text.of("name")), GenericArguments.playerOrSource(Text.of("player")))
+                .arguments(GenericArguments.seq(
+                        new VirtualChestInventoryCommandElement(this.plugin, Text.of("inventory")),
+                        GenericArguments.playerOrSource(Text.of("player"))))
                 .executor(this::processOpenCommand).build();
 
         this.versionCommand = CommandSpec.builder()
@@ -122,15 +127,17 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
 
     private CommandResult processOpenCommand(CommandSource source, CommandContext args) throws CommandException
     {
-        String name = args.<String>getOne("name").get();
+        Tuple<VirtualChestInventory, String> inventory;
+        inventory = args.<Tuple<VirtualChestInventory, String>>getOne("inventory").get();
         Collection<Player> players = args.getAll("player");
+        String name = inventory.getSecond();
         for (Player player : players)
         {
             if (player.equals(source))
             {
                 if (source.hasPermission("virtualchest.open.self." + name))
                 {
-                    this.openInventory(name, player);
+                    this.openInventory(inventory.getFirst(), name, player);
                 }
                 else
                 {
@@ -142,7 +149,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
             {
                 if (source.hasPermission("virtualchest.open.others." + name))
                 {
-                    this.openInventory(name, player);
+                    this.openInventory(inventory.getFirst(), name, player);
                 }
                 else
                 {
@@ -152,7 +159,7 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
             }
             else
             {
-                this.openInventory(name, player);
+                this.openInventory(inventory.getFirst(), name, player);
             }
         }
         return CommandResult.success();
@@ -160,12 +167,18 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
 
     private CommandResult processListCommand(CommandSource source, CommandContext args) throws CommandException
     {
+        VirtualChestInventoryDispatcher dispatcher = this.plugin.getDispatcher();
         if (source instanceof Player && !source.hasPermission("virtualchest.list"))
         {
             Text error = translation.take("virtualchest.list.noPermission", source.getName());
             throw new CommandException(error);
         }
-        Set<String> inventories = this.plugin.getDispatcher().listInventories();
+        Set<String> inventories = dispatcher.listInventories();
+        if (source instanceof Player)
+        {
+            Predicate<String> inventoryNamePredict = name -> dispatcher.hasPermission((Player) source, name);
+            inventories = inventories.stream().filter(inventoryNamePredict).collect(GuavaCollectors.toImmutableSet());
+        }
         source.sendMessage(translation.take("virtualchest.list.overview", inventories.size()));
         source.sendMessage(Text.of(String.join(", ", inventories)));
         return CommandResult.success();
@@ -188,25 +201,16 @@ public class VirtualChestCommand implements Supplier<CommandCallable>
         }
     }
 
-    private void openInventory(String name, Player player) throws CommandException
+    private void openInventory(VirtualChestInventory inventory, String name, Player player) throws CommandException
     {
         this.logger.debug("Player {} tries to create the GUI ({}) by a command", player.getName(), name);
-        Optional<VirtualChestInventory> inventoryOptional = plugin.getDispatcher().getInventory(name);
-        if (inventoryOptional.isPresent())
+        try
         {
-            try
-            {
-                SpongeUnimplemented.openInventory(player, inventoryOptional.get().createInventory(player), this);
-            }
-            catch (InvalidDataException e)
-            {
-                this.logger.error("There is something wrong with the GUI configuration (" + name + ")", e);
-            }
+            SpongeUnimplemented.openInventory(player, inventory.createInventory(player), this);
         }
-        else
+        catch (InvalidDataException e)
         {
-            Text error = translation.take("virtualchest.open.notExists", name);
-            throw new CommandException(error);
+            this.logger.error("There is something wrong with the GUI configuration (" + name + ")", e);
         }
     }
 

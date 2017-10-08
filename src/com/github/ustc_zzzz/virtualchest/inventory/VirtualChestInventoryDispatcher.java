@@ -11,6 +11,9 @@ import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.asset.Asset;
 import org.spongepowered.api.asset.AssetManager;
+import org.spongepowered.api.command.CommandSource;
+import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.service.permission.Subject;
 
 import java.io.File;
 import java.io.IOException;
@@ -96,6 +99,13 @@ public class VirtualChestInventoryDispatcher
             }
         }
         return Collections.singletonList(defaultMenuDir);
+    }
+
+    public boolean hasPermission(Player player, String inventoryName)
+    {
+        boolean hasSelfPermission = player.hasPermission("virtualchest.open.self." + inventoryName);
+        boolean hasOthersPermission = player.hasPermission("virtualchest.open.others." + inventoryName);
+        return hasSelfPermission || hasOthersPermission;
     }
 
     private Map<String, VirtualChestInventory> scanDir(File file)
