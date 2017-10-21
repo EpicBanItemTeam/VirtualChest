@@ -60,6 +60,6 @@ public class VirtualChestInventoryCommandElement extends CommandElement
 
     private boolean hasPermission(CommandSource source, String inventoryName)
     {
-        return !(source instanceof Player && this.dispatcher.hasPermission((Player) source, inventoryName));
+        return !(source instanceof Player) || this.dispatcher.hasPermission((Player) source, inventoryName);
     }
 }
