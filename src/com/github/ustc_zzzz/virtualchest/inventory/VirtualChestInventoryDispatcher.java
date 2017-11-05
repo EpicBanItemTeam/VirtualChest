@@ -14,6 +14,7 @@ import org.spongepowered.api.asset.AssetManager;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -41,7 +42,10 @@ public class VirtualChestInventoryDispatcher
         {
             inventories.clear();
         }
-        inventories.putAll(newInventories);
+        for (Map.Entry<String, VirtualChestInventory> entry : newInventories.entrySet())
+        {
+            inventories.put(entry.getKey(), Objects.requireNonNull(entry.getValue()));
+        }
     }
 
     public Set<String> listInventories()
@@ -58,10 +62,11 @@ public class VirtualChestInventoryDispatcher
     {
         try
         {
-            menuDirs = ImmutableList.copyOf(node.getList(TypeToken.of(String.class), this::releaseExample));
+            Path configDir = plugin.getConfigDir();
             Map<String, VirtualChestInventory> newOnes = new LinkedHashMap<>();
-            menuDirs.stream().map(plugin.getConfigDir()::resolve).forEach(p -> newOnes.putAll(scanDir(p.toFile())));
-            updateInventories(newOnes, true);
+            this.menuDirs = ImmutableList.copyOf(node.getList(TypeToken.of(String.class), this::releaseExample));
+            this.menuDirs.stream().map(configDir::resolve).forEach(p -> newOnes.putAll(this.scanDir(p.toFile())));
+            this.updateInventories(newOnes, true);
         }
         catch (ObjectMappingException e)
         {
@@ -113,9 +118,10 @@ public class VirtualChestInventoryDispatcher
                     {
                         HoconConfigurationLoader loader = HoconConfigurationLoader.builder().setFile(f).build();
                         CommentedConfigurationNode menuRoot = loader.load().getNode(VirtualChestPlugin.PLUGIN_ID);
-                        newInventories.put(chestName, menuRoot.getValue(TypeToken.of(VirtualChestInventory.class)));
+                        VirtualChestInventory inventory = menuRoot.getValue(TypeToken.of(VirtualChestInventory.class));
+                        newInventories.put(chestName, Objects.requireNonNull(inventory));
                     }
-                    catch (IOException | ObjectMappingException e)
+                    catch (Exception e)
                     {
                         this.logger.warn("Find error when reading a file (" + f.getAbsolutePath() +
                                 "). Don't worry, we will skip this one and continue to read others", e);
