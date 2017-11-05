@@ -2,8 +2,8 @@ package com.github.ustc_zzzz.virtualchest;
 
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActions;
-import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommandManager;
 import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommandAliases;
+import com.github.ustc_zzzz.virtualchest.command.VirtualChestCommandManager;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryBuilder;
@@ -35,6 +35,7 @@ import org.spongepowered.api.event.game.GameReloadEvent;
 import org.spongepowered.api.event.game.state.GamePostInitializationEvent;
 import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
+import org.spongepowered.api.event.game.state.GameStartingServerEvent;
 import org.spongepowered.api.event.item.inventory.InteractItemEvent;
 import org.spongepowered.api.plugin.Dependency;
 import org.spongepowered.api.plugin.Plugin;
@@ -277,7 +278,7 @@ public class VirtualChestPlugin
     }
 
     @Listener
-    public void onStartingServer(GameStartedServerEvent event)
+    public void onStartingServer(GameStartingServerEvent event)
     {
         this.virtualChestCommandManager.init();
         this.economyManager.init();
