@@ -52,11 +52,11 @@ public class VirtualChestEconomyManager
         }
     }
 
-    public boolean withdrawBalance(String currencyName, Player player, BigDecimal cost, boolean simulate)
+    public boolean withdrawBalance(String currencyName, Player player, BigDecimal cost)
     {
         try
         {
-            return withdrawBalance(getCurrencyByName(currencyName), getAccountByPlayer(player), cost, simulate);
+            return withdrawBalance(getCurrencyByName(currencyName), getAccountByPlayer(player), cost);
         }
         catch (IllegalArgumentException e)
         {
@@ -65,11 +65,11 @@ public class VirtualChestEconomyManager
         }
     }
 
-    public boolean depositBalance(String currencyName, Player player, BigDecimal cost, boolean simulate)
+    public boolean depositBalance(String currencyName, Player player, BigDecimal cost)
     {
         try
         {
-            return depositBalance(getCurrencyByName(currencyName), getAccountByPlayer(player), cost, simulate);
+            return depositBalance(getCurrencyByName(currencyName), getAccountByPlayer(player), cost);
         }
         catch (IllegalArgumentException e)
         {
@@ -104,25 +104,17 @@ public class VirtualChestEconomyManager
         return economyService.getOrCreateAccount(uniqueId).orElseThrow(() -> new IllegalArgumentException(message));
     }
 
-    private boolean withdrawBalance(Currency currency, UniqueAccount account, BigDecimal cost, boolean simulate)
+    private boolean withdrawBalance(Currency currency, UniqueAccount account, BigDecimal cost)
     {
         BigDecimal balance = account.getBalance(currency);
         ResultType result = account.withdraw(currency, cost, cause).getResult();
-        if (simulate)
-        {
-            account.setBalance(currency, balance, cause);
-        }
         return ResultType.SUCCESS.equals(result);
     }
 
-    private boolean depositBalance(Currency currency, UniqueAccount account, BigDecimal cost, boolean simulate)
+    private boolean depositBalance(Currency currency, UniqueAccount account, BigDecimal cost)
     {
         BigDecimal balance = account.getBalance(currency);
         ResultType result = account.deposit(currency, cost, cause).getResult();
-        if (simulate)
-        {
-            account.setBalance(currency, balance, cause);
-        }
         return ResultType.SUCCESS.equals(result);
     }
 }

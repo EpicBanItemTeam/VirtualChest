@@ -134,16 +134,17 @@ public final class VirtualChestActions
         String currencyName = index < 0 ? "" : command.substring(0, index).toLowerCase();
         BigDecimal cost = new BigDecimal(command.substring(index + 1).replaceFirst("\\s++$", ""));
         VirtualChestEconomyManager economyManager = this.plugin.getEconomyManager();
-        if (cost.signum() > 0)
+        boolean isSuccessful = true;
+        switch (cost.signum())
         {
-            boolean result = economyManager.withdrawBalance(currencyName, player, cost, false);
-            callback.accept(result ? CommandResult.success() : CommandResult.empty());
+        case 1:
+            isSuccessful = economyManager.withdrawBalance(currencyName, player, cost);
+            break;
+        case -1:
+            isSuccessful = economyManager.depositBalance(currencyName, player, cost.negate());
+            break;
         }
-        else
-        {
-            boolean result = economyManager.depositBalance(currencyName, player, cost.negate(), false);
-            callback.accept(result ? CommandResult.success() : CommandResult.empty());
-        }
+        callback.accept(isSuccessful ? CommandResult.success() : CommandResult.empty());
     }
 
     private void processConnect(Player player, String command, Consumer<CommandResult> callback)
