@@ -10,11 +10,17 @@ A sponge plugin which provides virtual chest GUIs for menus like ChestCommands.
 
 ## Scope 适用范围
 
-The plugin uses sponge api 5.0.0, and additionly supports api 7.0.0, so it is expected to work normally on spongevanilla/spongeforge 1.10.2, 1.11.2, and 1.12.2 servers.  
-该插件使用SpongeAPI 5.0.0，并提供了针对7.0.0的API的额外支持，因此理论上应该可以在1.10.2、1.11.2、和1.12.2版本的SpongeVanilla/SpongeForge服务端上正常工作。
+The plugin uses sponge api 5.0.0, and additionly supports api 7.0.0.  
+该插件使用SpongeAPI 5.0.0，并提供了针对API 7.0.0的额外支持。
 
-If a bug was found, you can make an issue or a pull request.  
-如果你发现了Bug，你可以提交一个Issue或者PullRequest。
+Therefore, it is expected to work normally on spongevanilla/spongeforge 1.10.2, 1.11.2, and 1.12.2 servers.  
+因此该插件理论上应该可以在1.10.2、1.11.2、和1.12.2版本的SpongeVanilla/SpongeForge服务端上正常工作。
+
+If a bug was found, you can open an [issue](https://github.com/ustc-zzzz/VirtualChest/issues) or a [pull request](https://github.com/ustc-zzzz/VirtualChest/pulls).  
+如果你发现了Bug，你可以提交一个[Issue](https://github.com/ustc-zzzz/VirtualChest/issues)或者[PullRequest](https://github.com/ustc-zzzz/VirtualChest/pulls)。
+
+Please make sure that you are using the latest build of spongevanilla/spongeforge before reporting a bug to me.  
+在反馈Bug时，请确保你使用的是最新构建的SpongeVanilla/SpongeForge版本。
 
 ## Feature & Configurations 功能配置
 
