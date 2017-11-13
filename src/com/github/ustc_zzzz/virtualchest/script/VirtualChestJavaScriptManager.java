@@ -56,7 +56,9 @@ public class VirtualChestJavaScriptManager
         }
         catch (ScriptException e)
         {
-            this.logger.error("Error found when compiling script \"{}\"", script);
+            this.logger.error("Error found when compiling script \"" + script +
+                    "\" (the original script is \"" + scriptLiteral.trim() + "\")", e);
+            this.logger.debug("Result: {}", Boolean.FALSE);
             return Tuple.of(scriptLiteral, this.nonsenseFalse);
         }
     }
@@ -67,11 +69,7 @@ public class VirtualChestJavaScriptManager
         try
         {
             Bindings binding = this.getBindings(player, scriptLiteral);
-            this.logger.debug("Execute script for player {}", player);
-            String executionResult = String.valueOf(tuple.getSecond().eval(binding));
-            this.logger.debug("Literal: {}", scriptLiteral);
-            this.logger.debug("Result: {}", executionResult);
-            return Boolean.valueOf(executionResult);
+            return Boolean.valueOf(String.valueOf(tuple.getSecond().eval(binding)));
         }
         catch (ScriptException e)
         {
