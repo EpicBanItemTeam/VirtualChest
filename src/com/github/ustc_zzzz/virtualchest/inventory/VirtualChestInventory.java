@@ -45,7 +45,10 @@ public final class VirtualChestInventory
 
     private final Logger logger;
     private final VirtualChestPlugin plugin;
+    private final SpongeExecutorService executorService;
     private final VirtualChestActionIntervalManager actionIntervalManager;
+
+    private final Map<UUID, Inventory> inventories = new HashMap<>();
 
     final Multimap<SlotPos, VirtualChestItem> items;
     final int height;
@@ -66,6 +69,7 @@ public final class VirtualChestInventory
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.actionIntervalManager = plugin.getActionIntervalManager();
+        this.executorService = plugin.getVirtualChestActions().getExecutorService();
 
         this.title = title;
         this.height = height;
@@ -87,17 +91,23 @@ public final class VirtualChestInventory
 
     public Inventory createInventory(Player player)
     {
-        VirtualChestEventListener listener = new VirtualChestEventListener(player);
-        Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
-                .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
-                // why is it 'NAM'?
-                .property(InventoryDimension.PROPERTY_NAM, new InventoryDimension(9, this.height))
-                .listener(ClickInventoryEvent.class, listener::fireClickEvent)
-                .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
-                .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
-                .build(this.plugin);
-        listener.refreshMappingFrom(chestInventory, this.updateInventory(player, chestInventory));
-        return chestInventory;
+        UUID uuid = player.getUniqueId();
+        if (!inventories.containsKey(uuid))
+        {
+            VirtualChestEventListener listener = new VirtualChestEventListener(player);
+            Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST)
+                    .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
+                    // why is it 'NAM'?
+                    .property(InventoryDimension.PROPERTY_NAM, new InventoryDimension(9, this.height))
+                    .listener(ClickInventoryEvent.class, listener::fireClickEvent)
+                    .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
+                    .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
+                    .build(this.plugin);
+            listener.refreshMappingFrom(chestInventory, this.updateInventory(player, chestInventory));
+            inventories.put(uuid, chestInventory);
+            return chestInventory;
+        }
+        return inventories.get(uuid);
     }
 
     private Map<SlotPos, VirtualChestItem> updateInventory(Player player, Inventory chestInventory)
@@ -157,7 +167,6 @@ public final class VirtualChestInventory
         private final Player player;
 
         private Optional<Task> autoUpdateTask = Optional.empty();
-        private SpongeExecutorService executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
         private VirtualChestEventListener(Player player)
         {
@@ -191,7 +200,7 @@ public final class VirtualChestInventory
         private void fireOpenEvent(InteractInventoryEvent.Open e)
         {
             Inventory chestInventory = e.getTargetInventory().first();
-            if (updateIntervalTick > 0)
+            if (updateIntervalTick > 0 && !autoUpdateTask.isPresent())
             {
                 autoUpdateTask = Optional.of(Sponge.getScheduler().createTaskBuilder()
                         .execute(task -> refreshMappingFrom(chestInventory, updateInventory(player, chestInventory)))
