@@ -49,7 +49,9 @@ public final class VirtualChestInventory implements DataSerializable
 
     private final Logger logger;
     private final VirtualChestPlugin plugin;
+    private final SpongeExecutorService executorService;
     private final VirtualChestActionIntervalManager actionIntervalManager;
+    private final Map<UUID, Inventory> inventories = new HashMap<>();
 
     final Multimap<SlotIndex, VirtualChestItem> items;
     final int height;
@@ -63,6 +65,7 @@ public final class VirtualChestInventory implements DataSerializable
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.actionIntervalManager = plugin.getActionIntervalManager();
+        this.executorService = plugin.getVirtualChestActions().getExecutorService();
 
         this.title = builder.title;
         this.height = builder.height;
@@ -84,15 +87,22 @@ public final class VirtualChestInventory implements DataSerializable
 
     public Inventory createInventory(Player player)
     {
-        VirtualChestEventListener listener = new VirtualChestEventListener(player);
-        return Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
-                .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
-                // before v7.0.0 it's InventoryDimension.PROPERTY_NAM, after which it's InventoryDimension.PROPERTY_NAME
-                .property("inventorydimension", new InventoryDimension(9, this.height))
-                .listener(ClickInventoryEvent.class, listener::fireClickEvent)
-                .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
-                .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
-                .build(this.plugin);
+        UUID uuid = player.getUniqueId();
+        if (!inventories.containsKey(uuid))
+        {
+            VirtualChestEventListener listener = new VirtualChestEventListener(player);
+            Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
+                    .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
+                    // before v7.0.0 it's InventoryDimension.PROPERTY_NAM, after which it's InventoryDimension.PROPERTY_NAME
+                    .property("inventorydimension", new InventoryDimension(9, this.height))
+                    .listener(ClickInventoryEvent.class, listener::fireClickEvent)
+                    .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
+                    .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
+                    .build(this.plugin);
+            inventories.put(uuid, chestInventory);
+            return chestInventory;
+        }
+        return inventories.get(uuid);
     }
 
     private Map<SlotIndex, VirtualChestItem> updateInventory(Player player, Inventory chestInventory)
@@ -185,7 +195,7 @@ public final class VirtualChestInventory implements DataSerializable
         private void fireOpenEvent(InteractInventoryEvent.Open e)
         {
             Inventory i = e.getTargetInventory().first();
-            if (updateIntervalTick > 0)
+            if (updateIntervalTick > 0 && !autoUpdateTask.isPresent())
             {
                 autoUpdateTask = Optional.of(Sponge.getScheduler().createTaskBuilder()
                         .execute(task -> refreshMappingFrom(i, updateInventory(player, i)))

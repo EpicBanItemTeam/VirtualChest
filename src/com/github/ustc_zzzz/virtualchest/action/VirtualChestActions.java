@@ -36,6 +36,7 @@ public final class VirtualChestActions
     private final Map<String, VirtualChestActionExecutor> executors = new HashMap<>();
     private final Map<Player, LinkedList<Tuple<String, String>>> playersInAction = new WeakHashMap<>();
     private final Map<Player, Callback> playerCallbacks = new WeakHashMap<>();
+
     private final SpongeExecutorService executorService;
 
     private ChannelBinding.RawDataChannel bungeeCordChannel;
@@ -220,6 +221,11 @@ public final class VirtualChestActions
         callback.accept(Sponge.getCommandManager().process(Sponge.getServer().getConsole(), command));
     }
 
+    public SpongeExecutorService getExecutorService()
+    {
+        return this.executorService;
+    }
+
     private class Callback implements Consumer<CommandResult>
     {
         private final WeakReference<Player> player;
@@ -269,18 +275,24 @@ public final class VirtualChestActions
         private static void sendTitle(Task task)
         {
             Map<Player, Title.Builder> builderMap = new HashMap<>();
-            for (Map.Entry<Player, Text> entry : BIGTITLES.entrySet())
+            if (!BIGTITLES.isEmpty())
             {
-                builderMap.compute(entry.getKey(), (player, builder) ->
-                        Optional.ofNullable(builder).orElseGet(Title::builder).title(entry.getValue()));
+                for (Map.Entry<Player, Text> entry : BIGTITLES.entrySet())
+                {
+                    builderMap.compute(entry.getKey(), (player, builder) ->
+                            Optional.ofNullable(builder).orElseGet(Title::builder).title(entry.getValue()));
+                }
+                BIGTITLES.clear();
             }
-            BIGTITLES.clear();
-            for (Map.Entry<Player, Text> entry : SUBTITLES.entrySet())
+            if (!SUBTITLES.isEmpty())
             {
-                builderMap.compute(entry.getKey(), (player, builder) ->
-                        Optional.ofNullable(builder).orElseGet(Title::builder).subtitle(entry.getValue()));
+                for (Map.Entry<Player, Text> entry : SUBTITLES.entrySet())
+                {
+                    builderMap.compute(entry.getKey(), (player, builder) ->
+                            Optional.ofNullable(builder).orElseGet(Title::builder).subtitle(entry.getValue()));
+                }
+                SUBTITLES.clear();
             }
-            SUBTITLES.clear();
             builderMap.forEach((player, builder) -> player.sendTitle(builder.build()));
         }
 
