@@ -171,7 +171,7 @@ public final class VirtualChestInventory implements DataSerializable
 
     private class VirtualChestEventListener
     {
-        private final Player player;
+        private final UUID playerUniqueId;
         private final SlotIndex slotToListen;
         private final Map<SlotIndex, VirtualChestItem> itemsInSlots;
 
@@ -181,9 +181,9 @@ public final class VirtualChestInventory implements DataSerializable
 
         private VirtualChestEventListener(Player player)
         {
-            this.player = player;
             this.itemsInSlots = new TreeMap<>();
             this.slotToListen = SlotIndex.lessThan(height * 9);
+            this.playerUniqueId = player.getUniqueId();
         }
 
         private void refreshMappingFrom(Inventory inventory, Map<SlotIndex, VirtualChestItem> itemMap)
@@ -194,6 +194,12 @@ public final class VirtualChestInventory implements DataSerializable
 
         private void fireOpenEvent(InteractInventoryEvent.Open e)
         {
+            Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
+            if (!optional.isPresent())
+            {
+                return;
+            }
+            Player player = optional.get();
             Inventory i = e.getTargetInventory().first();
             if (updateIntervalTick > 0 && !autoUpdateTask.isPresent())
             {
@@ -208,6 +214,12 @@ public final class VirtualChestInventory implements DataSerializable
 
         private void fireCloseEvent(InteractInventoryEvent.Close e)
         {
+            Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
+            if (!optional.isPresent())
+            {
+                return;
+            }
+            Player player = optional.get();
             autoUpdateTask.ifPresent(Task::cancel);
             autoUpdateTask = Optional.empty();
             actionIntervalManager.onClosingInventory(player);
@@ -216,6 +228,12 @@ public final class VirtualChestInventory implements DataSerializable
 
         private void fireClickEvent(ClickInventoryEvent e)
         {
+            Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
+            if (!optional.isPresent())
+            {
+                return;
+            }
+            Player player = optional.get();
             CompletableFuture<Boolean> future = CompletableFuture.completedFuture(Boolean.TRUE);
             for (SlotTransaction slotTransaction : e.getTransactions())
             {
@@ -245,15 +263,13 @@ public final class VirtualChestInventory implements DataSerializable
                     }
                 }
             }
-            future.thenAccept(this::closeInventoryIfRequested);
-        }
-
-        private void closeInventoryIfRequested(boolean shouldKeepInventoryOpen)
-        {
-            if (!shouldKeepInventoryOpen)
+            future.thenAccept(shouldKeepInventoryOpen ->
             {
-                SpongeUnimplemented.closeInventory(player, plugin);
-            }
+                if (!shouldKeepInventoryOpen)
+                {
+                    SpongeUnimplemented.closeInventory(player, plugin);
+                }
+            });
         }
     }
 }
