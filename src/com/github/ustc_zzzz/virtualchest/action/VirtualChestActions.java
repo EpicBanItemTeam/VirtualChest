@@ -34,8 +34,8 @@ public final class VirtualChestActions
 
     private final VirtualChestPlugin plugin;
     private final Map<String, VirtualChestActionExecutor> executors = new HashMap<>();
-    private final Map<Player, LinkedList<Tuple<String, String>>> playersInAction = new WeakHashMap<>();
-    private final Map<Player, Callback> playerCallbacks = new WeakHashMap<>();
+    private final Map<UUID, LinkedList<Tuple<String, String>>> playersInAction = new HashMap<>();
+    private final Map<UUID, Callback> playerCallbacks = new HashMap<>();
 
     private final SpongeExecutorService executorService;
 
@@ -74,9 +74,9 @@ public final class VirtualChestActions
         this.executors.put(prefix, executor);
     }
 
-    public boolean isPlayerInAction(Player player)
+    public boolean isPlayerInAction(UUID uuid)
     {
-        return this.playersInAction.containsKey(player);
+        return this.playersInAction.containsKey(uuid);
     }
 
     public void submitCommands(Player player, List<String> commands)
@@ -228,13 +228,15 @@ public final class VirtualChestActions
 
     private class Callback implements Consumer<CommandResult>
     {
+        private final UUID uuid;
         private final WeakReference<Player> player;
 
         private Callback(Player p, LinkedList<Tuple<String, String>> commandList)
         {
+            uuid = p.getUniqueId();
             player = new WeakReference<>(p);
-            playersInAction.put(p, commandList);
-            playerCallbacks.put(p, this);
+            playerCallbacks.put(uuid, this);
+            playersInAction.put(uuid, commandList);
         }
 
         @Override
@@ -244,16 +246,16 @@ public final class VirtualChestActions
             if (playerOptional.isPresent())
             {
                 Player p = playerOptional.get();
-                LinkedList<Tuple<String, String>> commandList = playersInAction.getOrDefault(p, new LinkedList<>());
+                LinkedList<Tuple<String, String>> commandList = playersInAction.getOrDefault(uuid, new LinkedList<>());
                 if (commandList.isEmpty())
                 {
-                    playersInAction.remove(p);
-                    playerCallbacks.remove(p);
+                    playerCallbacks.remove(uuid);
+                    playersInAction.remove(uuid);
                 }
                 else
                 {
                     Tuple<String, String> t = commandList.pop();
-                    Optional<Callback> callbackOptional = Optional.ofNullable(playerCallbacks.get(p));
+                    Optional<Callback> callbackOptional = Optional.ofNullable(playerCallbacks.get(uuid));
                     callbackOptional.ifPresent(c ->
                     {
                         String command = t.getFirst().isEmpty() ? t.getSecond() : t.getFirst() + ": " + t.getSecond();
@@ -261,6 +263,11 @@ public final class VirtualChestActions
                         executors.get(t.getFirst()).doAction(p, t.getSecond(), c);
                     });
                 }
+            }
+            else
+            {
+                playerCallbacks.remove(uuid);
+                playersInAction.remove(uuid);
             }
         }
     }

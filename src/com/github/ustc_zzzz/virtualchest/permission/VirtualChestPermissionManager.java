@@ -12,6 +12,7 @@ import org.spongepowered.api.service.context.ContextCalculator;
 import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.service.permission.Subject;
 import org.spongepowered.api.service.permission.SubjectData;
+import org.spongepowered.api.util.Identifiable;
 import org.spongepowered.api.util.Tristate;
 
 import java.util.*;
@@ -26,7 +27,7 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
     private final Context contextInAction = new Context("virtualchest-action", "in-action");
     private final Context contextNotInAction = new Context("virtualchest-action", "not-in-action");
 
-    private final Map<Player, Set<String>> playerIgnoredPermissions = new WeakHashMap<>();
+    private final Map<UUID, Set<String>> playerIgnoredPermissions = new HashMap<>();
 
     public VirtualChestPermissionManager(VirtualChestPlugin plugin)
     {
@@ -50,14 +51,15 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
 
     public void setIgnoredPermissions(Player player, Collection<String> permissions)
     {
+        UUID uuid = player.getUniqueId();
         Set<Context> contextSet = Collections.singleton(this.contextInAction);
         SubjectData data = player.getTransientSubjectData();
-        Set<String> oldIgnoredPermissions = this.playerIgnoredPermissions.getOrDefault(player, Collections.emptySet());
+        Set<String> oldIgnoredPermissions = this.playerIgnoredPermissions.getOrDefault(uuid, Collections.emptySet());
         oldIgnoredPermissions.forEach(permission -> data.setPermission(contextSet, permission, Tristate.UNDEFINED));
         ImmutableSet<String> newIgnoredPermissions = ImmutableSet.copyOf(permissions);
         newIgnoredPermissions.forEach(permission -> data.setPermission(contextSet, permission, Tristate.TRUE));
-        this.playerIgnoredPermissions.put(player, newIgnoredPermissions);
-        this.logger.debug("Ignored permission(s) for player {}:", player.getName());
+        this.playerIgnoredPermissions.put(uuid, newIgnoredPermissions);
+        this.logger.debug("Ignored {} permission(s) for {} (player {}):", permissions.size(), uuid, player.getName());
         permissions.forEach(permission -> this.logger.debug("- {}", permission));
     }
 
@@ -68,15 +70,15 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
         if (sourceOptional.isPresent())
         {
             CommandSource source = sourceOptional.get();
-            if (source instanceof Player)
+            if (source instanceof Identifiable)
             {
-                Player player = (Player) source;
-                if (this.plugin.getVirtualChestActions().isPlayerInAction(player))
+                UUID uuid = ((Identifiable) source).getUniqueId();
+                if (this.plugin.getVirtualChestActions().isPlayerInAction(uuid))
                 {
                     accumulator.add(this.contextInAction);
-                    Map<String, Boolean> permissions = player
-                            .getTransientSubjectData().getPermissions(Collections.singleton(this.contextInAction));
-                    this.logger.debug("Ignored permission(s) for player {} (context):", player.getName());
+                    SubjectData data = source.getTransientSubjectData();
+                    Map<String, Boolean> permissions = data.getPermissions(Collections.singleton(this.contextInAction));
+                    this.logger.debug("Ignored {} permission(s) for {} (context):", permissions.size(), uuid);
                     permissions.forEach((permission, state) -> this.logger.debug("- {} ({})", permission, state));
                 }
                 else
@@ -91,16 +93,20 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
     public boolean matches(Context context, Subject subject)
     {
         Optional<CommandSource> sourceOptional = subject.getCommandSource();
-        if (sourceOptional.isPresent() && sourceOptional.get() instanceof Player)
+        if (sourceOptional.isPresent())
         {
-            Player player = (Player) sourceOptional.get();
-            if (this.plugin.getVirtualChestActions().isPlayerInAction(player))
+            CommandSource source = sourceOptional.get();
+            if (source instanceof Identifiable)
             {
-                return this.contextInAction.equals(context);
-            }
-            else
-            {
-                return this.contextNotInAction.equals(context);
+                UUID uuid = ((Identifiable) source).getUniqueId();
+                if (this.plugin.getVirtualChestActions().isPlayerInAction(uuid))
+                {
+                    return this.contextInAction.equals(context);
+                }
+                else
+                {
+                    return this.contextNotInAction.equals(context);
+                }
             }
         }
         return false;
