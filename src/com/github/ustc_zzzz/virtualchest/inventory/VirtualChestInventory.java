@@ -17,7 +17,10 @@ import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.event.item.inventory.InteractInventoryEvent;
-import org.spongepowered.api.item.inventory.*;
+import org.spongepowered.api.item.inventory.Inventory;
+import org.spongepowered.api.item.inventory.InventoryArchetypes;
+import org.spongepowered.api.item.inventory.ItemStackSnapshot;
+import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.item.inventory.property.InventoryDimension;
 import org.spongepowered.api.item.inventory.property.InventoryTitle;
 import org.spongepowered.api.item.inventory.property.SlotPos;
@@ -103,7 +106,6 @@ public final class VirtualChestInventory
                     .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
                     .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
                     .build(this.plugin);
-            listener.refreshMappingFrom(chestInventory, this.updateInventory(player, chestInventory));
             inventories.put(uuid, chestInventory);
             return chestInventory;
         }
@@ -164,7 +166,7 @@ public final class VirtualChestInventory
         private final Comparator<Slot> slotComparator;
         private final Map<Slot, VirtualChestItem> slotToItem;
         private final Map<Slot, SlotPos> slotToSlotPos;
-        private final Player player;
+        private final UUID playerUniqueId;
 
         private Optional<Task> autoUpdateTask = Optional.empty();
 
@@ -173,7 +175,7 @@ public final class VirtualChestInventory
             this.slotComparator = Comparator.comparingInt(SpongeUnimplemented::getSlotOrdinal);
             this.slotToItem = new TreeMap<>(this.slotComparator);
             this.slotToSlotPos = new TreeMap<>(this.slotComparator);
-            this.player = player;
+            this.playerUniqueId = player.getUniqueId();
         }
 
         private void refreshMappingFrom(Inventory inventory, Map<SlotPos, VirtualChestItem> itemMap)
@@ -199,18 +201,31 @@ public final class VirtualChestInventory
 
         private void fireOpenEvent(InteractInventoryEvent.Open e)
         {
+            Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
+            if (!optional.isPresent())
+            {
+                return;
+            }
+            Player player = optional.get();
             Inventory chestInventory = e.getTargetInventory().first();
             if (updateIntervalTick > 0 && !autoUpdateTask.isPresent())
             {
                 autoUpdateTask = Optional.of(Sponge.getScheduler().createTaskBuilder()
                         .execute(task -> refreshMappingFrom(chestInventory, updateInventory(player, chestInventory)))
-                        .intervalTicks(updateIntervalTick).submit(plugin));
+                        .delayTicks(updateIntervalTick).intervalTicks(updateIntervalTick).submit(plugin));
             }
             logger.debug("Player {} opens the chest GUI", player.getName());
+            refreshMappingFrom(chestInventory, updateInventory(player, chestInventory));
         }
 
         private void fireCloseEvent(InteractInventoryEvent.Close e)
         {
+            Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
+            if (!optional.isPresent())
+            {
+                return;
+            }
+            Player player = optional.get();
             autoUpdateTask.ifPresent(Task::cancel);
             autoUpdateTask = Optional.empty();
             actionIntervalManager.onClosingInventory(player);
@@ -219,6 +234,12 @@ public final class VirtualChestInventory
 
         private void fireClickEvent(ClickInventoryEvent e)
         {
+            Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
+            if (!optional.isPresent())
+            {
+                return;
+            }
+            Player player = optional.get();
             boolean shouldCloseInventory = false;
             Inventory inventory = e.getTargetInventory();
             for (SlotTransaction slotTransaction : e.getTransactions())
@@ -234,7 +255,7 @@ public final class VirtualChestInventory
                         {
                             SlotPos pos = slotToSlotPos.get(slot);
                             VirtualChestItem item = slotToItem.get(slot);
-                            if (transferEventsToItem(e, pos, item))
+                            if (transferEventsToItem(player, e, pos, item))
                             {
                                 shouldCloseInventory = true;
                             }
@@ -248,16 +269,16 @@ public final class VirtualChestInventory
             }
         }
 
-        private boolean transferEventsToItem(ClickInventoryEvent event, SlotPos pos, VirtualChestItem item)
+        private boolean transferEventsToItem(Player p, ClickInventoryEvent event, SlotPos pos, VirtualChestItem item)
         {
-            logger.debug("Player {} tries to click the chest GUI at {}", player.getName(), slotPosToKey(pos));
+            logger.debug("Player {} tries to click the chest GUI at {}", p.getName(), slotPosToKey(pos));
             if (event instanceof ClickInventoryEvent.Primary)
             {
-                executorService.submit(() -> item.doPrimaryAction(player));
+                executorService.submit(() -> item.doPrimaryAction(p));
             }
             if (event instanceof ClickInventoryEvent.Secondary)
             {
-                executorService.submit(() -> item.doSecondaryAction(player));
+                executorService.submit(() -> item.doSecondaryAction(p));
             }
             return item.shouldCloseInventory();
         }
