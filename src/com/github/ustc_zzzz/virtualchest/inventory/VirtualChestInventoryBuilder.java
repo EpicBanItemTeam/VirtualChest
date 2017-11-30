@@ -24,9 +24,11 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
 {
     private final VirtualChestPlugin plugin;
 
-    int height = 0;
     Text title = Text.of();
+    int height = 0;
     int updateIntervalTick = 0;
+    Optional<String> openActionCommand = Optional.empty();
+    Optional<String> closeActionCommand = Optional.empty();
     VirtualChestTriggerItem triggerItem = new VirtualChestTriggerItem();
     Multimap<SlotIndex, VirtualChestItem> items = ArrayListMultimap.create();
     Optional<Integer> actionIntervalTick = Optional.empty();
@@ -57,6 +59,18 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
     public VirtualChestInventoryBuilder updateIntervalTick(int updateIntervalTick)
     {
         this.updateIntervalTick = updateIntervalTick;
+        return this;
+    }
+
+    public VirtualChestInventoryBuilder openActionCommand(String openActionCommand)
+    {
+        this.openActionCommand = Optional.of(openActionCommand);
+        return this;
+    }
+
+    public VirtualChestInventoryBuilder closeActionCommand(String closeActionCommand)
+    {
+        this.closeActionCommand = Optional.of(closeActionCommand);
         return this;
     }
 
@@ -113,6 +127,10 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
         this.triggerItem = view.getView(VirtualChestInventory.TRIGGER_ITEM)
                 .map(VirtualChestTriggerItem::new).orElseGet(VirtualChestTriggerItem::new);
 
+        this.openActionCommand = view.getString(VirtualChestInventory.OPEN_ACTION_COMMAND);
+
+        this.closeActionCommand = view.getString(VirtualChestInventory.CLOSE_ACTION_COMMAND);
+
         this.updateIntervalTick = view.getInt(VirtualChestInventory.UPDATE_INTERVAL_TICK).orElse(0);
 
         this.actionIntervalTick = view.getInt(VirtualChestInventory.ACCEPTABLE_ACTION_INTERVAL_TICK);
@@ -126,6 +144,8 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
         this.title = value.title;
         this.height = value.height;
         this.triggerItem = value.triggerItem;
+        this.openActionCommand = value.openActionCommand;
+        this.closeActionCommand = value.closeActionCommand;
         this.updateIntervalTick = value.updateIntervalTick;
         this.actionIntervalTick = value.acceptableActionIntervalTick.isPresent()
                 ? Optional.of(value.acceptableActionIntervalTick.getAsInt()) : Optional.empty();

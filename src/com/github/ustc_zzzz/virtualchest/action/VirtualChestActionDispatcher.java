@@ -47,7 +47,7 @@ public class VirtualChestActionDispatcher
         for (DataView view : views)
         {
             handheldItemBuilder.add(this.parseHandheldItem(view.getView(HANDHELD_ITEM)));
-            commandsBuilder.add(this.parseCommand(view.getString(COMMAND).orElse("")));
+            commandsBuilder.add(parseCommand(view.getString(COMMAND).orElse("")));
             keepInventoryOpenBuilder.add(view.getBoolean(KEEP_INVENTORY_OPEN).orElse(false));
 
             dataContainerBuilder.add(view.copy());
@@ -93,7 +93,7 @@ public class VirtualChestActionDispatcher
         return optional.map(VirtualChestItemTemplateWithCount::new).orElseGet(VirtualChestItemTemplateWithCount::new);
     }
 
-    private List<String> parseCommand(String commandSequence)
+    public static List<String> parseCommand(String commandSequence)
     {
         StringBuilder stringBuilder = new StringBuilder();
         List<String> commands = new LinkedList<>();

@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionDispatcher;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
@@ -37,11 +38,13 @@ import java.util.concurrent.CompletableFuture;
 @NonnullByDefault
 public final class VirtualChestInventory implements DataSerializable
 {
-    public static final DataQuery TITLE = Queries.TEXT_TITLE;
-    public static final DataQuery HEIGHT = DataQuery.of("Rows");
-    public static final DataQuery UPDATE_INTERVAL_TICK = DataQuery.of("UpdateIntervalTick");
-    public static final DataQuery ACCEPTABLE_ACTION_INTERVAL_TICK = DataQuery.of("AcceptableActionIntervalTick");
-    public static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
+    static final DataQuery TITLE = Queries.TEXT_TITLE;
+    static final DataQuery HEIGHT = DataQuery.of("Rows");
+    static final DataQuery OPEN_ACTION_COMMAND = DataQuery.of("OpenActionCommand");
+    static final DataQuery CLOSE_ACTION_COMMAND = DataQuery.of("CloseActionCommand");
+    static final DataQuery UPDATE_INTERVAL_TICK = DataQuery.of("UpdateIntervalTick");
+    static final DataQuery ACCEPTABLE_ACTION_INTERVAL_TICK = DataQuery.of("AcceptableActionIntervalTick");
+    static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
 
     static final String KEY_PREFIX = "Slot";
     static final String INVENTORY_DIMENSION = "inventorydimension";
@@ -52,9 +55,11 @@ public final class VirtualChestInventory implements DataSerializable
     private final Map<UUID, Inventory> inventories = new HashMap<>();
 
     final Multimap<SlotIndex, VirtualChestItem> items;
-    final int height;
     final Text title;
+    final int height;
     final VirtualChestTriggerItem triggerItem;
+    final Optional<String> openActionCommand;
+    final Optional<String> closeActionCommand;
     final int updateIntervalTick;
     final OptionalInt acceptableActionIntervalTick;
 
@@ -67,6 +72,8 @@ public final class VirtualChestInventory implements DataSerializable
         this.title = builder.title;
         this.height = builder.height;
         this.triggerItem = builder.triggerItem;
+        this.openActionCommand = builder.openActionCommand;
+        this.closeActionCommand = builder.closeActionCommand;
         this.updateIntervalTick = builder.updateIntervalTick;
         this.items = ImmutableMultimap.copyOf(builder.items);
         this.acceptableActionIntervalTick = builder.actionIntervalTick.map(OptionalInt::of).orElse(OptionalInt.empty());
@@ -142,10 +149,12 @@ public final class VirtualChestInventory implements DataSerializable
     public DataContainer toContainer()
     {
         DataContainer container = new MemoryDataContainer();
-        container.set(VirtualChestInventory.TITLE, this.title);
-        container.set(VirtualChestInventory.HEIGHT, this.height);
-        container.set(VirtualChestInventory.TRIGGER_ITEM, this.triggerItem);
-        container.set(VirtualChestInventory.UPDATE_INTERVAL_TICK, this.updateIntervalTick);
+        container.set(TITLE, this.title);
+        container.set(HEIGHT, this.height);
+        container.set(TRIGGER_ITEM, this.triggerItem);
+        container.set(UPDATE_INTERVAL_TICK, this.updateIntervalTick);
+        this.openActionCommand.ifPresent(c -> container.set(OPEN_ACTION_COMMAND, c));
+        this.closeActionCommand.ifPresent(c -> container.set(CLOSE_ACTION_COMMAND, c));
         for (Map.Entry<SlotIndex, Collection<VirtualChestItem>> entry : this.items.asMap().entrySet())
         {
             Collection<VirtualChestItem> items = entry.getValue();
@@ -155,12 +164,12 @@ public final class VirtualChestInventory implements DataSerializable
                 break;
             case 1:
                 DataContainer data = VirtualChestItem.serialize(this.plugin, items.iterator().next());
-                container.set(DataQuery.of(VirtualChestInventory.slotIndexToKey(entry.getKey())), data);
+                container.set(DataQuery.of(slotIndexToKey(entry.getKey())), data);
                 break;
             default:
                 List<DataContainer> containerList = new LinkedList<>();
                 items.forEach(item -> containerList.add(VirtualChestItem.serialize(this.plugin, item)));
-                container.set(DataQuery.of(VirtualChestInventory.slotIndexToKey(entry.getKey())), containerList);
+                container.set(DataQuery.of(slotIndexToKey(entry.getKey())), containerList);
             }
         }
         return container;
@@ -170,6 +179,8 @@ public final class VirtualChestInventory implements DataSerializable
     {
         private final UUID playerUniqueId;
         private final SlotIndex slotToListen;
+        private final List<String> parsedOpenAction;
+        private final List<String> parsedCloseAction;
         private final Map<SlotIndex, VirtualChestItem> itemsInSlots;
 
         private final SpongeExecutorService executorService = Sponge.getScheduler().createSyncExecutor(plugin);
@@ -179,6 +190,8 @@ public final class VirtualChestInventory implements DataSerializable
         private VirtualChestEventListener(Player player)
         {
             this.itemsInSlots = new TreeMap<>();
+            this.parsedOpenAction = VirtualChestActionDispatcher.parseCommand(openActionCommand.orElse(""));
+            this.parsedCloseAction = VirtualChestActionDispatcher.parseCommand(closeActionCommand.orElse(""));
             this.slotToListen = SlotIndex.lessThan(height * 9);
             this.playerUniqueId = player.getUniqueId();
         }
@@ -197,6 +210,7 @@ public final class VirtualChestInventory implements DataSerializable
                 return;
             }
             Player player = optional.get();
+            plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction);
             Inventory i = e.getTargetInventory().first();
             if (updateIntervalTick > 0 && !autoUpdateTask.isPresent())
             {
@@ -217,6 +231,7 @@ public final class VirtualChestInventory implements DataSerializable
                 return;
             }
             Player player = optional.get();
+            plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction);
             autoUpdateTask.ifPresent(Task::cancel);
             autoUpdateTask = Optional.empty();
             actionIntervalManager.onClosingInventory(player);
