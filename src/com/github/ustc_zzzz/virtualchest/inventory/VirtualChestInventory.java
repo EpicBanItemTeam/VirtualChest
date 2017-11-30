@@ -39,17 +39,15 @@ public final class VirtualChestInventory implements DataSerializable
 {
     public static final DataQuery TITLE = Queries.TEXT_TITLE;
     public static final DataQuery HEIGHT = DataQuery.of("Rows");
-    public static final DataQuery ITEM_TYPE = DataQuery.of("ItemType");
-    public static final DataQuery UNSAFE_DAMAGE = DataQuery.of("UnsafeDamage");
     public static final DataQuery UPDATE_INTERVAL_TICK = DataQuery.of("UpdateIntervalTick");
     public static final DataQuery ACCEPTABLE_ACTION_INTERVAL_TICK = DataQuery.of("AcceptableActionIntervalTick");
     public static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
 
-    public static final String KEY_PREFIX = "Slot";
+    static final String KEY_PREFIX = "Slot";
+    static final String INVENTORY_DIMENSION = "inventorydimension";
 
     private final Logger logger;
     private final VirtualChestPlugin plugin;
-    private final SpongeExecutorService executorService;
     private final VirtualChestActionIntervalManager actionIntervalManager;
     private final Map<UUID, Inventory> inventories = new HashMap<>();
 
@@ -65,7 +63,6 @@ public final class VirtualChestInventory implements DataSerializable
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.actionIntervalManager = plugin.getActionIntervalManager();
-        this.executorService = plugin.getVirtualChestActions().getExecutorService();
 
         this.title = builder.title;
         this.height = builder.height;
@@ -94,7 +91,7 @@ public final class VirtualChestInventory implements DataSerializable
             Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
                     .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
                     // before v7.0.0 it's InventoryDimension.PROPERTY_NAM, after which it's InventoryDimension.PROPERTY_NAME
-                    .property("inventorydimension", new InventoryDimension(9, this.height))
+                    .property(INVENTORY_DIMENSION, new InventoryDimension(9, this.height))
                     .listener(ClickInventoryEvent.class, listener::fireClickEvent)
                     .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
                     .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)

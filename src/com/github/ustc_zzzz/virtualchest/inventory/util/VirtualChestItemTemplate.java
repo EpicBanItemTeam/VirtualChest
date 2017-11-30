@@ -1,7 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.inventory.util;
 
-import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import org.spongepowered.api.data.DataContainer;
+import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataSerializable;
 import org.spongepowered.api.item.ItemType;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
@@ -13,6 +13,9 @@ import org.spongepowered.api.util.annotation.NonnullByDefault;
 @NonnullByDefault
 public class VirtualChestItemTemplate implements DataSerializable
 {
+    public static final DataQuery ITEM_TYPE = DataQuery.of("ItemType");
+    public static final DataQuery UNSAFE_DAMAGE = DataQuery.of("UnsafeDamage");
+
     private final DataContainer container;
 
     public VirtualChestItemTemplate(DataContainer dataContainer)
@@ -28,13 +31,13 @@ public class VirtualChestItemTemplate implements DataSerializable
     private boolean matchItemType(ItemStackSnapshot item)
     {
         ItemType t = item.getType();
-        return container.getCatalogType(VirtualChestInventory.ITEM_TYPE, ItemType.class).filter(t::equals).isPresent();
+        return container.getCatalogType(ITEM_TYPE, ItemType.class).filter(t::equals).isPresent();
     }
 
     private boolean matchItemDamage(ItemStackSnapshot item)
     {
-        Integer d = item.toContainer().getInt(VirtualChestInventory.UNSAFE_DAMAGE).get();
-        return container.getInt(VirtualChestInventory.UNSAFE_DAMAGE).orElse(d).equals(d);
+        Integer d = item.toContainer().getInt(UNSAFE_DAMAGE).orElse(0);
+        return container.getInt(UNSAFE_DAMAGE).orElse(d).equals(d);
     }
 
     @Override
