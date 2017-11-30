@@ -2,7 +2,7 @@ package com.github.ustc_zzzz.virtualchest.placeholder;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.unsafe.PlaceholderAPIUtils;
-import org.apache.commons.lang3.StringEscapeUtils;
+import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import org.slf4j.Logger;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.text.Text;
@@ -56,8 +56,7 @@ public class VirtualChestPlaceholderManager
         int lastIndex = 0;
         while (matcher.find())
         {
-            // TODO: depends on apache commons, should be replaced with what is implemented by the plugin itself
-            String matched = StringEscapeUtils.escapeEcmaScript(text.substring(matcher.start() + 1, matcher.end() - 1));
+            String matched = SpongeUnimplemented.escapeString(text.substring(matcher.start() + 1, matcher.end() - 1));
             builder.append(text.substring(lastIndex, matcher.start()));
             builder.append(functionIdentifier).append("('").append(matched).append("')");
             lastIndex = matcher.end();

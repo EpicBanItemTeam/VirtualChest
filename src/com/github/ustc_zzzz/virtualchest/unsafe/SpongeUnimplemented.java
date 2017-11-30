@@ -41,6 +41,13 @@ public class SpongeUnimplemented
     private static final MethodHandle CAUSE_APPEND_SOURCE;
     private static final MethodHandle CAUSE_BUILD;
 
+    public static String escapeString(String input)
+    {
+        // TODO: this method depends on apache commons
+        // TODO: it should be replaced with an implementation by the plugin itself
+        return org.apache.commons.lang3.StringEscapeUtils.escapeEcmaScript(input);
+    }
+
     public static boolean isSlotInInventory(Slot slot, Inventory targetInventory)
     {
         return slot.parent().equals(targetInventory);

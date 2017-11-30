@@ -81,7 +81,7 @@ public final class VirtualChestActions
 
     public void submitCommands(Player player, List<String> commands)
     {
-        plugin.getLogger().debug("Player {} tries to run {}", player, commands);
+        plugin.getLogger().debug("Player {} tries to run {} command(s)", player.getName(), commands.size());
         VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
         LinkedList<Tuple<String, String>> commandList = new LinkedList<>();
         for (String command : commands)
@@ -108,7 +108,10 @@ public final class VirtualChestActions
 
     private void process(Player player, String command, Consumer<CommandResult> callback)
     {
-        callback.accept(Sponge.getCommandManager().process(player, command));
+        if (!command.replaceFirst("\\s++$", "").isEmpty())
+        {
+            callback.accept(Sponge.getCommandManager().process(player, command));
+        }
     }
 
     private void processCostItem(Player player, String command, Consumer<CommandResult> callback)
@@ -259,7 +262,8 @@ public final class VirtualChestActions
                     callbackOptional.ifPresent(c ->
                     {
                         String command = t.getFirst().isEmpty() ? t.getSecond() : t.getFirst() + ": " + t.getSecond();
-                        plugin.getLogger().debug("Player {}, is now executing {}", p.getName(), command);
+                        String escapedCommand = '\'' + SpongeUnimplemented.escapeString(command) + '\'';
+                        plugin.getLogger().debug("Player {} is now executing {}", p.getName(), escapedCommand);
                         executors.get(t.getFirst()).doAction(p, t.getSecond(), c);
                     });
                 }
