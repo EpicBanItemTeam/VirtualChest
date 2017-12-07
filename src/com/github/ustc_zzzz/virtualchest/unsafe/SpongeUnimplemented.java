@@ -41,6 +41,25 @@ public class SpongeUnimplemented
     private static final MethodHandle CAUSE_APPEND_SOURCE;
     private static final MethodHandle CAUSE_BUILD;
 
+    public static Class<?> getItemEnchantmentClass()
+    {
+        try
+        {
+            try
+            {
+                return Class.forName("org.spongepowered.api.item.enchantment.Enchantment");
+            }
+            catch (ClassNotFoundException e)
+            {
+                return Class.forName("org.spongepowered.api.data.meta.ItemEnchantment");
+            }
+        }
+        catch (ReflectiveOperationException e)
+        {
+            throw new UnsupportedOperationException("ItemEnchantment not found");
+        }
+    }
+
     public static String escapeString(String input)
     {
         // TODO: this method depends on apache commons

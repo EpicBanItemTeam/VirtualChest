@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.inventory.item;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.reflect.TypeToken;
@@ -15,15 +16,15 @@ import org.spongepowered.api.Sponge;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataTransactionResult;
 import org.spongepowered.api.data.DataView;
+import org.spongepowered.api.data.Queries;
 import org.spongepowered.api.data.key.Key;
-import org.spongepowered.api.data.meta.ItemEnchantment;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.data.value.BaseValue;
 import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.item.Enchantment;
 import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
+import org.spongepowered.api.util.Coerce;
 
 import java.util.Map;
 import java.util.Objects;
@@ -38,7 +39,9 @@ import java.util.function.BiFunction;
 public class VirtualChestItemStackSerializer implements BiFunction<Player, DataView, ItemStack>
 {
     private static final Set<DataQuery> EXCEPTIONS;
-    private static final TypeSerializer<ItemEnchantment> ITEM_ENCHANTMENT_SERIALIZER = new ItemEnchantmentSerializer();
+    private static final TextSerializer TEXT_SERIALIZER = new TextSerializer();
+    private static final TypeSerializer<Object> ITEM_ENCHANTMENT_SERIALIZER = new ItemEnchantmentSerializer();
+    private static final TypeToken<?> ITEM_ENCHANTMENT = TypeToken.of(SpongeUnimplemented.getItemEnchantmentClass());
 
     private static final Map<DataQuery, Key<?>> KEYS;
 
@@ -65,8 +68,8 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
     {
         this.plugin = plugin;
         this.serializers = TypeSerializers.getDefaultSerializers().newChild()
-                .registerType(TypeToken.of(Text.class), new TextSerializer())
-                .registerType(TypeToken.of(ItemEnchantment.class), ITEM_ENCHANTMENT_SERIALIZER);
+                .registerType(TypeToken.of(Text.class), TEXT_SERIALIZER)
+                .registerType(ITEM_ENCHANTMENT, ITEM_ENCHANTMENT_SERIALIZER);
     }
 
     private <T, U extends BaseValue<T>> void deserializeForKeys(
@@ -182,25 +185,35 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
         }
     }
 
-    private static final class ItemEnchantmentSerializer implements TypeSerializer<ItemEnchantment>
+    private static final class ItemEnchantmentSerializer implements TypeSerializer<Object>
     {
-        private Optional<ItemEnchantment> deserializeItemEnchantment(String e)
+        private Optional<Object> deserializeItemEnchantment(String s)
         {
-            int colonFirstIndex = e.indexOf(':'), colonLastIndex = e.lastIndexOf(':');
-            int level = colonFirstIndex == colonLastIndex ? 1 : Integer.valueOf(e.substring(colonLastIndex + 1));
-            String enchantmentId = colonFirstIndex == colonLastIndex ? e : e.substring(0, colonLastIndex);
-            Optional<Enchantment> enchantmentOptional = Sponge.getRegistry().getType(Enchantment.class, enchantmentId);
-            return enchantmentOptional.map(enchantment -> new ItemEnchantment(enchantment, level));
+            try
+            {
+                int colonFirst = s.indexOf(':'), colonIndex = s.lastIndexOf(':');
+                String enchantmentId = colonFirst == colonIndex ? s : s.substring(0, colonIndex);
+                int enchantmentLevel = colonFirst == colonIndex ? 1 : Coerce.toInteger(s.substring(colonIndex + 1));
+
+                ConfigurationNode node = SimpleConfigurationNode.root(/* default deserializer */);
+                node.getNode(Queries.ENCHANTMENT_ID.toString()).setValue(enchantmentId);
+                node.getNode(Queries.LEVEL.toString()).setValue(enchantmentLevel);
+                return Optional.ofNullable(node.getValue(ITEM_ENCHANTMENT));
+            }
+            catch (Exception e)
+            {
+                return Optional.empty();
+            }
         }
 
         @Override
-        public ItemEnchantment deserialize(TypeToken<?> t, ConfigurationNode value) throws ObjectMappingException
+        public Object deserialize(TypeToken<?> t, ConfigurationNode value) throws ObjectMappingException
         {
             return Optional.ofNullable(value.getString()).flatMap(this::deserializeItemEnchantment).orElse(null);
         }
 
         @Override
-        public void serialize(TypeToken<?> t, ItemEnchantment o, ConfigurationNode value) throws ObjectMappingException
+        public void serialize(TypeToken<?> type, Object obj, ConfigurationNode value) throws ObjectMappingException
         {
             throw new ObjectMappingException(new UnsupportedOperationException());
         }
