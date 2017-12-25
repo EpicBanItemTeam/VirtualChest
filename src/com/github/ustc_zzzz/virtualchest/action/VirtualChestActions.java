@@ -4,8 +4,11 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
+import org.spongepowered.api.GameRegistry;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
+import org.spongepowered.api.effect.sound.SoundCategory;
+import org.spongepowered.api.effect.sound.SoundType;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
@@ -18,12 +21,15 @@ import org.spongepowered.api.text.chat.ChatTypes;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.text.title.Title;
 import org.spongepowered.api.util.Tuple;
+import org.spongepowered.api.world.Location;
+import org.spongepowered.api.world.World;
 
 import java.lang.ref.WeakReference;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * @author ustc_zzzz
@@ -57,6 +63,8 @@ public final class VirtualChestActions
         registerPrefix("connect", this::processConnect);
         registerPrefix("cost", this::processCost);
         registerPrefix("cost-item", this::processCostItem);
+        registerPrefix("sound", this::processSound);
+        registerPrefix("sound-with-pitch", this::processSoundWithPitch);
 
         registerPrefix("", this::process);
 
@@ -112,6 +120,21 @@ public final class VirtualChestActions
         {
             callback.accept(Sponge.getCommandManager().process(player, command));
         }
+    }
+
+    private void processSoundWithPitch(Player player, String command, Consumer<CommandResult> callback)
+    {
+        int index = command.lastIndexOf(':');
+        String prefix = index > 0 ? command.substring(0, index).toLowerCase() : "";
+        String suffix = command.substring(index + 1).replaceFirst("\\s++$", "");
+        SoundManager.playSound(prefix, player, player.getLocation(), Double.parseDouble(suffix));
+        callback.accept(CommandResult.success());
+    }
+
+    private void processSound(Player player, String command, Consumer<CommandResult> callback)
+    {
+        SoundManager.playSound(command.replaceFirst("\\s++$", ""), player, player.getLocation(), Double.NaN);
+        callback.accept(CommandResult.success());
     }
 
     private void processCostItem(Player player, String command, Consumer<CommandResult> callback)
@@ -322,6 +345,46 @@ public final class VirtualChestActions
             Optional.ofNullable(task).ifPresent(Task::cancel);
             Task.Builder builder = Sponge.getScheduler().createTaskBuilder().intervalTicks(1);
             task = builder.name("VirtualChestTitleManager").execute(TitleManager::sendTitle).submit(plugin);
+        }
+    }
+
+    private static class SoundManager
+    {
+        private static SoundCategory soundCategory;
+
+        private static void playSound(String command, Player player, Location<World> location, double pitch)
+        {
+            double volume;
+            SoundType soundType;
+            GameRegistry registry = Sponge.getRegistry();
+            Optional<SoundType> soundTypeOptional = registry.getType(SoundType.class, command);
+            if (soundTypeOptional.isPresent())
+            {
+                volume = 1;
+                soundType = soundTypeOptional.get();
+            }
+            else
+            {
+                int index = command.lastIndexOf(':');
+                String id = index > 0 ? command.substring(0, index).toLowerCase() : "";
+                Supplier<RuntimeException> error = () -> new NoSuchElementException("No value available for " + id);
+                soundType = registry.getType(SoundType.class, id).orElseThrow(error);
+                volume = Double.parseDouble(command.substring(index + 1));
+            }
+            if (Double.isNaN(pitch))
+            {
+                player.playSound(soundType, soundCategory, location.getPosition(), volume);
+            }
+            else
+            {
+                player.playSound(soundType, soundCategory, location.getPosition(), volume, pitch);
+            }
+        }
+
+        static
+        {
+            // lazy initialization
+            soundCategory = Sponge.getRegistry().getType(SoundCategory.class, "minecraft:player").get();
         }
     }
 }
