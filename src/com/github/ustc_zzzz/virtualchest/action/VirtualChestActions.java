@@ -278,8 +278,8 @@ public final class VirtualChestActions
 
         private Callback(Player p, LinkedList<Tuple<String, String>> commandList, List<String> ignoredPermissions)
         {
+            this.commandList = commandList;
             this.playerReference = new WeakReference<>(p);
-            this.commandList = new ArrayDeque<>(commandList);
             this.permissionManager = VirtualChestActions.this.plugin.getPermissionManager();
 
             this.permissionManager.clearIgnored(p);
