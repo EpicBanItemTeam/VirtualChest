@@ -2,7 +2,10 @@ package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
+import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
+import com.google.common.collect.Multimaps;
+import com.google.common.collect.SortedSetMultimap;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
@@ -11,7 +14,7 @@ import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.network.ChannelBinding;
 import org.spongepowered.api.network.ChannelRegistrar;
-import org.spongepowered.api.scheduler.SpongeExecutorService;
+import org.spongepowered.api.scheduler.Scheduler;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.chat.ChatTypes;
@@ -23,7 +26,6 @@ import org.spongepowered.api.util.Tuple;
 import java.lang.ref.WeakReference;
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -38,17 +40,21 @@ public final class VirtualChestActions
 
     private final VirtualChestPlugin plugin;
     private final Map<String, VirtualChestActionExecutor> executors = new HashMap<>();
-    private final Map<UUID, LinkedList<Tuple<String, String>>> playersInAction = new HashMap<>();
-    private final Map<UUID, Callback> playerCallbacks = new HashMap<>();
 
-    private final SpongeExecutorService executorService;
+    private final Scheduler scheduler = Sponge.getScheduler();
+    private final Set<UUID> activatedPlayers = new HashSet<>();
+    private final Queue<Callback> queuedCallbacks = new ArrayDeque<>();
+    private final SortedSetMultimap<Callback, String> ignoredPermissions;
 
     private ChannelBinding.RawDataChannel bungeeCordChannel;
 
     public VirtualChestActions(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
-        this.executorService = Sponge.getScheduler().createSyncExecutor(plugin);
+        this.ignoredPermissions = Multimaps.newSortedSetMultimap(new IdentityHashMap<>(), TreeSet::new);
+
+        Task.Builder taskBuilder = this.scheduler.createTaskBuilder().intervalTicks(1);
+        taskBuilder.name("VirtualChestActionExecutor").execute(this::tick).submit(plugin);
 
         registerPrefix("console", this::processConsole);
         registerPrefix("tell", this::processTell);
@@ -78,12 +84,12 @@ public final class VirtualChestActions
         this.executors.put(prefix, executor);
     }
 
-    public boolean isPlayerInAction(UUID uuid)
+    public boolean isPlayerActivated(UUID uuid)
     {
-        return this.playersInAction.containsKey(uuid);
+        return this.activatedPlayers.contains(uuid);
     }
 
-    public void runCommand(Player player, String commandString)
+    public void runCommand(Player player, String commandString, List<String> ignoredPermissions)
     {
         LinkedList<Tuple<String, String>> commandList = parseCommand(commandString).stream().flatMap(command ->
         {
@@ -108,7 +114,22 @@ public final class VirtualChestActions
                 return Stream.empty();
             }
         }).collect(Collectors.toCollection(LinkedList::new));
-        this.executorService.submit(() -> new Callback(player, commandList).accept(CommandResult.empty()));
+        this.queuedCallbacks.offer(new Callback(player, commandList, ignoredPermissions));
+    }
+
+    private void tick(Task task)
+    {
+        CommandResult init = CommandResult.success();
+        while (true)
+        {
+            Callback callback = this.queuedCallbacks.poll();
+            if (Objects.isNull(callback))
+            {
+                break;
+            }
+            callback.accept(init);
+        }
+        this.activatedPlayers.clear();
     }
 
     private void process(Player player, String command, Consumer<CommandResult> callback)
@@ -174,7 +195,7 @@ public final class VirtualChestActions
                 throw new NumberFormatException();
             }
             Runnable taskExecutor = () -> callback.accept(CommandResult.success());
-            this.executorService.schedule(taskExecutor, 50 * delayTick - 1, TimeUnit.MILLISECONDS);
+            this.scheduler.createTaskBuilder().delayTicks(delayTick).execute(taskExecutor).submit(this.plugin);
         }
         catch (NumberFormatException e)
         {
@@ -259,55 +280,46 @@ public final class VirtualChestActions
         return commands;
     }
 
-    public SpongeExecutorService getExecutorService()
-    {
-        return this.executorService;
-    }
-
     private class Callback implements Consumer<CommandResult>
     {
-        private final UUID uuid;
-        private final WeakReference<Player> player;
+        private final WeakReference<Player> playerReference;
+        private final Queue<Tuple<String, String>> commandList;
+        private final VirtualChestPermissionManager permissionManager;
+        private final Logger logger = VirtualChestActions.this.plugin.getLogger();
 
-        private Callback(Player p, LinkedList<Tuple<String, String>> commandList)
+        private Callback(Player p, LinkedList<Tuple<String, String>> commandList, List<String> ignoredPermissions)
         {
-            uuid = p.getUniqueId();
-            player = new WeakReference<>(p);
-            playerCallbacks.put(uuid, this);
-            playersInAction.put(uuid, commandList);
+            this.playerReference = new WeakReference<>(p);
+            this.commandList = new ArrayDeque<>(commandList);
+            this.permissionManager = VirtualChestActions.this.plugin.getPermissionManager();
+
+            this.permissionManager.clearIgnored(p);
+            VirtualChestActions.this.ignoredPermissions.putAll(this, ignoredPermissions);
+            this.permissionManager.addIgnored(p, VirtualChestActions.this.ignoredPermissions.values());
         }
 
         @Override
         public void accept(CommandResult commandResult)
         {
-            Optional<Player> playerOptional = Optional.ofNullable(player.get());
-            if (playerOptional.isPresent())
+            Player player = this.playerReference.get();
+            if (!Objects.isNull(player))
             {
-                Player p = playerOptional.get();
-                LinkedList<Tuple<String, String>> commandList = playersInAction.getOrDefault(uuid, new LinkedList<>());
-                if (commandList.isEmpty())
+                Tuple<String, String> t = this.commandList.poll();
+                if (Objects.isNull(t))
                 {
-                    playerCallbacks.remove(uuid);
-                    playersInAction.remove(uuid);
+                    this.permissionManager.clearIgnored(player);
+                    VirtualChestActions.this.ignoredPermissions.removeAll(this);
+                    this.permissionManager.addIgnored(player, VirtualChestActions.this.ignoredPermissions.values());
                 }
                 else
                 {
-                    Tuple<String, String> t = commandList.pop();
-                    Optional<Callback> callbackOptional = Optional.ofNullable(playerCallbacks.get(uuid));
-                    callbackOptional.ifPresent(c ->
-                    {
-                        Logger logger = plugin.getLogger();
-                        logger.debug("The chest GUI has put forward a request for player: {}", p.getName());
-                        String command = t.getFirst().isEmpty() ? t.getSecond() : t.getFirst() + ": " + t.getSecond();
-                        logger.debug("- {}", command);
-                        executors.get(t.getFirst()).doAction(p, t.getSecond(), c);
-                    });
+                    UUID uuid = player.getUniqueId();
+                    VirtualChestActions.this.activatedPlayers.add(uuid);
+                    String prefix = t.getFirst(), suffix = t.getSecond();
+                    String command = prefix.isEmpty() ? suffix : prefix + ": " + suffix;
+                    this.logger.debug("Player {} is now executing {}", player.getName(), command);
+                    VirtualChestActions.this.executors.get(prefix).doAction(player, suffix, this);
                 }
-            }
-            else
-            {
-                playerCallbacks.remove(uuid);
-                playersInAction.remove(uuid);
             }
         }
     }

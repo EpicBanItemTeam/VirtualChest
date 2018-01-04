@@ -23,8 +23,10 @@ import org.spongepowered.api.util.annotation.NonnullByDefault;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Collection;
+import java.util.Date;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**

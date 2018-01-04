@@ -187,8 +187,7 @@ public class VirtualChestItem
         {
             if (this.primaryRequiredItem.matchItem(SpongeUnimplemented.getItemHeldByMouse(player)))
             {
-                this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
-                this.plugin.getVirtualChestActions().runCommand(player, this.primaryAction);
+                this.plugin.getVirtualChestActions().runCommand(player, this.primaryAction, this.ignoredPermissions);
             }
         }
     }
@@ -199,8 +198,7 @@ public class VirtualChestItem
         {
             if (this.secondaryRequiredItem.matchItem(SpongeUnimplemented.getItemHeldByMouse(player)))
             {
-                this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
-                this.plugin.getVirtualChestActions().runCommand(player, this.secondaryAction);
+                this.plugin.getVirtualChestActions().runCommand(player, this.secondaryAction, this.ignoredPermissions);
             }
         }
     }

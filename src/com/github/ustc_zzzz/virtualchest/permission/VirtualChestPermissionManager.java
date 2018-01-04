@@ -2,7 +2,6 @@ package com.github.ustc_zzzz.virtualchest.permission;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandSource;
@@ -49,18 +48,19 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
         }
     }
 
-    public void setIgnoredPermissions(Player player, Collection<String> permissions)
+    public void addIgnored(Player player, Collection<String> permissions)
     {
         UUID uuid = player.getUniqueId();
-        Set<Context> contextSet = Collections.singleton(this.contextInAction);
         SubjectData data = player.getTransientSubjectData();
-        Set<String> oldIgnoredPermissions = this.playerIgnoredPermissions.getOrDefault(uuid, Collections.emptySet());
-        oldIgnoredPermissions.forEach(permission -> data.setPermission(contextSet, permission, Tristate.UNDEFINED));
-        ImmutableSet<String> newIgnoredPermissions = ImmutableSet.copyOf(permissions);
-        newIgnoredPermissions.forEach(permission -> data.setPermission(contextSet, permission, Tristate.TRUE));
-        this.playerIgnoredPermissions.put(uuid, newIgnoredPermissions);
+        Set<Context> contextSet = Collections.singleton(this.contextInAction);
+        permissions.forEach(permission -> data.setPermission(contextSet, permission, Tristate.TRUE));
         this.logger.debug("Ignored {} permission(s) for {} (player {}):", permissions.size(), uuid, player.getName());
         permissions.forEach(permission -> this.logger.debug("- {}", permission));
+    }
+
+    public void clearIgnored(Player player)
+    {
+        player.getTransientSubjectData().clearPermissions(Collections.singleton(this.contextInAction));
     }
 
     @Override
@@ -73,7 +73,7 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
             if (source instanceof Identifiable)
             {
                 UUID uuid = ((Identifiable) source).getUniqueId();
-                if (this.plugin.getVirtualChestActions().isPlayerInAction(uuid))
+                if (this.plugin.getVirtualChestActions().isPlayerActivated(uuid))
                 {
                     accumulator.add(this.contextInAction);
                     SubjectData data = source.getTransientSubjectData();
@@ -99,7 +99,7 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
             if (source instanceof Identifiable)
             {
                 UUID uuid = ((Identifiable) source).getUniqueId();
-                if (this.plugin.getVirtualChestActions().isPlayerInAction(uuid))
+                if (this.plugin.getVirtualChestActions().isPlayerActivated(uuid))
                 {
                     return this.contextInAction.equals(context);
                 }

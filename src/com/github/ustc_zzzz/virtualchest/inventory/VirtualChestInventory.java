@@ -72,7 +72,7 @@ public final class VirtualChestInventory
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.actionIntervalManager = plugin.getActionIntervalManager();
-        this.executorService = plugin.getVirtualChestActions().getExecutorService();
+        this.executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
         this.title = title;
         this.height = height;
