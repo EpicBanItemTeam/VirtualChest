@@ -121,14 +121,12 @@ public class VirtualChestItem
 
     public boolean doPrimaryAction(Player player)
     {
-        this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
-        return this.primaryAction.runCommand(this.plugin, player);
+        return this.primaryAction.runCommand(this.plugin, player, this.ignoredPermissions);
     }
 
     public boolean doSecondaryAction(Player player)
     {
-        this.plugin.getPermissionManager().setIgnoredPermissions(player, this.ignoredPermissions);
-        return this.secondaryAction.runCommand(this.plugin, player);
+        return this.secondaryAction.runCommand(this.plugin, player, this.ignoredPermissions);
     }
 
 //    public String toString()

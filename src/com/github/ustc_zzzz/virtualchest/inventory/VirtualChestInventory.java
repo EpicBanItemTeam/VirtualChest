@@ -6,6 +6,7 @@ import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManage
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
@@ -210,7 +211,7 @@ public final class VirtualChestInventory implements DataSerializable
                 return;
             }
             Player player = optional.get();
-            plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction);
+            plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction, ImmutableList.of());
             Inventory i = e.getTargetInventory().first();
             if (updateIntervalTick > 0 && !autoUpdateTask.isPresent())
             {
@@ -231,7 +232,7 @@ public final class VirtualChestInventory implements DataSerializable
                 return;
             }
             Player player = optional.get();
-            plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction);
+            plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction, ImmutableList.of());
             autoUpdateTask.ifPresent(Task::cancel);
             autoUpdateTask = Optional.empty();
             actionIntervalManager.onClosingInventory(player);

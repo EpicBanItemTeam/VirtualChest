@@ -60,7 +60,7 @@ public class VirtualChestActionDispatcher
         this.views = dataContainerBuilder.build();
     }
 
-    public boolean runCommand(VirtualChestPlugin plugin, Player player)
+    public boolean runCommand(VirtualChestPlugin plugin, Player player, List<String> ignoredPermissions)
     {
         ItemStackSnapshot handheldItem = SpongeUnimplemented.getItemHeldByMouse(player);
         for (int i = 0; i < this.size; ++i)
@@ -68,7 +68,7 @@ public class VirtualChestActionDispatcher
             VirtualChestItemTemplateWithCount itemTemplate = this.handheldItem.get(i);
             if (itemTemplate.matchItem(handheldItem))
             {
-                plugin.getVirtualChestActions().submitCommands(player, this.commands.get(i));
+                plugin.getVirtualChestActions().submitCommands(player, this.commands.get(i), ignoredPermissions);
                 return this.keepInventoryOpen.get(i);
             }
         }
