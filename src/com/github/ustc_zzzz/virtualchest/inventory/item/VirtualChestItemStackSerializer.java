@@ -2,7 +2,6 @@ package com.github.ustc_zzzz.virtualchest.inventory.item;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.reflect.TypeToken;
 import ninja.leaping.configurate.ConfigurationNode;
@@ -26,10 +25,7 @@ import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.util.Coerce;
 
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
@@ -53,12 +49,17 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
 
     static
     {
-        ImmutableMap.Builder<DataQuery, Key<?>> builder = ImmutableMap.builder();
+        Map<DataQuery, Key<?>> keys = new LinkedHashMap<>();
         for (Key<?> key : Sponge.getRegistry().getAllOf(Key.class))
         {
-            builder.put(key.getQuery(), key);
+            DataQuery query = key.getQuery();
+            Key<?> keyPrevious = keys.get(query);
+            if (Objects.isNull(keyPrevious) || !keyPrevious.getId().startsWith("sponge:")) // f**king duplicate queries
+            {
+                keys.put(query, key);
+            }
         }
-        KEYS = builder.build();
+        KEYS = Collections.unmodifiableMap(keys);
     }
 
     private final TypeSerializerCollection serializers;
