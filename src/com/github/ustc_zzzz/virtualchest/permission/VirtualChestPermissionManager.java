@@ -12,9 +12,9 @@ import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.service.permission.Subject;
 import org.spongepowered.api.service.permission.SubjectData;
 import org.spongepowered.api.util.Identifiable;
-import org.spongepowered.api.util.Tristate;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author ustc_zzzz
@@ -48,19 +48,30 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
         }
     }
 
-    public void addIgnored(Player player, Collection<String> permissions)
+    public CompletableFuture<Void> setIgnored(Player player, Collection<String> permissions)
     {
-        UUID uuid = player.getUniqueId();
         SubjectData data = player.getTransientSubjectData();
-        Set<Context> contextSet = Collections.singleton(this.contextInAction);
-        permissions.forEach(permission -> data.setPermission(contextSet, permission, Tristate.TRUE));
-        this.logger.debug("Ignored {} permission(s) for {} (player {}):", permissions.size(), uuid, player.getName());
-        permissions.forEach(permission -> this.logger.debug("- {}", permission));
+        Set<Context> contexts = Collections.singleton(this.contextInAction);
+
+        return this.clearPermissions(data, contexts)
+                .thenCompose(succeed -> CompletableFuture.allOf(this.setPermissions(permissions, data, contexts)))
+                .thenRun(() -> this.addIgnoredPermissionsToLog(permissions, player.getUniqueId(), player.getName()));
     }
 
-    public void clearIgnored(Player player)
+    private CompletableFuture<Boolean> clearPermissions(SubjectData data, Set<Context> contexts)
     {
-        player.getTransientSubjectData().clearPermissions(Collections.singleton(this.contextInAction));
+        return SpongeUnimplemented.clearPermissions(data, contexts);
+    }
+
+    private CompletableFuture<?>[] setPermissions(Collection<String> permissions, SubjectData data, Set<Context> contexts)
+    {
+        return permissions.stream().map(p -> SpongeUnimplemented.setPermission(data, contexts, p)).toArray(CompletableFuture[]::new);
+    }
+
+    private void addIgnoredPermissionsToLog(Collection<String> permissions, UUID uuid, String playerName)
+    {
+        this.logger.debug("Ignored {} permission(s) for {} (player {}):", permissions.size(), uuid, playerName);
+        permissions.forEach(permission -> this.logger.debug("- {}", permission));
     }
 
     @Override

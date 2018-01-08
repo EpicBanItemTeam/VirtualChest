@@ -7,16 +7,17 @@ import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.item.inventory.property.SlotIndex;
+import org.spongepowered.api.service.context.Context;
 import org.spongepowered.api.service.permission.PermissionService;
+import org.spongepowered.api.service.permission.SubjectData;
+import org.spongepowered.api.util.Tristate;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author ustc_zzzz
@@ -40,6 +41,9 @@ public class SpongeUnimplemented
 
     private static final MethodHandle CAUSE_APPEND_SOURCE;
     private static final MethodHandle CAUSE_BUILD;
+
+    private static final MethodHandle SUBJECT_DATA_CLEAR_PERMISSIONS;
+    private static final MethodHandle SUBJECT_DATA_SET_PERMISSION;
 
     public static Class<?> getItemEnchantmentClass()
     {
@@ -171,6 +175,50 @@ public class SpongeUnimplemented
         }
     }
 
+    public static CompletableFuture<Boolean> clearPermissions(SubjectData data, Set<Context> contexts)
+    {
+        try
+        {
+            Object result = SUBJECT_DATA_CLEAR_PERMISSIONS.invoke(data, contexts);
+            if (result instanceof CompletableFuture)
+            {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Boolean> future = (CompletableFuture) result;
+                return future;
+            }
+            else
+            {
+                return CompletableFuture.completedFuture((Boolean) result);
+            }
+        }
+        catch (Throwable throwable)
+        {
+            throw new UnsupportedOperationException(throwable);
+        }
+    }
+
+    public static CompletableFuture<Boolean> setPermission(SubjectData data, Set<Context> contexts, String permission)
+    {
+        try
+        {
+            Object result = SUBJECT_DATA_SET_PERMISSION.invoke(data, contexts, permission, Tristate.TRUE);
+            if (result instanceof CompletableFuture)
+            {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Boolean> future = (CompletableFuture) result;
+                return future;
+            }
+            else
+            {
+                return CompletableFuture.completedFuture((Boolean) result);
+            }
+        }
+        catch (Throwable throwable)
+        {
+            throw new UnsupportedOperationException(throwable);
+        }
+    }
+
     static
     {
         try
@@ -197,6 +245,8 @@ public class SpongeUnimplemented
             PLAYER_OPEN_INVENTORY = getPlayerOpenInventoryMethod(lookup);
             CAUSE_APPEND_SOURCE = getCauseAppendSourceMethod(lookup);
             CAUSE_BUILD = getCauseBuildMethod(lookup);
+            SUBJECT_DATA_CLEAR_PERMISSIONS = getClearPermissionsMethod(lookup);
+            SUBJECT_DATA_SET_PERMISSION = getSetPermissionMethod(lookup);
         }
         catch (ReflectiveOperationException e)
         {
@@ -273,6 +323,34 @@ public class SpongeUnimplemented
         {
             MethodType methodType = MethodType.methodType(Cause.Builder.class, Object.class);
             return lookup.findVirtual(Cause.Builder.class, "append", methodType);
+        }
+    }
+
+    private static MethodHandle getClearPermissionsMethod(MethodHandles.Lookup lookup) throws ReflectiveOperationException
+    {
+        try
+        {
+            MethodType methodType = MethodType.methodType(CompletableFuture.class, Set.class);
+            return lookup.findVirtual(SubjectData.class, "clearPermissions", methodType);
+        }
+        catch (ReflectiveOperationException e)
+        {
+            MethodType methodType = MethodType.methodType(boolean.class, Set.class);
+            return lookup.findVirtual(SubjectData.class, "clearPermissions", methodType);
+        }
+    }
+
+    private static MethodHandle getSetPermissionMethod(MethodHandles.Lookup lookup) throws ReflectiveOperationException
+    {
+        try
+        {
+            MethodType methodType = MethodType.methodType(CompletableFuture.class, Set.class, String.class, Tristate.class);
+            return lookup.findVirtual(SubjectData.class, "setPermission", methodType);
+        }
+        catch (ReflectiveOperationException e)
+        {
+            MethodType methodType = MethodType.methodType(boolean.class, Set.class, String.class, Tristate.class);
+            return lookup.findVirtual(SubjectData.class, "setPermission", methodType);
         }
     }
 

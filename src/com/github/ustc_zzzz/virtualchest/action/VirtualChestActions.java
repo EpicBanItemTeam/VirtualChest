@@ -46,15 +46,17 @@ public final class VirtualChestActions
 
     private final Scheduler scheduler = Sponge.getScheduler();
     private final Set<UUID> activatedPlayers = new HashSet<>();
-    private final Queue<Callback> queuedCallbacks = new ArrayDeque<>();
-    private final SortedSetMultimap<Callback, String> ignoredPermissions;
+
+    private final Queue<Callback> queuedCallbacks;
+    private final SortedSetMultimap<Callback, String> permissionMap;
 
     private ChannelBinding.RawDataChannel bungeeCordChannel;
 
     public VirtualChestActions(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
-        this.ignoredPermissions = Multimaps.newSortedSetMultimap(new IdentityHashMap<>(), TreeSet::new);
+        this.queuedCallbacks = new ArrayDeque<>();
+        this.permissionMap = Multimaps.newSortedSetMultimap(new IdentityHashMap<>(), TreeSet::new);
 
         Task.Builder taskBuilder = this.scheduler.createTaskBuilder().intervalTicks(1);
         taskBuilder.name("VirtualChestActionExecutor").execute(this::tick).submit(plugin);
@@ -118,7 +120,7 @@ public final class VirtualChestActions
                 commandList.add(Tuple.of("", placeholderManager.parseText(player, command)));
             }
         }
-        this.queuedCallbacks.offer(new Callback(player, commandList, ignoredPermissions));
+        new Callback(player, commandList, ignoredPermissions).start();
     }
 
     private void tick(Task task)
@@ -271,6 +273,7 @@ public final class VirtualChestActions
 
     private class Callback implements Consumer<CommandResult>
     {
+        private final List<String> ignoredPermissions;
         private final WeakReference<Player> playerReference;
         private final Queue<Tuple<String, String>> commandList;
         private final VirtualChestPermissionManager permissionManager;
@@ -279,36 +282,41 @@ public final class VirtualChestActions
         private Callback(Player p, LinkedList<Tuple<String, String>> commandList, List<String> ignoredPermissions)
         {
             this.commandList = commandList;
+            this.ignoredPermissions = ignoredPermissions;
             this.playerReference = new WeakReference<>(p);
             this.permissionManager = VirtualChestActions.this.plugin.getPermissionManager();
+        }
 
-            this.permissionManager.clearIgnored(p);
-            VirtualChestActions.this.ignoredPermissions.putAll(this, ignoredPermissions);
-            this.permissionManager.addIgnored(p, VirtualChestActions.this.ignoredPermissions.values());
+        private void start()
+        {
+            Player p = playerReference.get();
+            if (!Objects.isNull(p))
+            {
+                permissionMap.putAll(this, ignoredPermissions);
+                permissionManager.setIgnored(p, permissionMap.values()).thenRun(() -> queuedCallbacks.offer(this));
+            }
         }
 
         @Override
         public void accept(CommandResult commandResult)
         {
-            Player player = this.playerReference.get();
+            Player player = playerReference.get();
             if (!Objects.isNull(player))
             {
-                Tuple<String, String> t = this.commandList.poll();
+                Tuple<String, String> t = commandList.poll();
                 if (Objects.isNull(t))
                 {
-                    this.permissionManager.clearIgnored(player);
-                    VirtualChestActions.this.ignoredPermissions.removeAll(this);
-                    this.permissionManager.addIgnored(player, VirtualChestActions.this.ignoredPermissions.values());
+                    permissionMap.removeAll(this);
+                    permissionManager.setIgnored(player, permissionMap.values());
                 }
                 else
                 {
-                    UUID uuid = player.getUniqueId();
-                    VirtualChestActions.this.activatedPlayers.add(uuid);
+                    activatedPlayers.add(player.getUniqueId());
                     String prefix = t.getFirst(), suffix = t.getSecond();
                     String command = prefix.isEmpty() ? suffix : prefix + ": " + suffix;
                     String escapedCommand = '\'' + SpongeUnimplemented.escapeString(command) + '\'';
-                    this.logger.debug("Player {} is now executing {}", player.getName(), escapedCommand);
-                    VirtualChestActions.this.executors.get(prefix).doAction(player, suffix, this);
+                    logger.debug("Player {} is now executing {}", player.getName(), escapedCommand);
+                    executors.get(prefix).doAction(player, suffix, this);
                 }
             }
         }
