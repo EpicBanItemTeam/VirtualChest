@@ -203,6 +203,20 @@ public final class VirtualChestInventory implements DataSerializable
             this.itemsInSlots.putAll(itemMap);
         }
 
+        private boolean processClickEvent(ClickInventoryEvent e, Player player, SlotIndex pos)
+        {
+            VirtualChestItem item = itemsInSlots.get(pos);
+            String log = "Player {} tries to click the chest GUI at {}, primary: {}, secondary: {}, shift: {}";
+
+            boolean isShift = e instanceof ClickInventoryEvent.Shift;
+            boolean isPrimary = e instanceof ClickInventoryEvent.Primary;
+            boolean isSecondary = e instanceof ClickInventoryEvent.Secondary;
+
+            logger.debug(log, player.getName(), slotIndexToKey(pos), isPrimary, isSecondary, isShift);
+            Optional<VirtualChestActionDispatcher> optional = item.getAction(isPrimary, isSecondary, isShift);
+            return optional.map(d -> d.runCommand(plugin, player, item.getIgnoredPermissions())).orElse(Boolean.TRUE);
+        }
+
         private void fireOpenEvent(InteractInventoryEvent.Open e)
         {
             Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
@@ -258,21 +272,7 @@ public final class VirtualChestInventory implements DataSerializable
                     boolean allowAction = actionIntervalManager.allowAction(player, acceptableActionIntervalTick);
                     if (allowAction && itemsInSlots.containsKey(pos))
                     {
-                        VirtualChestItem item = itemsInSlots.get(pos);
-                        future = future.thenApplyAsync(previous ->
-                        {
-                            String playerName = player.getName();
-                            logger.debug("Player {} tries to click the chest GUI at {}", playerName, slotIndexToKey(pos));
-                            if (e instanceof ClickInventoryEvent.Primary)
-                            {
-                                return item.doPrimaryAction(player) && previous;
-                            }
-                            if (e instanceof ClickInventoryEvent.Secondary)
-                            {
-                                return item.doSecondaryAction(player) && previous;
-                            }
-                            return previous;
-                        }, executorService);
+                        future = future.thenApplyAsync(p -> processClickEvent(e, player, pos) && p, executorService);
                     }
                 }
             }

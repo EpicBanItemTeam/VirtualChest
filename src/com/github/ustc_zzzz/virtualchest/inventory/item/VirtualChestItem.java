@@ -28,6 +28,8 @@ public class VirtualChestItem
     public static final DataQuery REQUIREMENTS = DataQuery.of("Requirements");
     public static final DataQuery PRIMARY_ACTION = DataQuery.of("PrimaryAction");
     public static final DataQuery SECONDARY_ACTION = DataQuery.of("SecondaryAction");
+    public static final DataQuery PRIMARY_SHIFT_ACTION = DataQuery.of("PrimaryShiftAction");
+    public static final DataQuery SECONDARY_SHIFT_ACTION = DataQuery.of("SecondaryShiftAction");
     public static final DataQuery IGNORED_PERMISSIONS = DataQuery.of("IgnoredPermissions");
 
     private final VirtualChestPlugin plugin;
@@ -38,6 +40,8 @@ public class VirtualChestItem
     private final Tuple<String, CompiledScript> requirements;
     private final VirtualChestActionDispatcher primaryAction;
     private final VirtualChestActionDispatcher secondaryAction;
+    private final VirtualChestActionDispatcher primaryShiftAction;
+    private final VirtualChestActionDispatcher secondaryShiftAction;
 
     public static DataContainer serialize(VirtualChestPlugin plugin, VirtualChestItem item) throws InvalidDataException
     {
@@ -58,21 +62,39 @@ public class VirtualChestItem
 
     public static VirtualChestItem deserialize(VirtualChestPlugin plugin, DataView data) throws InvalidDataException
     {
-        return new VirtualChestItem(plugin,
-                data.getView(ITEM).orElseThrow(() -> new InvalidDataException("Expected Item")),
-                plugin.getScriptManager().prepare(data.getString(REQUIREMENTS).orElse("")),
-                new VirtualChestActionDispatcher(getViewListOrSingletonList(SECONDARY_ACTION, data)),
-                new VirtualChestActionDispatcher(getViewListOrSingletonList(PRIMARY_ACTION, data)),
-                data.getStringList(IGNORED_PERMISSIONS).orElse(ImmutableList.of())
-        );
+        DataView serializedStack = data.getView(ITEM).orElseThrow(() -> new InvalidDataException("Expected Item"));
+
+        String requirementString = data.getString(REQUIREMENTS).orElse("");
+        Tuple<String, CompiledScript> requirements = plugin.getScriptManager().prepare(requirementString);
+
+        List<DataView> primaryList = getViewListOrSingletonList(PRIMARY_ACTION, data);
+        VirtualChestActionDispatcher primaryAction = new VirtualChestActionDispatcher(primaryList);
+
+        List<DataView> secondaryList = getViewListOrSingletonList(SECONDARY_ACTION, data);
+        VirtualChestActionDispatcher secondaryAction = new VirtualChestActionDispatcher(secondaryList);
+
+        List<DataView> primaryShiftList = getViewListOrSingletonList(PRIMARY_SHIFT_ACTION, data);
+        List<DataView> primaryShiftListFinal = primaryShiftList.isEmpty() ? primaryList : primaryShiftList;
+        VirtualChestActionDispatcher primaryShiftAction = new VirtualChestActionDispatcher(primaryShiftListFinal);
+
+        List<DataView> secondaryShiftList = getViewListOrSingletonList(SECONDARY_SHIFT_ACTION, data);
+        List<DataView> secondaryShiftListFinal = secondaryShiftList.isEmpty() ? secondaryList : secondaryShiftList;
+        VirtualChestActionDispatcher secondaryShiftAction = new VirtualChestActionDispatcher(secondaryShiftListFinal);
+
+        List<String> ignoredPermissions = data.getStringList(IGNORED_PERMISSIONS).orElse(ImmutableList.of());
+
+        return new VirtualChestItem(plugin, serializedStack, requirements,
+                primaryAction, secondaryAction, primaryShiftAction, secondaryShiftAction, ignoredPermissions);
     }
 
     private VirtualChestItem(
             VirtualChestPlugin plugin,
             DataView serializedStack,
             Tuple<String, CompiledScript> requirements,
-            VirtualChestActionDispatcher secondaryAction,
             VirtualChestActionDispatcher primaryAction,
+            VirtualChestActionDispatcher secondaryAction,
+            VirtualChestActionDispatcher primaryShiftAction,
+            VirtualChestActionDispatcher secondaryShiftAction,
             List<String> ignoredPermissions)
     {
         this.plugin = plugin;
@@ -82,6 +104,8 @@ public class VirtualChestItem
         this.requirements = requirements;
         this.primaryAction = primaryAction;
         this.secondaryAction = secondaryAction;
+        this.primaryShiftAction = primaryShiftAction;
+        this.secondaryShiftAction = secondaryShiftAction;
         this.ignoredPermissions = ignoredPermissions;
     }
 
@@ -119,14 +143,22 @@ public class VirtualChestItem
         }
     }
 
-    public boolean doPrimaryAction(Player player)
+    public Optional<VirtualChestActionDispatcher> getAction(boolean isPrimary, boolean isSecondary, boolean isShift)
     {
-        return this.primaryAction.runCommand(this.plugin, player, this.ignoredPermissions);
+        if (isPrimary)
+        {
+            return isShift ? Optional.of(this.primaryShiftAction) : Optional.of(this.primaryAction);
+        }
+        if (isSecondary)
+        {
+            return isShift ? Optional.of(this.secondaryShiftAction) : Optional.of(this.secondaryAction);
+        }
+        return Optional.empty();
     }
 
-    public boolean doSecondaryAction(Player player)
+    public List<String> getIgnoredPermissions()
     {
-        return this.secondaryAction.runCommand(this.plugin, player, this.ignoredPermissions);
+        return this.ignoredPermissions;
     }
 
 //    public String toString()
