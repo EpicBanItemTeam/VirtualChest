@@ -17,15 +17,23 @@ import org.spongepowered.api.data.DataTransactionResult;
 import org.spongepowered.api.data.DataView;
 import org.spongepowered.api.data.Queries;
 import org.spongepowered.api.data.key.Key;
+import org.spongepowered.api.data.key.Keys;
+import org.spongepowered.api.data.manipulator.mutable.RepresentedPlayerData;
 import org.spongepowered.api.data.persistence.InvalidDataException;
+import org.spongepowered.api.data.type.SkullTypes;
 import org.spongepowered.api.data.value.BaseValue;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.item.ItemTypes;
 import org.spongepowered.api.item.inventory.ItemStack;
+import org.spongepowered.api.profile.GameProfile;
+import org.spongepowered.api.profile.GameProfileManager;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.util.Coerce;
+import org.spongepowered.common.data.util.DataQueries;
 
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
@@ -36,7 +44,8 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
 {
     private static final Set<DataQuery> EXCEPTIONS;
     private static final TextSerializer TEXT_SERIALIZER = new TextSerializer();
-    private static final TypeSerializer<Object> ITEM_ENCHANTMENT_SERIALIZER = new ItemEnchantmentSerializer();
+    private static final GameProfileSerializer GAME_PROFILE_SERIALIZER = new GameProfileSerializer();
+    private static final ItemEnchantmentSerializer ITEM_ENCHANTMENT_SERIALIZER = new ItemEnchantmentSerializer();
     private static final TypeToken<?> ITEM_ENCHANTMENT = TypeToken.of(SpongeUnimplemented.getItemEnchantmentClass());
 
     private static final Map<DataQuery, Key<?>> KEYS;
@@ -70,7 +79,8 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
         this.plugin = plugin;
         this.serializers = TypeSerializers.getDefaultSerializers().newChild()
                 .registerType(TypeToken.of(Text.class), TEXT_SERIALIZER)
-                .registerType(ITEM_ENCHANTMENT, ITEM_ENCHANTMENT_SERIALIZER);
+                .registerType(ITEM_ENCHANTMENT, ITEM_ENCHANTMENT_SERIALIZER)
+                .registerType(TypeToken.of(GameProfile.class), GAME_PROFILE_SERIALIZER);
     }
 
     private <T, U extends BaseValue<T>> void deserializeForKeys(
@@ -217,6 +227,73 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
         public void serialize(TypeToken<?> type, Object obj, ConfigurationNode value) throws ObjectMappingException
         {
             throw new ObjectMappingException(new UnsupportedOperationException());
+        }
+    }
+
+    private static final class GameProfileSerializer implements TypeSerializer<GameProfile>
+    {
+        private static final GameProfile NULL_PROFILE = getNullGameProfile();
+        private static final String KEY_UUID = DataQueries.USER_UUID.toString();
+        private static final String KEY_NAME = DataQueries.USER_NAME.toString();
+        private static final boolean IS_ONLINE_MODE_ENABLED = Sponge.getServer().getOnlineMode();
+        private static final GameProfileManager GAME_PROFILE_MANAGER = Sponge.getServer().getGameProfileManager();
+
+        private static GameProfile getNullGameProfile()
+        {
+            // noinspection ConstantConditions
+            return ItemStack.builder()
+                    .itemType(ItemTypes.SKULL).quantity(1)
+                    .keyValue(Keys.SKULL_TYPE, SkullTypes.PLAYER).build()
+                    .getOrCreate(RepresentedPlayerData.class).get().owner().get();
+        }
+
+        private static GameProfile getFilledGameProfileOrElseFallback(GameProfile profile)
+        {
+            if (!IS_ONLINE_MODE_ENABLED)
+            {
+                return profile; // TODO: maybe we should also load player skins in offline mode
+            }
+            try
+            {
+                return GAME_PROFILE_MANAGER.fill(profile/*, false, true*/).get(); // TODO: asynchronous action
+            }
+            catch (InterruptedException | ExecutionException e)
+            {
+                return profile;
+            }
+        }
+
+        private static UUID getUUIDByString(String uuidString) throws ObjectMappingException
+        {
+            try
+            {
+                return UUID.fromString(uuidString);
+            }
+            catch (IllegalArgumentException e)
+            {
+                throw new ObjectMappingException("Invalid UUID string: " + uuidString);
+            }
+        }
+
+        @Override
+        public GameProfile deserialize(TypeToken<?> type, ConfigurationNode value) throws ObjectMappingException
+        {
+            String name = value.getNode(KEY_NAME).getString(), uuid = value.getNode(KEY_UUID).getString();
+            if (Objects.isNull(uuid))
+            {
+                return NULL_PROFILE;
+            }
+            return getFilledGameProfileOrElseFallback(GameProfile.of(getUUIDByString(uuid), name));
+        }
+
+        @Override
+        public void serialize(TypeToken<?> type, GameProfile p, ConfigurationNode value) throws ObjectMappingException
+        {
+            if (!Objects.isNull(p) && !NULL_PROFILE.equals(p))
+            {
+                value.getNode(KEY_UUID).setValue(p.getUniqueId());
+                p.getName().ifPresent(name -> value.getNode(KEY_NAME).setValue(name));
+            }
         }
     }
 }
