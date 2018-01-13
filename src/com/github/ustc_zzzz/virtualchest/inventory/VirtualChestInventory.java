@@ -45,7 +45,6 @@ public final class VirtualChestInventory implements DataSerializable
     static final DataQuery TRIGGER_ITEM = DataQuery.of("TriggerItem");
 
     static final String KEY_PREFIX = "Slot";
-    static final String INVENTORY_DIMENSION = "inventorydimension";
 
     private final Logger logger;
     private final VirtualChestPlugin plugin;
@@ -95,8 +94,7 @@ public final class VirtualChestInventory implements DataSerializable
             VirtualChestEventListener listener = new VirtualChestEventListener(player);
             Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
                     .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
-                    // before v7.0.0 it's InventoryDimension.PROPERTY_NAM, after which it's InventoryDimension.PROPERTY_NAME
-                    .property(INVENTORY_DIMENSION, new InventoryDimension(9, this.height))
+                    .property(InventoryDimension.PROPERTY_NAME, new InventoryDimension(9, this.height))
                     .listener(ClickInventoryEvent.class, listener::fireClickEvent)
                     .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
                     .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
@@ -122,7 +120,15 @@ public final class VirtualChestInventory implements DataSerializable
     private Optional<VirtualChestItem> setItemInInventory(Player player, Slot slot, SlotIndex pos)
     {
         Collection<VirtualChestItem> items = this.items.get(pos);
-        return items.stream().filter(i -> i.setInventory(player, slot, pos)).findFirst();
+        for (VirtualChestItem i : items)
+        {
+            if (i.setInventory(player, slot, pos))
+            {
+                return Optional.of(i);
+            }
+        }
+        slot.clear();
+        return Optional.empty();
     }
 
     public static String slotIndexToKey(SlotIndex index) throws InvalidDataException
