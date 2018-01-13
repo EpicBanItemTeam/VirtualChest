@@ -25,12 +25,14 @@ public class VirtualChestJavaScriptManager
     private final CompiledScript nonsenseTrue;
     private final CompiledScript nonsenseFalse;
 
+    private final SimpleScriptContext tempContext = new SimpleScriptContext();
     private final Map<Player, Long> tickWhileOpeningInventory = new WeakHashMap<>();
 
     public VirtualChestJavaScriptManager(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
+        this.tempContext.setAttribute("server", Sponge.getServer(), ScriptContext.ENGINE_SCOPE);
         this.scriptEngine = Objects.requireNonNull(new ScriptEngineManager(null).getEngineByName("nashorn"));
 
         this.nonsenseTrue = new CompiledScriptNonsense(this.scriptEngine, Boolean.TRUE);
@@ -66,10 +68,10 @@ public class VirtualChestJavaScriptManager
     public boolean execute(Player player, Tuple<String, CompiledScript> tuple)
     {
         String scriptLiteral = tuple.getFirst();
+        ScriptContext context = this.getContext(player, scriptLiteral);
         try
         {
-            Bindings binding = this.getBindings(player, scriptLiteral);
-            return Boolean.valueOf(String.valueOf(tuple.getSecond().eval(binding)));
+            return Boolean.valueOf(String.valueOf(tuple.getSecond().eval(context)));
         }
         catch (ScriptException e)
         {
@@ -78,19 +80,30 @@ public class VirtualChestJavaScriptManager
             this.logger.debug("Result: {}", Boolean.FALSE);
             return false;
         }
+        finally
+        {
+            this.removeContextAttributes(context);
+        }
     }
 
-    private Bindings getBindings(Player player, String scriptLiteral)
+    private void removeContextAttributes(ScriptContext context)
     {
-        SimpleBindings bindings = new SimpleBindings();
+        context.removeAttribute("tick", ScriptContext.ENGINE_SCOPE);
+        context.removeAttribute("papi", ScriptContext.ENGINE_SCOPE);
+        context.removeAttribute("player", ScriptContext.ENGINE_SCOPE);
+    }
+
+    private ScriptContext getContext(Player player, String scriptLiteral)
+    {
+        SimpleScriptContext context = this.tempContext;
         Map<String, Object> map = this.plugin.getPlaceholderManager().getPlaceholderAPIMap(player, scriptLiteral);
+        Function<String, Object> papiTransformation = s -> map.containsKey(s) ? Text.of(map.get(s)).toPlain() : null;
 
-        bindings.put("player", player);
-        bindings.put("server", Sponge.getServer());
-        bindings.put("tick", this.getTickFromOpeningInventory(player));
-        bindings.put("papi", (Function<String, ?>) s -> map.containsKey(s) ? Text.of(map.get(s)).toPlain() : null);
+        context.setAttribute("player", player, ScriptContext.ENGINE_SCOPE);
+        context.setAttribute("papi", papiTransformation, ScriptContext.ENGINE_SCOPE);
+        context.setAttribute("tick", this.getTickFromOpeningInventory(player), ScriptContext.ENGINE_SCOPE);
 
-        return bindings;
+        return context;
     }
 
     private Long getTickFromOpeningInventory(Player player)
