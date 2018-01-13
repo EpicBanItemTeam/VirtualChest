@@ -17,10 +17,7 @@ import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.event.item.inventory.InteractInventoryEvent;
-import org.spongepowered.api.item.inventory.Inventory;
-import org.spongepowered.api.item.inventory.InventoryArchetypes;
-import org.spongepowered.api.item.inventory.ItemStackSnapshot;
-import org.spongepowered.api.item.inventory.Slot;
+import org.spongepowered.api.item.inventory.*;
 import org.spongepowered.api.item.inventory.property.InventoryDimension;
 import org.spongepowered.api.item.inventory.property.InventoryTitle;
 import org.spongepowered.api.item.inventory.property.SlotIndex;
@@ -186,8 +183,6 @@ public final class VirtualChestInventory implements DataSerializable
 
         private final SpongeExecutorService executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
-        private Optional<Task> autoUpdateTask = Optional.empty();
-
         private VirtualChestEventListener(Player player)
         {
             this.itemsInSlots = new TreeMap<>();
@@ -220,37 +215,43 @@ public final class VirtualChestInventory implements DataSerializable
         private void fireOpenEvent(InteractInventoryEvent.Open e)
         {
             Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
-            if (!optional.isPresent())
+            if (optional.isPresent())
             {
-                return;
+                Player player = optional.get();
+                Container targetContainer = e.getTargetInventory();
+                Inventory targetInventory = targetContainer.first();
+                plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction, ImmutableList.of());
+                if (updateIntervalTick > 0)
+                {
+                    Task.Builder builder = Sponge.getScheduler().createTaskBuilder().execute(task ->
+                    {
+                        if (player.getOpenInventory().filter(targetContainer::equals).isPresent())
+                        {
+                            refreshMappingFrom(targetInventory, updateInventory(player, targetInventory));
+                        }
+                        else
+                        {
+                            task.cancel();
+                        }
+                    });
+                    builder.delayTicks(updateIntervalTick).intervalTicks(updateIntervalTick).submit(plugin);
+                }
+                logger.debug("Player {} opens the chest GUI", player.getName());
+                plugin.getScriptManager().onOpeningInventory(player);
+                refreshMappingFrom(targetInventory, updateInventory(player, targetInventory));
             }
-            Player player = optional.get();
-            plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction, ImmutableList.of());
-            Inventory i = e.getTargetInventory().first();
-            if (updateIntervalTick > 0 && !autoUpdateTask.isPresent())
-            {
-                autoUpdateTask = Optional.of(Sponge.getScheduler().createTaskBuilder()
-                        .execute(task -> refreshMappingFrom(i, updateInventory(player, i)))
-                        .delayTicks(updateIntervalTick).intervalTicks(updateIntervalTick).submit(plugin));
-            }
-            logger.debug("Player {} opens the chest GUI", player.getName());
-            plugin.getScriptManager().onOpeningInventory(player);
-            refreshMappingFrom(i, updateInventory(player, i));
         }
 
         private void fireCloseEvent(InteractInventoryEvent.Close e)
         {
             Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
-            if (!optional.isPresent())
+            if (optional.isPresent())
             {
-                return;
+                Player player = optional.get();
+                plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction, ImmutableList.of());
+                logger.debug("Player {} closes the chest GUI", player.getName());
+                actionIntervalManager.onClosingInventory(player);
             }
-            Player player = optional.get();
-            plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction, ImmutableList.of());
-            autoUpdateTask.ifPresent(Task::cancel);
-            autoUpdateTask = Optional.empty();
-            actionIntervalManager.onClosingInventory(player);
-            logger.debug("Player {} closes the chest GUI", player.getName());
         }
 
         private void fireClickEvent(ClickInventoryEvent e)
