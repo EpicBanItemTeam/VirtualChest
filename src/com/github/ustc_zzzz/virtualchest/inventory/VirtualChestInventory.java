@@ -100,8 +100,7 @@ public final class VirtualChestInventory
             VirtualChestEventListener listener = new VirtualChestEventListener(player);
             Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST)
                     .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
-                    // why is it 'NAM'?
-                    .property(InventoryDimension.PROPERTY_NAM, new InventoryDimension(9, this.height))
+                    .property(InventoryDimension.PROPERTY_NAME, new InventoryDimension(9, this.height))
                     .listener(ClickInventoryEvent.class, listener::fireClickEvent)
                     .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
                     .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
@@ -132,7 +131,15 @@ public final class VirtualChestInventory
     private Optional<VirtualChestItem> setItemInInventory(Player player, Slot slot, SlotPos pos)
     {
         Collection<VirtualChestItem> items = this.items.get(pos);
-        return items.stream().filter(i -> i.setInventory(player, slot, pos)).findFirst();
+        for (VirtualChestItem i : items)
+        {
+            if (i.setInventory(player, slot, pos))
+            {
+                return Optional.of(i);
+            }
+        }
+        slot.clear();
+        return Optional.empty();
     }
 
     public static String slotPosToKey(SlotPos slotPos) throws InvalidDataException
