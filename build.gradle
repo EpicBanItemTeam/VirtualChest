@@ -47,7 +47,7 @@ repositories {
 //  }
 }
 
-version = '0.3.12'
+version = '0.3.13'
 archivesBaseName = "VirtualChest"
 
 minecraft {
@@ -78,8 +78,8 @@ artifacts {
 }
 
 dependencies {
-    compile 'org.spongepowered:spongeapi:5.1.0'
-    compile 'org.spongepowered:spongecommon:5.1.0-SNAPSHOT:dev'
+    compile 'org.spongepowered:spongeapi:5.2.0-SNAPSHOT'
+    compile 'org.spongepowered:spongecommon:5.2.0-SNAPSHOT:dev'
 //  compile 'com.github.rojo8399:PlaceholderAPI:master-SNAPSHOT'
 }
 

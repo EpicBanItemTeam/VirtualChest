@@ -53,9 +53,9 @@ import java.util.Optional;
 /**
  * @author ustc_zzzz
  */
-@Plugin(id = VirtualChestPlugin.PLUGIN_ID, name = "VirtualChest", authors =
-        {"ustc_zzzz"}, dependencies = @Dependency(id = "placeholderapi", optional = true),
-        version = VirtualChestPlugin.VERSION, description = VirtualChestPlugin.DESCRIPTION)
+@Plugin(id = VirtualChestPlugin.PLUGIN_ID, name = "VirtualChest", dependencies =
+        {@Dependency(id = "spongeapi"), @Dependency(id = "placeholderapi", optional = true)}, authors =
+        {"ustc_zzzz"}, version = VirtualChestPlugin.VERSION, description = VirtualChestPlugin.DESCRIPTION)
 public class VirtualChestPlugin
 {
     public static final String PLUGIN_ID = "virtualchest";
@@ -68,7 +68,6 @@ public class VirtualChestPlugin
 
     public static final SimpleDateFormat RFC3339 = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
     public static final SimpleDateFormat ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ENGLISH);
-
 
     @Inject
     private Logger logger;
