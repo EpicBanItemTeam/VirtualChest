@@ -7,7 +7,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
-import org.spongepowered.api.data.persistence.DataBuilder;
+import org.spongepowered.api.data.persistence.AbstractDataBuilder;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.item.inventory.property.SlotIndex;
 import org.spongepowered.api.text.Text;
@@ -20,7 +20,7 @@ import java.util.Optional;
  * @author ustc_zzzz
  */
 @NonnullByDefault
-public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInventory>
+public class VirtualChestInventoryBuilder extends AbstractDataBuilder<VirtualChestInventory>
 {
     private final VirtualChestPlugin plugin;
 
@@ -35,6 +35,7 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
 
     public VirtualChestInventoryBuilder(VirtualChestPlugin plugin)
     {
+        super(VirtualChestInventory.class, 0);
         this.plugin = plugin;
     }
 
@@ -100,7 +101,7 @@ public class VirtualChestInventoryBuilder implements DataBuilder<VirtualChestInv
     }
 
     @Override
-    public Optional<VirtualChestInventory> build(DataView view) throws InvalidDataException
+    protected Optional<VirtualChestInventory> buildContent(DataView view) throws InvalidDataException
     {
         this.items.clear();
         for (DataQuery key : view.getKeys(false))
