@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.script;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
@@ -71,6 +72,7 @@ public class VirtualChestJavaScriptManager
         ScriptContext context = this.getContext(player, scriptLiteral);
         try
         {
+            VirtualChestTimings.EXECUTE_REQUIREMENT_SCRIPTS.startTimingIfSync();
             return Boolean.valueOf(String.valueOf(tuple.getSecond().eval(context)));
         }
         catch (ScriptException e)
@@ -83,6 +85,7 @@ public class VirtualChestJavaScriptManager
         finally
         {
             this.removeContextAttributes(context);
+            VirtualChestTimings.EXECUTE_REQUIREMENT_SCRIPTS.stopTimingIfSync();
         }
     }
 
@@ -95,6 +98,8 @@ public class VirtualChestJavaScriptManager
 
     private ScriptContext getContext(Player player, String scriptLiteral)
     {
+        VirtualChestTimings.PREPARE_REQUIREMENT_BINDINGS.startTimingIfSync();
+
         SimpleScriptContext context = this.tempContext;
         Map<String, Object> map = this.plugin.getPlaceholderManager().getPlaceholderAPIMap(player, scriptLiteral);
         Function<String, Object> papiTransformation = s -> map.containsKey(s) ? Text.of(map.get(s)).toPlain() : null;
@@ -103,6 +108,7 @@ public class VirtualChestJavaScriptManager
         context.setAttribute("papi", papiTransformation, ScriptContext.ENGINE_SCOPE);
         context.setAttribute("tick", this.getTickFromOpeningInventory(player), ScriptContext.ENGINE_SCOPE);
 
+        VirtualChestTimings.PREPARE_REQUIREMENT_BINDINGS.stopTimingIfSync();
         return context;
     }
 

@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.inventory.item;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.reflect.TypeToken;
@@ -146,9 +147,35 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
     @Override
     public ItemStack apply(Player player, DataView view) throws InvalidDataException
     {
+        return this.deserializeItemFrom(this.applyPlaceholders(player, view));
+    }
+
+    private ConfigurationNode applyPlaceholders(Player player, DataView view)
+    {
+        VirtualChestTimings.APPLY_PLACEHOLDERS.startTimingIfSync();
         try
         {
-            ConfigurationNode node = this.applyPlaceholders(player, this.convertToConfigurationNode(view));
+            return this.applyPlaceholders(player, this.convertToConfigurationNode(view));
+        }
+        catch (InvalidDataException e)
+        {
+            throw e;
+        }
+        catch (Exception e)
+        {
+            throw new InvalidDataException(e);
+        }
+        finally
+        {
+            VirtualChestTimings.APPLY_PLACEHOLDERS.stopTimingIfSync();
+        }
+    }
+
+    private ItemStack deserializeItemFrom(ConfigurationNode node)
+    {
+        VirtualChestTimings.DESERIALIZE_ITEMS.startTimingIfSync();
+        try
+        {
             ItemStack stack = Objects.requireNonNull(node.getValue(TypeToken.of(ItemStack.class)));
             for (Map.Entry<Object, ? extends ConfigurationNode> entry : node.getChildrenMap().entrySet())
             {
@@ -171,9 +198,17 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
             }
             return stack;
         }
+        catch (InvalidDataException e)
+        {
+            throw e;
+        }
         catch (Exception e)
         {
             throw new InvalidDataException(e);
+        }
+        finally
+        {
+            VirtualChestTimings.DESERIALIZE_ITEMS.stopTimingIfSync();
         }
     }
 

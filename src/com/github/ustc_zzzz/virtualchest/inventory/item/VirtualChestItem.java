@@ -3,6 +3,7 @@ package com.github.ustc_zzzz.virtualchest.inventory.item;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionDispatcher;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
+import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.google.common.collect.ImmutableList;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
@@ -127,20 +128,28 @@ public class VirtualChestItem
 
     public boolean setInventory(Player player, Inventory inventory, SlotIndex pos)
     {
-        if (!this.plugin.getScriptManager().execute(player, this.requirements))
+        VirtualChestTimings.CHECK_REQUIREMENTS.startTimingIfSync();
+        boolean matchRequirements = this.plugin.getScriptManager().execute(player, this.requirements);
+        VirtualChestTimings.CHECK_REQUIREMENTS.stopTimingIfSync();
+        if (matchRequirements)
         {
-            return false;
+            try
+            {
+                VirtualChestTimings.SET_ITEM_IN_INVENTORIES.startTimingIfSync();
+                inventory.set(this.serializer.apply(player, this.serializedStack));
+                return true;
+            }
+            catch (InvalidDataException e)
+            {
+                String posString = VirtualChestInventory.slotIndexToKey(pos);
+                throw new InvalidDataException("Find error when generating item at " + posString, e);
+            }
+            finally
+            {
+                VirtualChestTimings.SET_ITEM_IN_INVENTORIES.stopTimingIfSync();
+            }
         }
-        try
-        {
-            inventory.set(this.serializer.apply(player, this.serializedStack));
-            return true;
-        }
-        catch (InvalidDataException e)
-        {
-            String posString = VirtualChestInventory.slotIndexToKey(pos);
-            throw new InvalidDataException("Find error when generating item at " + posString, e);
-        }
+        return false;
     }
 
     public Optional<VirtualChestActionDispatcher> getAction(boolean isPrimary, boolean isSecondary, boolean isShift)

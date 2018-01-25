@@ -5,6 +5,7 @@ import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionDispatcher;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
+import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -233,7 +234,9 @@ public final class VirtualChestInventory implements DataSerializable
                     {
                         if (player.getOpenInventory().filter(targetContainer::equals).isPresent())
                         {
+                            VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.startTimingIfSync();
                             refreshMappingFrom(targetInventory, updateInventory(player, targetInventory));
+                            VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.stopTimingIfSync();
                         }
                         else
                         {
@@ -244,7 +247,9 @@ public final class VirtualChestInventory implements DataSerializable
                 }
                 logger.debug("Player {} opens the chest GUI", player.getName());
                 plugin.getScriptManager().onOpeningInventory(player);
+                VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.startTimingIfSync();
                 refreshMappingFrom(targetInventory, updateInventory(player, targetInventory));
+                VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.stopTimingIfSync();
             }
         }
 
