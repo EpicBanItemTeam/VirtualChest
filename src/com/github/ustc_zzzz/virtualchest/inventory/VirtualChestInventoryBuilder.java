@@ -109,7 +109,7 @@ public class VirtualChestInventoryBuilder extends AbstractDataBuilder<VirtualChe
             String keyString = key.toString();
             if (keyString.startsWith(VirtualChestInventory.KEY_PREFIX))
             {
-                SlotIndex slotIndex = VirtualChestInventory.keyToSlotIndex(keyString);
+                SlotIndex slotIndex = SlotIndex.of(VirtualChestInventory.keyToSlotIndex(keyString));
                 for (DataView dataView : VirtualChestItem.getViewListOrSingletonList(key, view))
                 {
                     VirtualChestItem item = VirtualChestItem.deserialize(plugin, dataView);
@@ -151,7 +151,10 @@ public class VirtualChestInventoryBuilder extends AbstractDataBuilder<VirtualChe
         this.actionIntervalTick = value.acceptableActionIntervalTick.isPresent()
                 ? Optional.of(value.acceptableActionIntervalTick.getAsInt()) : Optional.empty();
         this.items.clear();
-        this.items.putAll(value.items);
+        for (int i = 0; i < value.items.size(); i++)
+        {
+            this.items.putAll(SlotIndex.of(i), value.items.get(i));
+        }
         return this;
     }
 

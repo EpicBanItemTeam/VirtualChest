@@ -8,8 +8,6 @@ import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerIt
 import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
@@ -26,10 +24,12 @@ import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
 import org.spongepowered.api.scheduler.SpongeExecutorService;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.util.Coerce;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.UnaryOperator;
 
 /**
  * @author ustc_zzzz
@@ -52,7 +52,7 @@ public final class VirtualChestInventory implements DataSerializable
     private final VirtualChestActionIntervalManager actionIntervalManager;
     private final Map<UUID, Inventory> inventories = new HashMap<>();
 
-    final Multimap<SlotIndex, VirtualChestItem> items;
+    final List<Collection<VirtualChestItem>> items;
     final Text title;
     final int height;
     final VirtualChestTriggerItem triggerItem;
@@ -73,7 +73,7 @@ public final class VirtualChestInventory implements DataSerializable
         this.openActionCommand = builder.openActionCommand;
         this.closeActionCommand = builder.closeActionCommand;
         this.updateIntervalTick = builder.updateIntervalTick;
-        this.items = ImmutableMultimap.copyOf(builder.items);
+        this.items = this.createListFromMultiMap(builder.items, builder.height * 9);
         this.acceptableActionIntervalTick = builder.actionIntervalTick.map(OptionalInt::of).orElse(OptionalInt.empty());
     }
 
@@ -106,24 +106,32 @@ public final class VirtualChestInventory implements DataSerializable
         return inventories.get(uuid);
     }
 
-    private Map<SlotIndex, VirtualChestItem> updateInventory(Player player, Inventory chestInventory)
+    private <T> List<Collection<T>> createListFromMultiMap(Multimap<SlotIndex, T> list, int max)
     {
-        int i = 0;
-        ImmutableMap.Builder<SlotIndex, VirtualChestItem> itemBuilder = ImmutableMap.builder();
-        for (Slot slot : chestInventory.<Slot>slots())
+        ImmutableList.Builder<Collection<T>> builder = ImmutableList.builder();
+        for (int i = 0; i < max; ++i)
         {
-            SlotIndex pos = SlotIndex.of(i++);
-            this.setItemInInventory(player, slot, pos).ifPresent(item -> itemBuilder.put(pos, item));
+            builder.add(ImmutableList.copyOf(list.get(SlotIndex.of(i))));
         }
-        return itemBuilder.build();
+        return builder.build();
     }
 
-    private Optional<VirtualChestItem> setItemInInventory(Player player, Slot slot, SlotIndex pos)
+    private void updateInventory(Player player, Inventory chestInventory, List<VirtualChestItem> itemMap)
     {
-        Collection<VirtualChestItem> items = this.items.get(pos);
+        int i = 0;
+        for (Slot slot : chestInventory.<Slot>slots())
+        {
+            Optional<VirtualChestItem> itemOptional = this.setItemInInventory(player, slot, i);
+            itemMap.set(i++, itemOptional.orElse(null));
+        }
+    }
+
+    private Optional<VirtualChestItem> setItemInInventory(Player player, Slot slot, int index)
+    {
+        Collection<VirtualChestItem> items = this.items.get(index);
         for (VirtualChestItem i : items)
         {
-            if (i.setInventory(player, slot, pos))
+            if (i.setInventory(player, slot, index))
             {
                 return Optional.of(i);
             }
@@ -132,16 +140,16 @@ public final class VirtualChestInventory implements DataSerializable
         return Optional.empty();
     }
 
-    public static String slotIndexToKey(SlotIndex index) throws InvalidDataException
+    public static String slotIndexToKey(int index) throws InvalidDataException
     {
         // SlotIndex(21) will be converted to "Slot21"
-        return KEY_PREFIX + index.getValue();
+        return KEY_PREFIX + index;
     }
 
-    public static SlotIndex keyToSlotIndex(String key) throws InvalidDataException
+    public static int keyToSlotIndex(String key) throws InvalidDataException
     {
         // "Slot21" will be converted to SlotIndex(21)
-        return SlotIndex.of(key.substring(KEY_PREFIX.length()));
+        return Coerce.toInteger(key.substring(KEY_PREFIX.length()));
     }
 
     @Override
@@ -160,21 +168,21 @@ public final class VirtualChestInventory implements DataSerializable
         container.set(UPDATE_INTERVAL_TICK, this.updateIntervalTick);
         this.openActionCommand.ifPresent(c -> container.set(OPEN_ACTION_COMMAND, c));
         this.closeActionCommand.ifPresent(c -> container.set(CLOSE_ACTION_COMMAND, c));
-        for (Map.Entry<SlotIndex, Collection<VirtualChestItem>> entry : this.items.asMap().entrySet())
+        for (int i = 0; i < this.items.size(); i++)
         {
-            Collection<VirtualChestItem> items = entry.getValue();
+            Collection<VirtualChestItem> items = this.items.get(i);
             switch (items.size())
             {
             case 0:
                 break;
             case 1:
                 DataContainer data = VirtualChestItem.serialize(this.plugin, items.iterator().next());
-                container.set(DataQuery.of(slotIndexToKey(entry.getKey())), data);
+                container.set(DataQuery.of(slotIndexToKey(i)), data);
                 break;
             default:
                 List<DataContainer> containerList = new LinkedList<>();
                 items.forEach(item -> containerList.add(VirtualChestItem.serialize(this.plugin, item)));
-                container.set(DataQuery.of(slotIndexToKey(entry.getKey())), containerList);
+                container.set(DataQuery.of(slotIndexToKey(i)), containerList);
             }
         }
         return container;
@@ -186,35 +194,28 @@ public final class VirtualChestInventory implements DataSerializable
         private final SlotIndex slotToListen;
         private final List<String> parsedOpenAction;
         private final List<String> parsedCloseAction;
-        private final Map<SlotIndex, VirtualChestItem> itemsInSlots;
+        private final List<VirtualChestItem> itemsInSlots;
 
         private final SpongeExecutorService executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
         private VirtualChestEventListener(Player player)
         {
-            this.itemsInSlots = new TreeMap<>();
+            this.itemsInSlots = Arrays.asList(new VirtualChestItem[height * 9]);
             this.parsedOpenAction = VirtualChestActionDispatcher.parseCommand(openActionCommand.orElse(""));
             this.parsedCloseAction = VirtualChestActionDispatcher.parseCommand(closeActionCommand.orElse(""));
             this.slotToListen = SlotIndex.lessThan(height * 9);
             this.playerUniqueId = player.getUniqueId();
         }
 
-        private void refreshMappingFrom(Inventory inventory, Map<SlotIndex, VirtualChestItem> itemMap)
+        private boolean processClickEvent(ClickInventoryEvent e, VirtualChestItem item, Player player, int index)
         {
-            this.itemsInSlots.clear();
-            this.itemsInSlots.putAll(itemMap);
-        }
-
-        private boolean processClickEvent(ClickInventoryEvent e, Player player, SlotIndex pos)
-        {
-            VirtualChestItem item = itemsInSlots.get(pos);
             String log = "Player {} tries to click the chest GUI at {}, primary: {}, secondary: {}, shift: {}";
 
             boolean isShift = e instanceof ClickInventoryEvent.Shift;
             boolean isPrimary = e instanceof ClickInventoryEvent.Primary;
             boolean isSecondary = e instanceof ClickInventoryEvent.Secondary;
 
-            logger.debug(log, player.getName(), slotIndexToKey(pos), isPrimary, isSecondary, isShift);
+            logger.debug(log, player.getName(), slotIndexToKey(index), isPrimary, isSecondary, isShift);
             Optional<VirtualChestActionDispatcher> optional = item.getAction(isPrimary, isSecondary, isShift);
             return optional.map(d -> d.runCommand(plugin, player, item.getIgnoredPermissions())).orElse(Boolean.TRUE);
         }
@@ -235,7 +236,7 @@ public final class VirtualChestInventory implements DataSerializable
                         if (player.getOpenInventory().filter(targetContainer::equals).isPresent())
                         {
                             VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.startTimingIfSync();
-                            refreshMappingFrom(targetInventory, updateInventory(player, targetInventory));
+                            updateInventory(player, targetInventory, itemsInSlots);
                             VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.stopTimingIfSync();
                         }
                         else
@@ -248,7 +249,7 @@ public final class VirtualChestInventory implements DataSerializable
                 logger.debug("Player {} opens the chest GUI", player.getName());
                 plugin.getScriptManager().onOpeningInventory(player);
                 VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.startTimingIfSync();
-                refreshMappingFrom(targetInventory, updateInventory(player, targetInventory));
+                updateInventory(player, targetInventory, itemsInSlots);
                 VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.stopTimingIfSync();
             }
         }
@@ -281,10 +282,16 @@ public final class VirtualChestInventory implements DataSerializable
                 if (SpongeUnimplemented.isSlotInInventory(slot, e.getTargetInventory()) && slotToListen.matches(pos))
                 {
                     e.setCancelled(true);
-                    boolean allowAction = actionIntervalManager.allowAction(player, acceptableActionIntervalTick);
-                    if (allowAction && itemsInSlots.containsKey(pos))
+                    if (actionIntervalManager.allowAction(player, acceptableActionIntervalTick))
                     {
-                        future = future.thenApplyAsync(p -> processClickEvent(e, player, pos) && p, executorService);
+                        // noinspection ConstantConditions
+                        int index = pos.getValue();
+                        VirtualChestItem item = itemsInSlots.get(index);
+                        if (!Objects.isNull(item))
+                        {
+                            UnaryOperator<Boolean> next = p -> processClickEvent(e, item, player, index) && p;
+                            future = future.thenApplyAsync(next, executorService);
+                        }
                     }
                 }
             }

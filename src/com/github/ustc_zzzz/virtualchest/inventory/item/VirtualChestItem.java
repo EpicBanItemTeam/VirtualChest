@@ -126,7 +126,7 @@ public class VirtualChestItem
         return builder.build();
     }
 
-    public boolean setInventory(Player player, Inventory inventory, SlotIndex pos)
+    public boolean setInventory(Player player, Inventory inventory, int index)
     {
         VirtualChestTimings.CHECK_REQUIREMENTS.startTimingIfSync();
         boolean matchRequirements = this.plugin.getScriptManager().execute(player, this.requirements);
@@ -141,7 +141,7 @@ public class VirtualChestItem
             }
             catch (InvalidDataException e)
             {
-                String posString = VirtualChestInventory.slotIndexToKey(pos);
+                String posString = VirtualChestInventory.slotIndexToKey(index);
                 throw new InvalidDataException("Find error when generating item at " + posString, e);
             }
             finally
