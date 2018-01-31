@@ -1,5 +1,6 @@
 package com.github.ustc_zzzz.virtualchest.inventory;
 
+import co.aikar.timings.Timing;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionDispatcher;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
@@ -87,12 +88,12 @@ public final class VirtualChestInventory implements DataSerializable
         return triggerItem.matchItemForOpeningWithSecondaryAction(item);
     }
 
-    public Inventory createInventory(Player player)
+    public Inventory createInventory(Player player, String inventoryName)
     {
         UUID uuid = player.getUniqueId();
         if (!inventories.containsKey(uuid))
         {
-            VirtualChestEventListener listener = new VirtualChestEventListener(player);
+            VirtualChestEventListener listener = new VirtualChestEventListener(player, inventoryName);
             Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
                     .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
                     .property(InventoryDimension.PROPERTY_NAME, new InventoryDimension(9, this.height))
@@ -116,22 +117,27 @@ public final class VirtualChestInventory implements DataSerializable
         return builder.build();
     }
 
-    private void updateInventory(Player player, Inventory chestInventory, List<VirtualChestItem> itemMap)
+    private void updateInventory(Player player, Inventory inventory, List<VirtualChestItem> itemMap, String name)
     {
-        int i = 0;
-        for (Slot slot : chestInventory.<Slot>slots())
+        int index = 0;
+        for (Slot slot : inventory.<Slot>slots())
         {
-            Optional<VirtualChestItem> itemOptional = this.setItemInInventory(player, slot, i);
-            itemMap.set(i++, itemOptional.orElse(null));
+            Timing timing = VirtualChestTimings.updateAndRefreshMapping(name, index);
+            timing.startTimingIfSync();
+            {
+                Optional<VirtualChestItem> itemOptional = this.setItemInInventory(player, slot, index, name);
+                itemMap.set(index++, itemOptional.orElse(null));
+            }
+            timing.stopTimingIfSync();
         }
     }
 
-    private Optional<VirtualChestItem> setItemInInventory(Player player, Slot slot, int index)
+    private Optional<VirtualChestItem> setItemInInventory(Player player, Slot slot, int index, String name)
     {
         Collection<VirtualChestItem> items = this.items.get(index);
         for (VirtualChestItem i : items)
         {
-            if (i.setInventory(player, slot, index))
+            if (i.setInventory(player, slot, index, name))
             {
                 return Optional.of(i);
             }
@@ -190,6 +196,7 @@ public final class VirtualChestInventory implements DataSerializable
 
     private class VirtualChestEventListener
     {
+        private final String name;
         private final UUID playerUniqueId;
         private final SlotIndex slotToListen;
         private final List<String> parsedOpenAction;
@@ -198,13 +205,14 @@ public final class VirtualChestInventory implements DataSerializable
 
         private final SpongeExecutorService executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
-        private VirtualChestEventListener(Player player)
+        private VirtualChestEventListener(Player player, String inventoryName)
         {
             this.itemsInSlots = Arrays.asList(new VirtualChestItem[height * 9]);
             this.parsedOpenAction = VirtualChestActionDispatcher.parseCommand(openActionCommand.orElse(""));
             this.parsedCloseAction = VirtualChestActionDispatcher.parseCommand(closeActionCommand.orElse(""));
             this.slotToListen = SlotIndex.lessThan(height * 9);
             this.playerUniqueId = player.getUniqueId();
+            this.name = inventoryName;
         }
 
         private boolean processClickEvent(ClickInventoryEvent e, VirtualChestItem item, Player player, int index)
@@ -228,6 +236,7 @@ public final class VirtualChestInventory implements DataSerializable
                 Player player = optional.get();
                 Container targetContainer = e.getTargetInventory();
                 Inventory targetInventory = targetContainer.first();
+                Timing timing = VirtualChestTimings.updateAndRefreshMappings(name);
                 plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction, ImmutableList.of());
                 if (updateIntervalTick > 0)
                 {
@@ -235,9 +244,9 @@ public final class VirtualChestInventory implements DataSerializable
                     {
                         if (player.getOpenInventory().filter(targetContainer::equals).isPresent())
                         {
-                            VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.startTimingIfSync();
-                            updateInventory(player, targetInventory, itemsInSlots);
-                            VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.stopTimingIfSync();
+                            timing.startTimingIfSync();
+                            updateInventory(player, targetInventory, itemsInSlots, name);
+                            timing.stopTimingIfSync();
                         }
                         else
                         {
@@ -248,9 +257,9 @@ public final class VirtualChestInventory implements DataSerializable
                 }
                 logger.debug("Player {} opens the chest GUI", player.getName());
                 plugin.getScriptManager().onOpeningInventory(player);
-                VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.startTimingIfSync();
-                updateInventory(player, targetInventory, itemsInSlots);
-                VirtualChestTimings.UPDATE_AND_REFRESH_MAPPINGS.stopTimingIfSync();
+                timing.startTimingIfSync();
+                updateInventory(player, targetInventory, itemsInSlots, name);
+                timing.stopTimingIfSync();
             }
         }
 

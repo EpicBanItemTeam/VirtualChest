@@ -152,7 +152,7 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
 
     private ConfigurationNode applyPlaceholders(Player player, DataView view)
     {
-        VirtualChestTimings.APPLY_PLACEHOLDERS.startTimingIfSync();
+        VirtualChestTimings.applyPlaceholders().startTimingIfSync();
         try
         {
             return this.applyPlaceholders(player, this.convertToConfigurationNode(view));
@@ -167,13 +167,13 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
         }
         finally
         {
-            VirtualChestTimings.APPLY_PLACEHOLDERS.stopTimingIfSync();
+            VirtualChestTimings.applyPlaceholders().stopTimingIfSync();
         }
     }
 
     private ItemStack deserializeItemFrom(ConfigurationNode node)
     {
-        VirtualChestTimings.DESERIALIZE_ITEMS.startTimingIfSync();
+        VirtualChestTimings.deserializeItem().startTimingIfSync();
         try
         {
             ItemStack stack = Objects.requireNonNull(node.getValue(TypeToken.of(ItemStack.class)));
@@ -208,7 +208,7 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
         }
         finally
         {
-            VirtualChestTimings.DESERIALIZE_ITEMS.stopTimingIfSync();
+            VirtualChestTimings.deserializeItem().stopTimingIfSync();
         }
     }
 

@@ -206,7 +206,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
         this.logger.debug("Player {} tries to create the GUI ({}) by a command", player.getName(), name);
         try
         {
-            SpongeUnimplemented.openInventory(player, inventory.createInventory(player), this);
+            SpongeUnimplemented.openInventory(player, inventory.createInventory(player, name), this);
         }
         catch (InvalidDataException e)
         {

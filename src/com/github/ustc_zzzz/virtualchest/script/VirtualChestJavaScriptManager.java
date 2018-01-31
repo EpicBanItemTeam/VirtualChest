@@ -72,7 +72,7 @@ public class VirtualChestJavaScriptManager
         ScriptContext context = this.getContext(player, scriptLiteral);
         try
         {
-            VirtualChestTimings.EXECUTE_REQUIREMENT_SCRIPTS.startTimingIfSync();
+            VirtualChestTimings.executeRequirementScript().startTimingIfSync();
             return Boolean.valueOf(String.valueOf(tuple.getSecond().eval(context)));
         }
         catch (ScriptException e)
@@ -85,7 +85,7 @@ public class VirtualChestJavaScriptManager
         finally
         {
             this.removeContextAttributes(context);
-            VirtualChestTimings.EXECUTE_REQUIREMENT_SCRIPTS.stopTimingIfSync();
+            VirtualChestTimings.executeRequirementScript().stopTimingIfSync();
         }
     }
 
@@ -98,7 +98,7 @@ public class VirtualChestJavaScriptManager
 
     private ScriptContext getContext(Player player, String scriptLiteral)
     {
-        VirtualChestTimings.PREPARE_REQUIREMENT_BINDINGS.startTimingIfSync();
+        VirtualChestTimings.prepareRequirementBindings().startTimingIfSync();
 
         SimpleScriptContext context = this.tempContext;
         Map<String, Object> map = this.plugin.getPlaceholderManager().getPlaceholderAPIMap(player, scriptLiteral);
@@ -108,7 +108,7 @@ public class VirtualChestJavaScriptManager
         context.setAttribute("papi", papiTransformation, ScriptContext.ENGINE_SCOPE);
         context.setAttribute("tick", this.getTickFromOpeningInventory(player), ScriptContext.ENGINE_SCOPE);
 
-        VirtualChestTimings.PREPARE_REQUIREMENT_BINDINGS.stopTimingIfSync();
+        VirtualChestTimings.prepareRequirementBindings().stopTimingIfSync();
         return context;
     }
 

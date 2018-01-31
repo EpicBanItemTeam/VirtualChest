@@ -195,7 +195,7 @@ public class VirtualChestPlugin
             try
             {
                 this.logger.debug("Player {} tries to create the GUI ({}) by primary action", player.getName(), name);
-                SpongeUnimplemented.openInventory(player, inventoryOptional.get().createInventory(player), this);
+                SpongeUnimplemented.openInventory(player, inventoryOptional.get().createInventory(player, name), this);
             }
             catch (InvalidDataException e)
             {
@@ -228,7 +228,7 @@ public class VirtualChestPlugin
             try
             {
                 this.logger.debug("Player {} tries to create the GUI ({}) by secondary action", player.getName(), name);
-                SpongeUnimplemented.openInventory(player, inventoryOptional.get().createInventory(player), this);
+                SpongeUnimplemented.openInventory(player, inventoryOptional.get().createInventory(player, name), this);
             }
             catch (InvalidDataException e)
             {

@@ -1,5 +1,6 @@
 package com.github.ustc_zzzz.virtualchest.inventory.item;
 
+import co.aikar.timings.Timing;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionDispatcher;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
@@ -12,7 +13,6 @@ import org.spongepowered.api.data.MemoryDataContainer;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.inventory.Inventory;
-import org.spongepowered.api.item.inventory.property.SlotIndex;
 import org.spongepowered.api.util.Tuple;
 
 import javax.script.CompiledScript;
@@ -126,16 +126,18 @@ public class VirtualChestItem
         return builder.build();
     }
 
-    public boolean setInventory(Player player, Inventory inventory, int index)
+    public boolean setInventory(Player player, Inventory inventory, int index, String name)
     {
-        VirtualChestTimings.CHECK_REQUIREMENTS.startTimingIfSync();
+        Timing timing = VirtualChestTimings.checkRequirements(name, index);
+        timing.startTimingIfSync();
         boolean matchRequirements = this.plugin.getScriptManager().execute(player, this.requirements);
-        VirtualChestTimings.CHECK_REQUIREMENTS.stopTimingIfSync();
+        timing.stopTimingIfSync();
         if (matchRequirements)
         {
+            timing = VirtualChestTimings.setItemInInventory(name, index);
+            timing.startTimingIfSync();
             try
             {
-                VirtualChestTimings.SET_ITEM_IN_INVENTORIES.startTimingIfSync();
                 inventory.set(this.serializer.apply(player, this.serializedStack));
                 return true;
             }
@@ -146,7 +148,7 @@ public class VirtualChestItem
             }
             finally
             {
-                VirtualChestTimings.SET_ITEM_IN_INVENTORIES.stopTimingIfSync();
+                timing.stopTimingIfSync();
             }
         }
         return false;
