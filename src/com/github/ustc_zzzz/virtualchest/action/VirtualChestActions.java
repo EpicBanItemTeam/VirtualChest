@@ -31,6 +31,7 @@ import org.spongepowered.api.world.World;
 import java.lang.ref.WeakReference;
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -55,7 +56,7 @@ public final class VirtualChestActions
     public VirtualChestActions(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
-        this.queuedCallbacks = new ArrayDeque<>();
+        this.queuedCallbacks = new ConcurrentLinkedQueue<>();
         this.permissionMap = Multimaps.newSortedSetMultimap(new IdentityHashMap<>(), TreeSet::new);
 
         Task.Builder taskBuilder = this.scheduler.createTaskBuilder().intervalTicks(1);
@@ -407,6 +408,7 @@ public final class VirtualChestActions
         static
         {
             // lazy initialization
+            // noinspection ConstantConditions
             soundCategory = Sponge.getRegistry().getType(SoundCategory.class, "minecraft:player").get();
         }
     }

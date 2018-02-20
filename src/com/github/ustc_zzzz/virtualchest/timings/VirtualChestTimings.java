@@ -25,17 +25,17 @@ public final class VirtualChestTimings
 
     public static Timing updateAndRefreshMappings(String name)
     {
-        return Timings.of(plugin, "updateAndRefreshMappings - " + name);
+        return Timings.of(PLUGIN, "updateAndRefreshMappings - " + name);
     }
 
     public static Timing updateAndRefreshMapping(String name, int i)
     {
-        return Timings.of(plugin, "updateAndRefreshMapping - " + VirtualChestInventory.slotIndexToKey(i) + " in " + name);
+        return Timings.of(PLUGIN, "updateAndRefreshMapping - " + VirtualChestInventory.slotIndexToKey(i) + " in " + name);
     }
 
     public static Timing checkRequirements(String name, int i)
     {
-        return Timings.of(plugin, "checkRequirements - " + VirtualChestInventory.slotIndexToKey(i) + " in " + name);
+        return Timings.of(PLUGIN, "checkRequirements - " + VirtualChestInventory.slotIndexToKey(i) + " in " + name);
     }
 
     public static Timing prepareRequirementBindings()
@@ -50,7 +50,7 @@ public final class VirtualChestTimings
 
     public static Timing setItemInInventory(String name, int i)
     {
-        return Timings.of(plugin, "setItemInInventory - " + VirtualChestInventory.slotIndexToKey(i) + " in " + name);
+        return Timings.of(PLUGIN, "setItemInInventory - " + VirtualChestInventory.slotIndexToKey(i) + " in " + name);
     }
 
     public static Timing applyPlaceholders()
@@ -63,18 +63,18 @@ public final class VirtualChestTimings
         return DESERIALIZE_ITEM;
     }
 
-    private static final Object plugin;
+    private static final Object PLUGIN;
 
     static
     {
         // noinspection ConstantConditions
-        plugin = Sponge.getPluginManager().getPlugin(VirtualChestPlugin.PLUGIN_ID).get().getInstance().get();
+        PLUGIN = Sponge.getPluginManager().getPlugin(VirtualChestPlugin.PLUGIN_ID).get().getInstance().get();
     }
 
-    private static final Timing PREPARE_REQUIREMENT_BINDINGS = Timings.of(plugin, "prepareRequirementBindings");
-    private static final Timing EXECUTE_REQUIREMENT_SCRIPT = Timings.of(plugin, "executeRequirementScript");
-    private static final Timing APPLY_PLACEHOLDERS = Timings.of(plugin, "applyPlaceholders");
-    private static final Timing DESERIALIZE_ITEM = Timings.of(plugin, "deserializeItem");
+    private static final Timing PREPARE_REQUIREMENT_BINDINGS = Timings.of(PLUGIN, "prepareRequirementBindings");
+    private static final Timing EXECUTE_REQUIREMENT_SCRIPT = Timings.of(PLUGIN, "executeRequirementScript");
+    private static final Timing APPLY_PLACEHOLDERS = Timings.of(PLUGIN, "applyPlaceholders");
+    private static final Timing DESERIALIZE_ITEM = Timings.of(PLUGIN, "deserializeItem");
 
     private VirtualChestTimings()
     {
