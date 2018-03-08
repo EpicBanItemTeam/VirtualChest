@@ -7,6 +7,7 @@ import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.item.inventory.property.SlotIndex;
+import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.service.context.Context;
 import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.service.permission.SubjectData;
@@ -175,7 +176,7 @@ public class SpongeUnimplemented
         }
     }
 
-    public static CompletableFuture<Boolean> clearPermissions(SubjectData data, Set<Context> contexts)
+    public static CompletableFuture<Boolean> clearPermissions(Object plugin, SubjectData data, Set<Context> contexts)
     {
         try
         {
@@ -188,7 +189,16 @@ public class SpongeUnimplemented
             }
             else
             {
-                return CompletableFuture.completedFuture((Boolean) result);
+                CompletableFuture<Boolean> future = new CompletableFuture<>();
+                Task.builder().async().delayTicks(2).intervalTicks(2).execute(task ->
+                {
+                    if (data.getPermissions(contexts).isEmpty())
+                    {
+                        task.cancel();
+                        future.complete((Boolean) result);
+                    }
+                }).submit(plugin);
+                return future;
             }
         }
         catch (Throwable throwable)
@@ -197,7 +207,7 @@ public class SpongeUnimplemented
         }
     }
 
-    public static CompletableFuture<Boolean> setPermission(SubjectData data, Set<Context> contexts, String permission)
+    public static CompletableFuture<Boolean> setPermission(Object plugin, SubjectData data, Set<Context> contexts, String permission)
     {
         try
         {
@@ -210,7 +220,16 @@ public class SpongeUnimplemented
             }
             else
             {
-                return CompletableFuture.completedFuture((Boolean) result);
+                CompletableFuture<Boolean> future = new CompletableFuture<>();
+                Task.builder().async().delayTicks(2).intervalTicks(2).execute(task ->
+                {
+                    if (data.getPermissions(contexts).getOrDefault(permission, Boolean.FALSE))
+                    {
+                        task.cancel();
+                        future.complete((Boolean) result);
+                    }
+                }).submit(plugin);
+                return future;
             }
         }
         catch (Throwable throwable)

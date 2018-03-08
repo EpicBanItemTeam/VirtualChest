@@ -46,7 +46,7 @@ public final class VirtualChestActions
     private final Map<String, VirtualChestActionExecutor> executors = new HashMap<>();
 
     private final Scheduler scheduler = Sponge.getScheduler();
-    private final Set<UUID> activatedPlayers = new HashSet<>();
+    private final Set<String> activatedIdentifiers = new HashSet<>();
 
     private final Queue<Callback> queuedCallbacks;
     private final SortedSetMultimap<Callback, String> permissionMap;
@@ -92,9 +92,9 @@ public final class VirtualChestActions
         this.executors.put(prefix, executor);
     }
 
-    public boolean isPlayerActivated(UUID uuid)
+    public boolean isPlayerActivated(String identifier)
     {
-        return this.activatedPlayers.contains(uuid);
+        return this.activatedIdentifiers.contains(identifier);
     }
 
     public void submitCommands(Player player, List<String> commands, List<String> ignoredPermissions)
@@ -136,7 +136,7 @@ public final class VirtualChestActions
             }
             callback.accept(init);
         }
-        this.activatedPlayers.clear();
+        this.activatedIdentifiers.clear();
     }
 
     private void process(Player player, String command, Consumer<CommandResult> callback)
@@ -307,12 +307,13 @@ public final class VirtualChestActions
                 Tuple<String, String> t = commandList.poll();
                 if (Objects.isNull(t))
                 {
+                    logger.debug("Player {} has executed all the commands", player.getName());
                     permissionMap.removeAll(this);
                     permissionManager.setIgnored(player, permissionMap.values());
                 }
                 else
                 {
-                    activatedPlayers.add(player.getUniqueId());
+                    activatedIdentifiers.add(player.getIdentifier());
                     String prefix = t.getFirst(), suffix = t.getSecond();
                     String command = prefix.isEmpty() ? suffix : prefix + ": " + suffix;
                     String escapedCommand = '\'' + SpongeUnimplemented.escapeString(command) + '\'';

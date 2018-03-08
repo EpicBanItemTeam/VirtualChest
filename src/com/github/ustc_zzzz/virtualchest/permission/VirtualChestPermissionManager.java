@@ -4,14 +4,12 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.service.context.Context;
 import org.spongepowered.api.service.context.ContextCalculator;
 import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.service.permission.Subject;
 import org.spongepowered.api.service.permission.SubjectData;
-import org.spongepowered.api.util.Identifiable;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -25,8 +23,6 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
     private final Logger logger;
     private final Context contextInAction = new Context("virtualchest-action", "in-action");
     private final Context contextNotInAction = new Context("virtualchest-action", "not-in-action");
-
-    private final Map<UUID, Set<String>> playerIgnoredPermissions = new HashMap<>();
 
     public VirtualChestPermissionManager(VirtualChestPlugin plugin)
     {
@@ -60,12 +56,17 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
 
     private CompletableFuture<Boolean> clearPermissions(SubjectData data, Set<Context> contexts)
     {
-        return SpongeUnimplemented.clearPermissions(data, contexts);
+        return SpongeUnimplemented.clearPermissions(this.plugin, data, contexts);
     }
 
-    private CompletableFuture<?>[] setPermissions(Collection<String> permissions, SubjectData data, Set<Context> contexts)
+    private CompletableFuture<Boolean> setPermission(SubjectData data, Set<Context> contexts, String permission)
     {
-        return permissions.stream().map(p -> SpongeUnimplemented.setPermission(data, contexts, p)).toArray(CompletableFuture[]::new);
+        return SpongeUnimplemented.setPermission(this.plugin, data, contexts, permission);
+    }
+
+    private CompletableFuture<?>[] setPermissions(Collection<String> permissions, SubjectData data, Set<Context> set)
+    {
+        return permissions.stream().map(p -> this.setPermission(data, set, p)).toArray(CompletableFuture[]::new);
     }
 
     private void addIgnoredPermissionsToLog(Collection<String> permissions, UUID uuid, String playerName)
@@ -75,51 +76,28 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
     }
 
     @Override
-    public void accumulateContexts(Subject calculable, Set<Context> accumulator)
+    public void accumulateContexts(Subject subject, Set<Context> accumulator)
     {
-        Optional<CommandSource> sourceOptional = calculable.getCommandSource();
-        if (sourceOptional.isPresent())
+        String identifier = subject.getIdentifier();
+        if (this.plugin.getVirtualChestActions().isPlayerActivated(identifier))
         {
-            CommandSource source = sourceOptional.get();
-            if (source instanceof Identifiable)
-            {
-                UUID uuid = ((Identifiable) source).getUniqueId();
-                if (this.plugin.getVirtualChestActions().isPlayerActivated(uuid))
-                {
-                    accumulator.add(this.contextInAction);
-                    SubjectData data = source.getTransientSubjectData();
-                    Map<String, Boolean> permissions = data.getPermissions(Collections.singleton(this.contextInAction));
-                    this.logger.debug("Ignored {} permission(s) for {} (context):", permissions.size(), uuid);
-                    permissions.forEach((permission, state) -> this.logger.debug("- {} ({})", permission, state));
-                }
-                else
-                {
-                    accumulator.add(this.contextNotInAction);
-                }
-            }
+            accumulator.add(this.contextInAction);
+            SubjectData data = subject.getTransientSubjectData();
+            Map<String, Boolean> permissions = data.getPermissions(Collections.singleton(this.contextInAction));
+            this.logger.debug("Ignored {} permission(s) for {} (context):", permissions.size(), identifier);
+            permissions.forEach((permission, state) -> this.logger.debug("- {} ({})", permission, state));
+        }
+        else
+        {
+            accumulator.add(this.contextNotInAction);
         }
     }
 
     @Override
     public boolean matches(Context context, Subject subject)
     {
-        Optional<CommandSource> sourceOptional = subject.getCommandSource();
-        if (sourceOptional.isPresent())
-        {
-            CommandSource source = sourceOptional.get();
-            if (source instanceof Identifiable)
-            {
-                UUID uuid = ((Identifiable) source).getUniqueId();
-                if (this.plugin.getVirtualChestActions().isPlayerActivated(uuid))
-                {
-                    return this.contextInAction.equals(context);
-                }
-                else
-                {
-                    return this.contextNotInAction.equals(context);
-                }
-            }
-        }
-        return false;
+        String identifier = subject.getIdentifier();
+        boolean isActivated = this.plugin.getVirtualChestActions().isPlayerActivated(identifier);
+        return isActivated ? this.contextInAction.equals(context) : this.contextNotInAction.equals(context);
     }
 }
