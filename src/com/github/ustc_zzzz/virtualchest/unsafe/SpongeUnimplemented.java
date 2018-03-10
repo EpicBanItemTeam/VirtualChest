@@ -17,7 +17,9 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -124,12 +126,12 @@ public class SpongeUnimplemented
             if (CAUSE_APPEND_SOURCE.type().parameterCount() > 2)
             {
                 Object causeBuilder = CAUSE_APPEND_SOURCE.invoke(Cause.builder(), "Source", obj);
-                return (Cause) CAUSE_BUILD.invokeWithArguments(getCauseBuildArgs(causeBuilder));
+                return (Cause) CAUSE_BUILD.invoke(causeBuilder);
             }
             else
             {
                 Object causeBuilder = CAUSE_APPEND_SOURCE.invoke(Cause.builder(), obj);
-                return (Cause) CAUSE_BUILD.invokeWithArguments(getCauseBuildArgs(causeBuilder));
+                return (Cause) CAUSE_BUILD.invoke(causeBuilder, getEventContext());
             }
         }
         catch (Throwable throwable)
@@ -301,20 +303,12 @@ public class SpongeUnimplemented
         }
     }
 
-    private static Object[] getCauseBuildArgs(Object object) throws ReflectiveOperationException
+    private static Object getEventContext() throws ReflectiveOperationException
     {
-        try
-        {
-            Class<?> eventContextClass = Class.forName("org.spongepowered.api.event.cause.EventContext");
-            Field field = eventContextClass.getDeclaredField("EMPTY_CONTEXT");
-            field.setAccessible(true);
-
-            return Arrays.asList(object, field.get(null)).toArray();
-        }
-        catch (ReflectiveOperationException e)
-        {
-            return Collections.singletonList(object).toArray();
-        }
+        Class<?> eventContextClass = Class.forName("org.spongepowered.api.event.cause.EventContext");
+        Field field = eventContextClass.getDeclaredField("EMPTY_CONTEXT");
+        field.setAccessible(true);
+        return field.get(null);
     }
 
     private static MethodHandle getCauseBuildMethod(MethodHandles.Lookup lookup) throws ReflectiveOperationException
