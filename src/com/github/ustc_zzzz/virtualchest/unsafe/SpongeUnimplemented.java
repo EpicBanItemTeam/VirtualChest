@@ -1,6 +1,6 @@
 package com.github.ustc_zzzz.virtualchest.unsafe;
 
-import com.google.common.base.Throwables;
+import org.spongepowered.api.data.DataView;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.item.inventory.Inventory;
@@ -31,6 +31,11 @@ public class SpongeUnimplemented
     private static final Class<?> NMS_INVENTORY_PLAYER_CLASS;
     private static final Class<?> ITEM_STACK_UTIL_CLASS;
     private static final Class<?> NMS_ITEM_STACK_CLASS;
+    private static final Class<?> NBT_TRANSLATOR_CLASS;
+    private static final Class<?> NBT_DATA_UTIL_CLASS;
+    private static final Class<?> NMS_NBT_UTIL_CLASS;
+    private static final Class<?> NMS_NBT_TAG_COMPOUND_CLASS;
+    private static final Class<?> NMS_NBT_BASE_CLASS;
 
     private static final MethodHandle GET_ITEM_STACK;
     private static final MethodHandle SET_ITEM_STACK;
@@ -47,6 +52,11 @@ public class SpongeUnimplemented
 
     private static final MethodHandle SUBJECT_DATA_CLEAR_PERMISSIONS;
     private static final MethodHandle SUBJECT_DATA_SET_PERMISSION;
+
+    private static final MethodHandle GET_ITEM_COMPOUND;
+    private static final MethodHandle TRANSLATE_DATA;
+    private static final MethodHandle GET_INSTANCE;
+    private static final MethodHandle ARE_NBT_EQUALS;
 
     public static Class<?> getItemEnchantmentClass()
     {
@@ -240,6 +250,20 @@ public class SpongeUnimplemented
         }
     }
 
+    public static boolean isNBTMatched(Optional<DataView> matcher, ItemStackSnapshot item)
+    {
+        try
+        {
+            Object nbt2 = ((Optional<?>) GET_ITEM_COMPOUND.invoke(FROM_SNAPSHOT_TO_NATIVE.invoke(item))).orElse(null);
+            Object nbt1 = matcher.isPresent() ? TRANSLATE_DATA.invoke(GET_INSTANCE.invoke(), matcher.get()) : null;
+            return (boolean) ARE_NBT_EQUALS.invoke(nbt1, nbt2, true);
+        }
+        catch (Throwable throwable)
+        {
+            throw new UnsupportedOperationException(throwable);
+        }
+    }
+
     static
     {
         try
@@ -250,12 +274,21 @@ public class SpongeUnimplemented
             NMS_ENTITY_PLAYER_MP_CLASS = Class.forName("net.minecraft.entity.player.EntityPlayerMP");
             NMS_INVENTORY_PLAYER_CLASS = Class.forName("net.minecraft.entity.player.InventoryPlayer");
             ITEM_STACK_UTIL_CLASS = Class.forName("org.spongepowered.common.item.inventory.util.ItemStackUtil");
+            NBT_TRANSLATOR_CLASS = Class.forName("org.spongepowered.common.data.persistence.NbtTranslator");
+            NBT_DATA_UTIL_CLASS = Class.forName("org.spongepowered.common.data.util.NbtDataUtil");
+            NMS_NBT_UTIL_CLASS = Class.forName("net.minecraft.nbt.NBTUtil");
+            NMS_NBT_TAG_COMPOUND_CLASS = Class.forName("net.minecraft.nbt.NBTTagCompound");
+            NMS_NBT_BASE_CLASS = Class.forName("net.minecraft.nbt.NBTBase");
 
             MethodType updateHeldItemType = MethodType.methodType(void.class);
             MethodType getItemStackType = MethodType.methodType(NMS_ITEM_STACK_CLASS);
             MethodType setItemStackType = MethodType.methodType(void.class, NMS_ITEM_STACK_CLASS);
             MethodType snapshotOfType = MethodType.methodType(ItemStackSnapshot.class, NMS_ITEM_STACK_CLASS);
             MethodType fromSnapshotToNativeType = MethodType.methodType(NMS_ITEM_STACK_CLASS, ItemStackSnapshot.class);
+            MethodType getItemCompoundType = MethodType.methodType(Optional.class, NMS_ITEM_STACK_CLASS);
+            MethodType getInstanceType = MethodType.methodType(NBT_TRANSLATOR_CLASS);
+            MethodType translateDataType = MethodType.methodType(NMS_NBT_TAG_COMPOUND_CLASS, DataView.class);
+            MethodType areNBTEqualsType = MethodType.methodType(boolean.class, NMS_NBT_BASE_CLASS, NMS_NBT_BASE_CLASS, boolean.class);
 
             GET_ITEM_STACK = lookup.findVirtual(NMS_INVENTORY_PLAYER_CLASS, "func_70445_o", getItemStackType);
             SET_ITEM_STACK = lookup.findVirtual(NMS_INVENTORY_PLAYER_CLASS, "func_70437_b", setItemStackType);
@@ -268,10 +301,14 @@ public class SpongeUnimplemented
             CAUSE_BUILD = getCauseBuildMethod(lookup);
             SUBJECT_DATA_CLEAR_PERMISSIONS = getClearPermissionsMethod(lookup);
             SUBJECT_DATA_SET_PERMISSION = getSetPermissionMethod(lookup);
+            GET_ITEM_COMPOUND = lookup.findStatic(NBT_DATA_UTIL_CLASS, "getItemCompound", getItemCompoundType);
+            TRANSLATE_DATA = lookup.findVirtual(NBT_TRANSLATOR_CLASS, "translateData", translateDataType);
+            GET_INSTANCE = lookup.findStatic(NBT_TRANSLATOR_CLASS, "getInstance", getInstanceType);
+            ARE_NBT_EQUALS = lookup.findStatic(NMS_NBT_UTIL_CLASS, "func_181123_a", areNBTEqualsType);
         }
         catch (ReflectiveOperationException e)
         {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 

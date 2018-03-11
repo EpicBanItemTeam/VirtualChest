@@ -13,12 +13,12 @@ import org.spongepowered.api.util.annotation.NonnullByDefault;
 @NonnullByDefault
 public class VirtualChestItemTemplate implements DataSerializable
 {
-    public static final DataQuery ITEM_TYPE = DataQuery.of("ItemType");
-    public static final DataQuery UNSAFE_DAMAGE = DataQuery.of("UnsafeDamage");
+    private static final DataQuery ITEM_TYPE = DataQuery.of("ItemType");
+    private static final DataQuery UNSAFE_DAMAGE = DataQuery.of("UnsafeDamage");
 
     private final DataContainer container;
 
-    public VirtualChestItemTemplate(DataContainer dataContainer)
+    protected VirtualChestItemTemplate(DataContainer dataContainer)
     {
         container = dataContainer;
     }

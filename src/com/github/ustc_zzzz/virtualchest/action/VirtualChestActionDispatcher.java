@@ -1,7 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestItemTemplateWithCount;
+import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestItemTemplateWithNBTAndCount;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
 import org.spongepowered.api.data.DataContainer;
@@ -26,7 +26,7 @@ public class VirtualChestActionDispatcher
 
     private static final char SEQUENCE_SPLITTER = ';';
 
-    private final ImmutableList<VirtualChestItemTemplateWithCount> handheldItem;
+    private final ImmutableList<VirtualChestItemTemplateWithNBTAndCount> handheldItem;
     private final ImmutableList<Boolean> keepInventoryOpen;
     private final ImmutableList<List<String>> commands;
 
@@ -38,7 +38,7 @@ public class VirtualChestActionDispatcher
     {
         this.size = views.size();
 
-        ImmutableList.Builder<VirtualChestItemTemplateWithCount> handheldItemBuilder = ImmutableList.builder();
+        ImmutableList.Builder<VirtualChestItemTemplateWithNBTAndCount> handheldItemBuilder = ImmutableList.builder();
         ImmutableList.Builder<Boolean> keepInventoryOpenBuilder = ImmutableList.builder();
         ImmutableList.Builder<List<String>> commandsBuilder = ImmutableList.builder();
 
@@ -65,7 +65,7 @@ public class VirtualChestActionDispatcher
         ItemStackSnapshot handheldItem = SpongeUnimplemented.getItemHeldByMouse(player);
         for (int i = 0; i < this.size; ++i)
         {
-            VirtualChestItemTemplateWithCount itemTemplate = this.handheldItem.get(i);
+            VirtualChestItemTemplateWithNBTAndCount itemTemplate = this.handheldItem.get(i);
             if (itemTemplate.matchItem(handheldItem))
             {
                 plugin.getVirtualChestActions().submitCommands(player, this.commands.get(i), ignoredPermissions);
@@ -88,9 +88,17 @@ public class VirtualChestActionDispatcher
         }
     }
 
-    private VirtualChestItemTemplateWithCount parseHandheldItem(Optional<DataView> optional)
+    private VirtualChestItemTemplateWithNBTAndCount parseHandheldItem(Optional<DataView> optional)
     {
-        return optional.map(VirtualChestItemTemplateWithCount::new).orElseGet(VirtualChestItemTemplateWithCount::new);
+        // noinspection OptionalIsPresent
+        if (optional.isPresent())
+        {
+            return new VirtualChestItemTemplateWithNBTAndCount(optional.get());
+        }
+        else
+        {
+            return new VirtualChestItemTemplateWithNBTAndCount();
+        }
     }
 
     public static List<String> parseCommand(String commandSequence)
