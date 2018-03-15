@@ -56,7 +56,7 @@ public final class VirtualChestInventory implements DataSerializable
     final List<Collection<VirtualChestItem>> items;
     final Text title;
     final int height;
-    final VirtualChestTriggerItem triggerItem;
+    final List<VirtualChestTriggerItem> triggerItems;
     final Optional<String> openActionCommand;
     final Optional<String> closeActionCommand;
     final int updateIntervalTick;
@@ -70,7 +70,7 @@ public final class VirtualChestInventory implements DataSerializable
 
         this.title = builder.title;
         this.height = builder.height;
-        this.triggerItem = builder.triggerItem;
+        this.triggerItems = ImmutableList.copyOf(builder.triggerItems);
         this.openActionCommand = builder.openActionCommand;
         this.closeActionCommand = builder.closeActionCommand;
         this.updateIntervalTick = builder.updateIntervalTick;
@@ -80,12 +80,12 @@ public final class VirtualChestInventory implements DataSerializable
 
     public boolean matchItemForOpeningWithPrimaryAction(ItemStackSnapshot item)
     {
-        return triggerItem.matchItemForOpeningWithPrimaryAction(item);
+        return triggerItems.stream().anyMatch(t -> t.matchItemForOpeningWithPrimaryAction(item));
     }
 
     public boolean matchItemForOpeningWithSecondaryAction(ItemStackSnapshot item)
     {
-        return triggerItem.matchItemForOpeningWithSecondaryAction(item);
+        return triggerItems.stream().anyMatch(t -> t.matchItemForOpeningWithSecondaryAction(item));
     }
 
     public Inventory createInventory(Player player, String inventoryName)
@@ -170,7 +170,18 @@ public final class VirtualChestInventory implements DataSerializable
         DataContainer container = new MemoryDataContainer();
         container.set(TITLE, this.title);
         container.set(HEIGHT, this.height);
-        container.set(TRIGGER_ITEM, this.triggerItem);
+        switch (this.triggerItems.size())
+        {
+        case 0:
+            break;
+        case 1:
+            container.set(TRIGGER_ITEM, this.triggerItems.iterator().next().toContainer());
+            break;
+        default:
+            List<DataContainer> containerList = new LinkedList<>();
+            this.triggerItems.forEach(t -> containerList.add(t.toContainer()));
+            container.set(TRIGGER_ITEM, containerList);
+        }
         container.set(UPDATE_INTERVAL_TICK, this.updateIntervalTick);
         this.openActionCommand.ifPresent(c -> container.set(OPEN_ACTION_COMMAND, c));
         this.closeActionCommand.ifPresent(c -> container.set(CLOSE_ACTION_COMMAND, c));

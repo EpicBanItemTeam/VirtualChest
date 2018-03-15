@@ -14,6 +14,8 @@ import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -29,7 +31,7 @@ public class VirtualChestInventoryBuilder extends AbstractDataBuilder<VirtualChe
     int updateIntervalTick = 0;
     Optional<String> openActionCommand = Optional.empty();
     Optional<String> closeActionCommand = Optional.empty();
-    VirtualChestTriggerItem triggerItem = new VirtualChestTriggerItem();
+    List<VirtualChestTriggerItem> triggerItems = new ArrayList<>();
     Multimap<SlotIndex, VirtualChestItem> items = ArrayListMultimap.create();
     Optional<Integer> actionIntervalTick = Optional.empty();
 
@@ -83,7 +85,7 @@ public class VirtualChestInventoryBuilder extends AbstractDataBuilder<VirtualChe
 
     public VirtualChestInventoryBuilder triggerItem(VirtualChestTriggerItem triggerItem)
     {
-        this.triggerItem = triggerItem;
+        this.triggerItems.add(triggerItem);
         return this;
     }
 
@@ -125,8 +127,9 @@ public class VirtualChestInventoryBuilder extends AbstractDataBuilder<VirtualChe
         this.height = view.getInt(VirtualChestInventory.HEIGHT)
                 .orElseThrow(() -> new InvalidDataException("Expected height"));
 
-        this.triggerItem = view.getView(VirtualChestInventory.TRIGGER_ITEM)
-                .map(VirtualChestTriggerItem::new).orElseGet(VirtualChestTriggerItem::new);
+        this.triggerItems.clear();
+        VirtualChestItem.getViewListOrSingletonList(VirtualChestInventory.TRIGGER_ITEM, view)
+                .forEach(dataView -> this.triggerItems.add(new VirtualChestTriggerItem(dataView)));
 
         this.openActionCommand = view.getString(VirtualChestInventory.OPEN_ACTION_COMMAND);
 
@@ -144,7 +147,8 @@ public class VirtualChestInventoryBuilder extends AbstractDataBuilder<VirtualChe
     {
         this.title = value.title;
         this.height = value.height;
-        this.triggerItem = value.triggerItem;
+        this.triggerItems.clear();
+        this.triggerItems.addAll(value.triggerItems);
         this.openActionCommand = value.openActionCommand;
         this.closeActionCommand = value.closeActionCommand;
         this.updateIntervalTick = value.updateIntervalTick;
@@ -165,7 +169,7 @@ public class VirtualChestInventoryBuilder extends AbstractDataBuilder<VirtualChe
         this.title = Text.of();
         this.updateIntervalTick = 0;
         this.actionIntervalTick = Optional.empty();
-        this.triggerItem = new VirtualChestTriggerItem();
+        this.triggerItems.clear();
         this.items.clear();
         return this;
     }
