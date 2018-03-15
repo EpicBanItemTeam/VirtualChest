@@ -126,32 +126,32 @@ public class VirtualChestItem
         return builder.build();
     }
 
-    public boolean setInventory(Player player, Inventory inventory, int index, String name)
+    public void fillInventory(Player player, Inventory inventory, int index, String name)
+    {
+        Timing timing = VirtualChestTimings.setItemInInventory(name, index);
+        timing.startTimingIfSync();
+        try
+        {
+            inventory.set(this.serializer.apply(player, this.serializedStack));
+        }
+        catch (InvalidDataException e)
+        {
+            String posString = VirtualChestInventory.slotIndexToKey(index);
+            throw new InvalidDataException("Find error when generating item at " + posString, e);
+        }
+        finally
+        {
+            timing.stopTimingIfSync();
+        }
+    }
+
+    public boolean matchRequirements(Player player, int index, String name)
     {
         Timing timing = VirtualChestTimings.checkRequirements(name, index);
         timing.startTimingIfSync();
         boolean matchRequirements = this.plugin.getScriptManager().execute(player, this.requirements);
         timing.stopTimingIfSync();
-        if (matchRequirements)
-        {
-            timing = VirtualChestTimings.setItemInInventory(name, index);
-            timing.startTimingIfSync();
-            try
-            {
-                inventory.set(this.serializer.apply(player, this.serializedStack));
-                return true;
-            }
-            catch (InvalidDataException e)
-            {
-                String posString = VirtualChestInventory.slotIndexToKey(index);
-                throw new InvalidDataException("Find error when generating item at " + posString, e);
-            }
-            finally
-            {
-                timing.stopTimingIfSync();
-            }
-        }
-        return false;
+        return matchRequirements;
     }
 
     public Optional<VirtualChestActionDispatcher> getAction(boolean isPrimary, boolean isSecondary, boolean isShift)
