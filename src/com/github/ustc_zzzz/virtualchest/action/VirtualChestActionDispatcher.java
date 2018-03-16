@@ -14,6 +14,7 @@ import org.spongepowered.api.util.Tristate;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author ustc_zzzz
@@ -60,7 +61,7 @@ public class VirtualChestActionDispatcher
         this.views = dataContainerBuilder.build();
     }
 
-    public boolean runCommand(VirtualChestPlugin plugin, Player player, List<String> ignoredPermissions)
+    public CompletableFuture<Boolean> runCommand(VirtualChestPlugin plugin, Player player, List<String> ignoredPermissions)
     {
         ItemStackSnapshot handheldItem = SpongeUnimplemented.getItemHeldByMouse(player);
         for (int i = 0; i < this.size; ++i)
@@ -68,11 +69,12 @@ public class VirtualChestActionDispatcher
             VirtualChestItemTemplateWithNBTAndCount itemTemplate = this.handheldItem.get(i);
             if (itemTemplate.matchItem(handheldItem))
             {
-                plugin.getVirtualChestActions().submitCommands(player, this.commands.get(i), ignoredPermissions);
-                return this.keepInventoryOpen.get(i);
+                Boolean b = this.keepInventoryOpen.get(i);
+                VirtualChestActions actions = plugin.getVirtualChestActions();
+                return actions.submitCommands(player, this.commands.get(i), ignoredPermissions).thenApply(v -> b);
             }
         }
-        return true;
+        return CompletableFuture.completedFuture(Boolean.TRUE);
     }
 
     public Optional<?> getObjectForSerialization()

@@ -30,7 +30,6 @@ import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.UnaryOperator;
 
 /**
  * @author ustc_zzzz
@@ -221,19 +220,6 @@ public final class VirtualChestInventory implements DataSerializable
             this.name = inventoryName;
         }
 
-        private boolean processClickEvent(ClickInventoryEvent e, VirtualChestItem item, Player player, int index)
-        {
-            String log = "Player {} tries to click the chest GUI at {}, primary: {}, secondary: {}, shift: {}";
-
-            boolean isShift = e instanceof ClickInventoryEvent.Shift;
-            boolean isPrimary = e instanceof ClickInventoryEvent.Primary;
-            boolean isSecondary = e instanceof ClickInventoryEvent.Secondary;
-
-            logger.debug(log, player.getName(), slotIndexToKey(index), isPrimary, isSecondary, isShift);
-            Optional<VirtualChestActionDispatcher> optional = item.getAction(isPrimary, isSecondary, isShift);
-            return optional.map(d -> d.runCommand(plugin, player, item.getIgnoredPermissions())).orElse(Boolean.TRUE);
-        }
-
         private void fireOpenEvent(InteractInventoryEvent.Open e)
         {
             Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
@@ -300,18 +286,7 @@ public final class VirtualChestInventory implements DataSerializable
                     if (actionIntervalManager.allowAction(player, acceptableActionIntervalTick))
                     {
                         int index = Objects.requireNonNull(pos.getValue());
-                        Timing timing = VirtualChestTimings.updateAndRefreshMapping(name, index);
-                        timing.startTimingIfSync();
-                        for (VirtualChestItem i : items.get(index))
-                        {
-                            if (i.matchRequirements(player, index, name))
-                            {
-                                UnaryOperator<Boolean> next = p -> processClickEvent(e, i, player, index) && p;
-                                future = future.thenApplyAsync(next, executorService);
-                                break;
-                            }
-                        }
-                        timing.stopTimingIfSync();
+                        future = this.wrapFuture(future, e, player, index);
                     }
                 }
             }
@@ -322,6 +297,43 @@ public final class VirtualChestInventory implements DataSerializable
                     SpongeUnimplemented.closeInventory(player, plugin);
                 }
             });
+        }
+
+        private CompletableFuture<Boolean> wrapFuture(CompletableFuture<Boolean> future, ClickInventoryEvent e, Player player, int slotIndex)
+        {
+            Timing timing = VirtualChestTimings.updateAndRefreshMapping(name, slotIndex);
+            timing.startTimingIfSync();
+
+            boolean isShift = e instanceof ClickInventoryEvent.Shift;
+            boolean isPrimary = e instanceof ClickInventoryEvent.Primary;
+            boolean isSecondary = e instanceof ClickInventoryEvent.Secondary;
+
+            Optional<VirtualChestActionDispatcher> dispatcherOptional = Optional.empty();
+            List<String> ignoredPermissions = new ArrayList<>();
+            for (VirtualChestItem i : items.get(slotIndex))
+            {
+                if (i.matchRequirements(player, slotIndex, name))
+                {
+                    dispatcherOptional = i.getAction(isPrimary, isSecondary, isShift);
+                    ignoredPermissions.addAll(i.getIgnoredPermissions());
+                    break;
+                }
+            }
+
+            if (dispatcherOptional.isPresent())
+            {
+                VirtualChestActionDispatcher actionDispatcher = dispatcherOptional.get();
+                future = future.thenComposeAsync(p ->
+                {
+                    String log = "Player {} tries to click the chest GUI at {}, primary: {}, secondary: {}, shift: {}";
+                    logger.debug(log, player.getName(), slotIndexToKey(slotIndex), isPrimary, isSecondary, isShift);
+                    return actionDispatcher.runCommand(plugin, player, ignoredPermissions).thenApply(b -> b && p);
+                });
+            }
+
+            timing.stopTimingIfSync();
+
+            return future;
         }
     }
 }

@@ -31,6 +31,7 @@ import org.spongepowered.api.world.World;
 import java.lang.ref.WeakReference;
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -97,7 +98,7 @@ public final class VirtualChestActions
         return this.activatedIdentifiers.contains(identifier);
     }
 
-    public void submitCommands(Player player, List<String> commands, List<String> ignoredPermissions)
+    public CompletableFuture<Void> submitCommands(Player player, List<String> commands, List<String> ignoredPermissions)
     {
         plugin.getLogger().debug("Player {} tries to run {} command(s)", player.getName(), commands.size());
         VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
@@ -121,20 +122,14 @@ public final class VirtualChestActions
                 commandList.add(Tuple.of("", placeholderManager.parseText(player, command)));
             }
         }
-        new Callback(player, commandList, ignoredPermissions).start();
+        return new Callback(player, commandList, ignoredPermissions).start();
     }
 
     private void tick(Task task)
     {
-        CommandResult init = CommandResult.success();
-        while (true)
+        for (Callback c = this.queuedCallbacks.poll(); Objects.nonNull(c); c = this.queuedCallbacks.poll())
         {
-            Callback callback = this.queuedCallbacks.poll();
-            if (Objects.isNull(callback))
-            {
-                break;
-            }
-            callback.accept(init);
+            c.acceptFirst();
         }
         this.activatedIdentifiers.clear();
     }
@@ -279,6 +274,7 @@ public final class VirtualChestActions
         private final Queue<Tuple<String, String>> commandList;
         private final VirtualChestPermissionManager permissionManager;
         private final Logger logger = VirtualChestActions.this.plugin.getLogger();
+        private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
         private Callback(Player p, LinkedList<Tuple<String, String>> commandList, List<String> ignoredPermissions)
         {
@@ -288,21 +284,25 @@ public final class VirtualChestActions
             this.permissionManager = VirtualChestActions.this.plugin.getPermissionManager();
         }
 
-        private void start()
+        private CompletableFuture<Void> start()
         {
             Player p = playerReference.get();
-            if (!Objects.isNull(p))
-            {
-                permissionMap.putAll(this, ignoredPermissions);
-                permissionManager.setIgnored(p, permissionMap.values()).thenRun(() -> queuedCallbacks.offer(this));
-            }
+            permissionMap.putAll(this, ignoredPermissions);
+            permissionManager.setIgnored(p, permissionMap.values()).thenRun(() -> queuedCallbacks.offer(this));
+            return completableFuture;
+        }
+
+        private void acceptFirst()
+        {
+            completableFuture.complete(null);
+            this.accept(CommandResult.success());
         }
 
         @Override
         public void accept(CommandResult commandResult)
         {
             Player player = playerReference.get();
-            if (!Objects.isNull(player))
+            if (Objects.nonNull(player))
             {
                 Tuple<String, String> t = commandList.poll();
                 if (Objects.isNull(t))
