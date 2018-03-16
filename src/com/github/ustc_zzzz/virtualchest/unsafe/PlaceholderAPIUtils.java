@@ -22,6 +22,11 @@ public class PlaceholderAPIUtils
     private static final Class<?> API_SERVICE;
     private static final MethodHandle API_FILL_PLACEHOLDERS;
 
+    public static String getPlaceholderAPIVersion()
+    {
+        return API_VERSION.isEmpty() ? "unknown" : API_VERSION;
+    }
+
     public static boolean isPlaceholderAPIAvailable()
     {
         return !API_VERSION.isEmpty();

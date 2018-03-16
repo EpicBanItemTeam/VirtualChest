@@ -12,15 +12,19 @@ import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManage
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.script.VirtualChestJavaScriptManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.github.ustc_zzzz.virtualchest.unsafe.PlaceholderAPIUtils;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
+import com.github.ustc_zzzz.virtualchest.util.repackage.org.bstats.sponge.Metrics;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.inject.Inject;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import org.slf4j.Logger;
+import org.spongepowered.api.Platform;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
@@ -39,6 +43,7 @@ import org.spongepowered.api.event.game.state.GameStartingServerEvent;
 import org.spongepowered.api.event.item.inventory.InteractItemEvent;
 import org.spongepowered.api.plugin.Dependency;
 import org.spongepowered.api.plugin.Plugin;
+import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.text.channel.MessageReceiver;
 import org.spongepowered.plugin.meta.version.ComparableVersion;
 
@@ -72,6 +77,9 @@ public class VirtualChestPlugin
 
     @Inject
     private Logger logger;
+
+    @Inject
+    private Metrics metrics;
 
     @Inject
     @ConfigDir(sharedRoot = false)
@@ -304,6 +312,21 @@ public class VirtualChestPlugin
         {
             throw Throwables.propagate(e);
         }
+        this.addMetricsInformation();
+    }
+
+    private void addMetricsInformation()
+    {
+        PluginContainer p = Sponge.getPlatform().getContainer(Platform.Component.IMPLEMENTATION);
+        this.metrics.addCustomChart(
+                new Metrics.SingleLineChart("onlineInventories",
+                        () -> this.dispatcher.listInventories().size()));
+        this.metrics.addCustomChart(
+                new Metrics.AdvancedPie("placeholderapiVersion",
+                        () -> ImmutableMap.of(PlaceholderAPIUtils.getPlaceholderAPIVersion(), 1)));
+        this.metrics.addCustomChart(
+                new Metrics.DrilldownPie("platformImplementation",
+                        () -> ImmutableMap.of(p.getName(), ImmutableMap.of(p.getVersion().orElse("unknown"), 1))));
     }
 
     public Logger getLogger()
