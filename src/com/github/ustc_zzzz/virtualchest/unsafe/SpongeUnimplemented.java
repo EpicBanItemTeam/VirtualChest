@@ -1,5 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.unsafe;
 
+import com.google.common.collect.ImmutableList;
+import org.objectweb.asm.Type;
 import org.spongepowered.api.data.DataView;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
@@ -15,8 +17,8 @@ import org.spongepowered.api.util.Tristate;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
@@ -27,16 +29,6 @@ import java.util.concurrent.CompletableFuture;
  */
 public class SpongeUnimplemented
 {
-    private static final Class<?> NMS_ENTITY_PLAYER_MP_CLASS;
-    private static final Class<?> NMS_INVENTORY_PLAYER_CLASS;
-    private static final Class<?> ITEM_STACK_UTIL_CLASS;
-    private static final Class<?> NMS_ITEM_STACK_CLASS;
-    private static final Class<?> NBT_TRANSLATOR_CLASS;
-    private static final Class<?> NBT_DATA_UTIL_CLASS;
-    private static final Class<?> NMS_NBT_UTIL_CLASS;
-    private static final Class<?> NMS_NBT_TAG_COMPOUND_CLASS;
-    private static final Class<?> NMS_NBT_BASE_CLASS;
-
     private static final MethodHandle GET_ITEM_STACK;
     private static final MethodHandle SET_ITEM_STACK;
     private static final MethodHandle UPDATE_HELD_ITEM;
@@ -266,78 +258,38 @@ public class SpongeUnimplemented
 
     static
     {
-        try
-        {
-            MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+        MethodHandles.Lookup lookup = MethodHandles.publicLookup();
 
-            NMS_ITEM_STACK_CLASS = Class.forName("net.minecraft.item.ItemStack");
-            NMS_ENTITY_PLAYER_MP_CLASS = Class.forName("net.minecraft.entity.player.EntityPlayerMP");
-            NMS_INVENTORY_PLAYER_CLASS = Class.forName("net.minecraft.entity.player.InventoryPlayer");
-            ITEM_STACK_UTIL_CLASS = Class.forName("org.spongepowered.common.item.inventory.util.ItemStackUtil");
-            NBT_TRANSLATOR_CLASS = Class.forName("org.spongepowered.common.data.persistence.NbtTranslator");
-            NBT_DATA_UTIL_CLASS = Class.forName("org.spongepowered.common.data.util.NbtDataUtil");
-            NMS_NBT_UTIL_CLASS = Class.forName("net.minecraft.nbt.NBTUtil");
-            NMS_NBT_TAG_COMPOUND_CLASS = Class.forName("net.minecraft.nbt.NBTTagCompound");
-            NMS_NBT_BASE_CLASS = Class.forName("net.minecraft.nbt.NBTBase");
-
-            MethodType updateHeldItemType = MethodType.methodType(void.class);
-            MethodType getItemStackType = MethodType.methodType(NMS_ITEM_STACK_CLASS);
-            MethodType setItemStackType = MethodType.methodType(void.class, NMS_ITEM_STACK_CLASS);
-            MethodType snapshotOfType = MethodType.methodType(ItemStackSnapshot.class, NMS_ITEM_STACK_CLASS);
-            MethodType fromSnapshotToNativeType = MethodType.methodType(NMS_ITEM_STACK_CLASS, ItemStackSnapshot.class);
-            MethodType getItemCompoundType = MethodType.methodType(Optional.class, NMS_ITEM_STACK_CLASS);
-            MethodType getInstanceType = MethodType.methodType(NBT_TRANSLATOR_CLASS);
-            MethodType translateDataType = MethodType.methodType(NMS_NBT_TAG_COMPOUND_CLASS, DataView.class);
-            MethodType areNBTEqualsType = MethodType.methodType(boolean.class, NMS_NBT_BASE_CLASS, NMS_NBT_BASE_CLASS, boolean.class);
-
-            GET_ITEM_STACK = lookup.findVirtual(NMS_INVENTORY_PLAYER_CLASS, "func_70445_o", getItemStackType);
-            SET_ITEM_STACK = lookup.findVirtual(NMS_INVENTORY_PLAYER_CLASS, "func_70437_b", setItemStackType);
-            UPDATE_HELD_ITEM = lookup.findVirtual(NMS_ENTITY_PLAYER_MP_CLASS, "func_71113_k", updateHeldItemType);
-            SNAPSHOT_OF = lookup.findStatic(ITEM_STACK_UTIL_CLASS, "snapshotOf", snapshotOfType);
-            FROM_SNAPSHOT_TO_NATIVE = lookup.findStatic(ITEM_STACK_UTIL_CLASS, "fromSnapshotToNative", fromSnapshotToNativeType);
-            PLAYER_CLOSE_INVENTORY = getPlayerCloseInventoryMethod(lookup);
-            PLAYER_OPEN_INVENTORY = getPlayerOpenInventoryMethod(lookup);
-            CAUSE_APPEND_SOURCE = getCauseAppendSourceMethod(lookup);
-            CAUSE_BUILD = getCauseBuildMethod(lookup);
-            SUBJECT_DATA_CLEAR_PERMISSIONS = getClearPermissionsMethod(lookup);
-            SUBJECT_DATA_SET_PERMISSION = getSetPermissionMethod(lookup);
-            GET_ITEM_COMPOUND = lookup.findStatic(NBT_DATA_UTIL_CLASS, "getItemCompound", getItemCompoundType);
-            TRANSLATE_DATA = lookup.findVirtual(NBT_TRANSLATOR_CLASS, "translateData", translateDataType);
-            GET_INSTANCE = lookup.findStatic(NBT_TRANSLATOR_CLASS, "getInstance", getInstanceType);
-            ARE_NBT_EQUALS = lookup.findStatic(NMS_NBT_UTIL_CLASS, "func_181123_a", areNBTEqualsType);
-        }
-        catch (ReflectiveOperationException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static MethodHandle getPlayerOpenInventoryMethod(MethodHandles.Lookup lookup) throws ReflectiveOperationException
-    {
-        try
-        {
-            MethodType methodType = MethodType.methodType(Optional.class, Inventory.class);
-            return lookup.findVirtual(Player.class, "openInventory", methodType);
-        }
-        catch (ReflectiveOperationException e)
-        {
-            MethodType methodType = MethodType.methodType(Optional.class, Inventory.class, Cause.class);
-            return lookup.findVirtual(Player.class, "openInventory", methodType);
-        }
-    }
-
-    private static MethodHandle getPlayerCloseInventoryMethod(MethodHandles.Lookup lookup) throws ReflectiveOperationException
-    {
-        try
-        {
-            MethodType methodType = MethodType.methodType(boolean.class);
-            return lookup.findVirtual(Player.class, "closeInventory", methodType);
-        }
-        catch (ReflectiveOperationException e)
-        {
-            MethodType methodType = MethodType.methodType(boolean.class, Cause.class);
-            return lookup.findVirtual(Player.class, "closeInventory", methodType);
-        }
+        GET_ITEM_STACK = getMethod(
+                lookup, "net.minecraft.entity.player.InventoryPlayer", "func_70445_o");
+        SET_ITEM_STACK = getMethod(
+                lookup, "net.minecraft.entity.player.InventoryPlayer", "func_70437_b");
+        UPDATE_HELD_ITEM = getMethod(
+                lookup, "net.minecraft.entity.player.EntityPlayerMP", "func_71113_k");
+        SNAPSHOT_OF = getMethod(
+                lookup, "org.spongepowered.common.item.inventory.util.ItemStackUtil", "snapshotOf (Lnet/minecraft/item/ItemStack;)Lorg/spongepowered/api/item/inventory/ItemStackSnapshot;");
+        FROM_SNAPSHOT_TO_NATIVE = getMethod(
+                lookup, "org.spongepowered.common.item.inventory.util.ItemStackUtil", "fromSnapshotToNative (Lorg/spongepowered/api/item/inventory/ItemStackSnapshot;)Lnet/minecraft/item/ItemStack;");
+        PLAYER_CLOSE_INVENTORY = getMethod(
+                lookup, Player.class, "closeInventory");
+        PLAYER_OPEN_INVENTORY = getMethod(
+                lookup, Player.class, "openInventory");
+        CAUSE_APPEND_SOURCE = getMethod(
+                lookup, Cause.Builder.class, "append (Ljava/lang/Object;)Lorg/spongepowered/api/event/cause/Cause$Builder;", "named (Ljava/lang/String;Ljava/lang/Object;)Lorg/spongepowered/api/event/cause/Cause$Builder;");
+        CAUSE_BUILD = getMethod(
+                lookup, Cause.Builder.class, "build");
+        SUBJECT_DATA_CLEAR_PERMISSIONS = getMethod(
+                lookup, SubjectData.class, "clearPermissions (Ljava/util/Set;)Z", "clearPermissions (Ljava/util/Set;)Ljava/util/concurrent/CompletableFuture;");
+        SUBJECT_DATA_SET_PERMISSION = getMethod(
+                lookup, SubjectData.class, "setPermission (Ljava/util/Set;Ljava/lang/String;Lorg/spongepowered/api/util/Tristate;)Z", "setPermission (Ljava/util/Set;Ljava/lang/String;Lorg/spongepowered/api/util/Tristate;)Ljava/util/concurrent/CompletableFuture;");
+        GET_ITEM_COMPOUND = getMethod(
+                lookup, "org.spongepowered.common.data.util.NbtDataUtil", "getItemCompound");
+        TRANSLATE_DATA = getMethod(
+                lookup, "org.spongepowered.common.data.persistence.NbtTranslator", "translateData");
+        GET_INSTANCE = getMethod(
+                lookup, "org.spongepowered.common.data.persistence.NbtTranslator", "getInstance");
+        ARE_NBT_EQUALS = getMethod(
+                lookup, "net.minecraft.nbt.NBTUtil", "func_181123_a");
     }
 
     private static Object getEventContext() throws ReflectiveOperationException
@@ -348,60 +300,41 @@ public class SpongeUnimplemented
         return field.get(null);
     }
 
-    private static MethodHandle getCauseBuildMethod(MethodHandles.Lookup lookup) throws ReflectiveOperationException
+    private static MethodHandle getMethod(MethodHandles.Lookup lookup, String clazz, String... methods)
     {
         try
         {
-            Class<?> eventContextClass = Class.forName("org.spongepowered.api.event.cause.EventContext");
-            MethodType methodType = MethodType.methodType(Cause.class, eventContextClass);
-            return lookup.findVirtual(Cause.Builder.class, "build", methodType);
+            return getMethod(lookup, Class.forName(clazz), methods);
         }
-        catch (ReflectiveOperationException e)
+        catch (ClassNotFoundException e)
         {
-            return lookup.findVirtual(Cause.Builder.class, "build", MethodType.methodType(Cause.class));
+            throw new UnsupportedOperationException("Class " + clazz + " not found", e);
         }
     }
 
-    private static MethodHandle getCauseAppendSourceMethod(MethodHandles.Lookup lookup) throws ReflectiveOperationException
+    private static MethodHandle getMethod(MethodHandles.Lookup lookup, Class<?> clazz, String... methods)
     {
-        try
+        for (String methodName : methods)
         {
-            MethodType methodType = MethodType.methodType(Cause.Builder.class, String.class, Object.class);
-            return lookup.findVirtual(Cause.Builder.class, "named", methodType);
+            int spaceIndex = methodName.indexOf(' ');
+            String desc = spaceIndex < 0 ? "" : methodName.substring(spaceIndex + 1);
+            String name = spaceIndex < 0 ? methodName : methodName.substring(0, spaceIndex);
+            for (Method m : clazz.getMethods())
+            {
+                try
+                {
+                    if (m.getName().equals(name) && (desc.isEmpty() || Type.getMethodDescriptor(m).equals(desc)))
+                    {
+                        return lookup.unreflect(m);
+                    }
+                }
+                catch (Exception ignored)
+                {
+                    // just continue
+                }
+            }
         }
-        catch (ReflectiveOperationException e)
-        {
-            MethodType methodType = MethodType.methodType(Cause.Builder.class, Object.class);
-            return lookup.findVirtual(Cause.Builder.class, "append", methodType);
-        }
-    }
-
-    private static MethodHandle getClearPermissionsMethod(MethodHandles.Lookup lookup) throws ReflectiveOperationException
-    {
-        try
-        {
-            MethodType methodType = MethodType.methodType(CompletableFuture.class, Set.class);
-            return lookup.findVirtual(SubjectData.class, "clearPermissions", methodType);
-        }
-        catch (ReflectiveOperationException e)
-        {
-            MethodType methodType = MethodType.methodType(boolean.class, Set.class);
-            return lookup.findVirtual(SubjectData.class, "clearPermissions", methodType);
-        }
-    }
-
-    private static MethodHandle getSetPermissionMethod(MethodHandles.Lookup lookup) throws ReflectiveOperationException
-    {
-        try
-        {
-            MethodType methodType = MethodType.methodType(CompletableFuture.class, Set.class, String.class, Tristate.class);
-            return lookup.findVirtual(SubjectData.class, "setPermission", methodType);
-        }
-        catch (ReflectiveOperationException e)
-        {
-            MethodType methodType = MethodType.methodType(boolean.class, Set.class, String.class, Tristate.class);
-            return lookup.findVirtual(SubjectData.class, "setPermission", methodType);
-        }
+        throw new UnsupportedOperationException("Methods " + ImmutableList.of(methods) + " not found");
     }
 
     private SpongeUnimplemented()
