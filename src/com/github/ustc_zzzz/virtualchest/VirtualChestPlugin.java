@@ -25,6 +25,7 @@ import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import org.slf4j.Logger;
 import org.spongepowered.api.Platform;
+import org.spongepowered.api.Server;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
@@ -41,6 +42,7 @@ import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.event.game.state.GameStartingServerEvent;
 import org.spongepowered.api.event.item.inventory.InteractItemEvent;
+import org.spongepowered.api.event.network.ClientConnectionEvent;
 import org.spongepowered.api.plugin.Dependency;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.plugin.PluginContainer;
@@ -242,6 +244,18 @@ public class VirtualChestPlugin
             {
                 this.logger.error("There is something wrong with the GUI configuration (" + name + ")", e);
             }
+        }
+    }
+
+    @Listener
+    public void onClientConnectionJoin(ClientConnectionEvent.Join event)
+    {
+        Server server = Sponge.getServer();
+        if (server.getOnlineMode())
+        {
+            // prefetch the profile when a player joins the server
+            // TODO: maybe we should also prefetch player profiles in offline mode
+            server.getGameProfileManager().fill(event.getTargetEntity().getProfile());
         }
     }
 
