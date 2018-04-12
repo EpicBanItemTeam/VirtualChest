@@ -2,9 +2,12 @@ package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
+import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
+import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem;
 import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SortedSetMultimap;
 import org.slf4j.Logger;
@@ -16,6 +19,7 @@ import org.spongepowered.api.effect.sound.SoundType;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
+import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.network.ChannelBinding;
 import org.spongepowered.api.network.ChannelRegistrar;
 import org.spongepowered.api.scheduler.Scheduler;
@@ -98,7 +102,7 @@ public final class VirtualChestActions
         return this.activatedIdentifiers.contains(identifier);
     }
 
-    public CompletableFuture<Void> submitCommands(Player player, List<String> commands, List<String> ignoredPermissions)
+    public CompletableFuture<Void> submitCommands(Player player, List<String> commands, Map<String, Object> context)
     {
         plugin.getLogger().debug("Player {} tries to run {} command(s)", player.getName(), commands.size());
         VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
@@ -122,7 +126,7 @@ public final class VirtualChestActions
                 commandList.add(Tuple.of("", placeholderManager.parseText(player, command)));
             }
         }
-        return new Callback(player, commandList, ignoredPermissions).start();
+        return new Callback(player, commandList, context).start();
     }
 
     private void tick(Task task)
@@ -134,7 +138,8 @@ public final class VirtualChestActions
         this.activatedIdentifiers.clear();
     }
 
-    private void process(Player player, String command, Consumer<CommandResult> callback)
+    private void process(Player player, String command,
+                         Map<String, Object> context, Consumer<CommandResult> callback)
     {
         if (!command.replaceFirst("\\s++$", "").isEmpty())
         {
@@ -142,7 +147,8 @@ public final class VirtualChestActions
         }
     }
 
-    private void processSoundWithPitch(Player player, String command, Consumer<CommandResult> callback)
+    private void processSoundWithPitch(Player player, String command,
+                                       Map<String, Object> context, Consumer<CommandResult> callback)
     {
         int index = command.lastIndexOf(':');
         String prefix = index > 0 ? command.substring(0, index).toLowerCase() : "";
@@ -151,31 +157,78 @@ public final class VirtualChestActions
         callback.accept(CommandResult.success());
     }
 
-    private void processSound(Player player, String command, Consumer<CommandResult> callback)
+    private void processSound(Player player, String command,
+                              Map<String, Object> context, Consumer<CommandResult> callback)
     {
         SoundManager.playSound(command.replaceFirst("\\s++$", ""), player, player.getLocation(), Double.NaN);
         callback.accept(CommandResult.success());
     }
 
-    private void processCostItem(Player player, String command, Consumer<CommandResult> callback)
+    private void processCostItem(Player player, String command,
+                                 Map<String, Object> context, Consumer<CommandResult> callback)
     {
         int count = Integer.parseInt(command.replaceFirst("\\s++$", ""));
-        ItemStack stackUsed = SpongeUnimplemented.getItemHeldByMouse(player).createStack();
-        int stackUsedQuantity = stackUsed.getQuantity();
-        if (stackUsedQuantity > count)
+        String key = VirtualChestActionDispatcher.HANDHELD_ITEM.toString();
+        VirtualChestHandheldItem itemTemplate = (VirtualChestHandheldItem) context.get(key);
+        ItemStackSnapshot itemHeldByMouse = SpongeUnimplemented.getItemHeldByMouse(player);
+        int stackUsedQuantity = itemHeldByMouse.getCount();
+        if (itemTemplate.matchItem(itemHeldByMouse))
         {
-            stackUsed.setQuantity(stackUsedQuantity - count);
-            SpongeUnimplemented.setItemHeldByMouse(player, stackUsed.createSnapshot());
+            count -= stackUsedQuantity;
+            if (count < 0)
+            {
+                ItemStack stackUsed = itemHeldByMouse.createStack();
+                stackUsed.setQuantity(-count);
+                SpongeUnimplemented.setItemHeldByMouse(player, stackUsed.createSnapshot());
+            }
+            else
+            {
+                SpongeUnimplemented.setItemHeldByMouse(player, ItemStackSnapshot.NONE);
+            }
+        }
+        if (count <= 0)
+        {
             callback.accept(CommandResult.success());
         }
         else
         {
-            SpongeUnimplemented.setItemHeldByMouse(player, ItemStackSnapshot.NONE);
-            callback.accept(CommandResult.empty());
+            for (Slot slot : player.getInventory().<Slot>slots())
+            {
+                Optional<ItemStack> stackOptional = slot.peek();
+                if (stackOptional.isPresent())
+                {
+                    ItemStackSnapshot slotItem = stackOptional.get().createSnapshot();
+                    int slotItemSize = slotItem.getCount();
+                    if (itemTemplate.matchItem(slotItem))
+                    {
+                        count -= slotItemSize;
+                        if (count < 0)
+                        {
+                            ItemStack slotItemStack = slotItem.createStack();
+                            slotItemStack.setQuantity(-count);
+                            slot.set(slotItemStack);
+                        }
+                        else
+                        {
+                            slot.clear();
+                        }
+                    }
+                }
+                if (count <= 0)
+                {
+                    callback.accept(CommandResult.success());
+                    break;
+                }
+            }
+            if (count > 0)
+            {
+                callback.accept(CommandResult.empty());
+            }
         }
     }
 
-    private void processCost(Player player, String command, Consumer<CommandResult> callback)
+    private void processCost(Player player, String command,
+                             Map<String, Object> context, Consumer<CommandResult> callback)
     {
         int index = command.lastIndexOf(':');
         String currencyName = index < 0 ? "" : command.substring(0, index).toLowerCase();
@@ -194,7 +247,8 @@ public final class VirtualChestActions
         callback.accept(isSuccessful ? CommandResult.success() : CommandResult.empty());
     }
 
-    private void processConnect(Player player, String command, Consumer<CommandResult> callback)
+    private void processConnect(Player player, String command,
+                                Map<String, Object> context, Consumer<CommandResult> callback)
     {
         this.bungeeCordChannel.sendTo(player, buf ->
         {
@@ -204,7 +258,8 @@ public final class VirtualChestActions
         callback.accept(CommandResult.success());
     }
 
-    private void processDelay(Player player, String command, Consumer<CommandResult> callback)
+    private void processDelay(Player player, String command,
+                              Map<String, Object> context, Consumer<CommandResult> callback)
     {
         try
         {
@@ -222,53 +277,61 @@ public final class VirtualChestActions
         }
     }
 
-    private void processBigtitle(Player player, String command, Consumer<CommandResult> callback)
+    private void processBigtitle(Player player, String command,
+                                 Map<String, Object> context, Consumer<CommandResult> callback)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
         TitleManager.pushBigtitle(text, player);
         callback.accept(CommandResult.success());
     }
 
-    private void processSubtitle(Player player, String command, Consumer<CommandResult> callback)
+    private void processSubtitle(Player player, String command,
+                                 Map<String, Object> context, Consumer<CommandResult> callback)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
         TitleManager.pushSubtitle(text, player);
         callback.accept(CommandResult.success());
     }
 
-    private void processTitle(Player player, String command, Consumer<CommandResult> callback)
+    private void processTitle(Player player, String command,
+                              Map<String, Object> context, Consumer<CommandResult> callback)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
         player.sendMessage(ChatTypes.ACTION_BAR, text);
         callback.accept(CommandResult.success());
     }
 
-    private void processBroadcast(Player player, String command, Consumer<CommandResult> callback)
+    private void processBroadcast(Player player, String command,
+                                  Map<String, Object> context, Consumer<CommandResult> callback)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
         Sponge.getServer().getBroadcastChannel().send(text);
         callback.accept(CommandResult.success());
     }
 
-    private void processTellraw(Player player, String command, Consumer<CommandResult> callback)
+    private void processTellraw(Player player, String command,
+                                Map<String, Object> context, Consumer<CommandResult> callback)
     {
         player.sendMessage(TextSerializers.JSON.deserialize(command));
         callback.accept(CommandResult.success());
     }
 
-    private void processTell(Player player, String command, Consumer<CommandResult> callback)
+    private void processTell(Player player, String command,
+                             Map<String, Object> context, Consumer<CommandResult> callback)
     {
         player.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(command));
         callback.accept(CommandResult.success());
     }
 
-    private void processConsole(Player player, String command, Consumer<CommandResult> callback)
+    private void processConsole(Player player, String command,
+                                Map<String, Object> context, Consumer<CommandResult> callback)
     {
         callback.accept(Sponge.getCommandManager().process(Sponge.getServer().getConsole(), command));
     }
 
     private class Callback implements Consumer<CommandResult>
     {
+        private final Map<String, Object> context;
         private final List<String> ignoredPermissions;
         private final WeakReference<Player> playerReference;
         private final Queue<Tuple<String, String>> commandList;
@@ -276,12 +339,14 @@ public final class VirtualChestActions
         private final Logger logger = VirtualChestActions.this.plugin.getLogger();
         private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        private Callback(Player p, LinkedList<Tuple<String, String>> commandList, List<String> ignoredPermissions)
+        @SuppressWarnings("unchecked")
+        private Callback(Player p, LinkedList<Tuple<String, String>> commandList, Map<String, Object> context)
         {
+            this.context = context;
             this.commandList = commandList;
-            this.ignoredPermissions = ignoredPermissions;
             this.playerReference = new WeakReference<>(p);
             this.permissionManager = VirtualChestActions.this.plugin.getPermissionManager();
+            this.ignoredPermissions = (List<String>) context.get(VirtualChestItem.IGNORED_PERMISSIONS.toString());
         }
 
         private CompletableFuture<Void> start()
@@ -294,8 +359,8 @@ public final class VirtualChestActions
 
         private void acceptFirst()
         {
-            completableFuture.complete(null);
             this.accept(CommandResult.success());
+            completableFuture.complete(null);
         }
 
         @Override
@@ -318,7 +383,7 @@ public final class VirtualChestActions
                     String command = prefix.isEmpty() ? suffix : prefix + ": " + suffix;
                     String escapedCommand = '\'' + SpongeUnimplemented.escapeString(command) + '\'';
                     logger.debug("Player {} is now executing {}", player.getName(), escapedCommand);
-                    executors.get(prefix).doAction(player, suffix, this);
+                    executors.get(prefix).doAction(player, suffix, context, this);
                 }
             }
         }

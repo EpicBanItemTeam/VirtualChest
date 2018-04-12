@@ -9,6 +9,7 @@ import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerIt
 import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
@@ -229,7 +230,8 @@ public final class VirtualChestInventory implements DataSerializable
                 Container targetContainer = e.getTargetInventory();
                 Inventory targetInventory = targetContainer.first();
                 Timing timing = VirtualChestTimings.updateAndRefreshMappings(name);
-                plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction, ImmutableList.of());
+                String key = VirtualChestItem.IGNORED_PERMISSIONS.toString();
+                plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction, ImmutableMap.of(key, ImmutableList.of()));
                 if (updateIntervalTick > 0)
                 {
                     Task.Builder builder = Sponge.getScheduler().createTaskBuilder().execute(task ->
@@ -261,7 +263,8 @@ public final class VirtualChestInventory implements DataSerializable
             if (optional.isPresent())
             {
                 Player player = optional.get();
-                plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction, ImmutableList.of());
+                String key = VirtualChestItem.IGNORED_PERMISSIONS.toString();
+                plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction, ImmutableMap.of(key, ImmutableList.of()));
                 logger.debug("Player {} closes the chest GUI", player.getName());
                 actionIntervalManager.onClosingInventory(player);
             }

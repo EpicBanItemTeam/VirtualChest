@@ -1,19 +1,21 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestItemTemplateWithNBTAndCount;
+import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
+import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
+import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.util.Tristate;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -21,13 +23,13 @@ import java.util.concurrent.CompletableFuture;
  */
 public class VirtualChestActionDispatcher
 {
-    private static final DataQuery KEEP_INVENTORY_OPEN = DataQuery.of("KeepInventoryOpen");
-    private static final DataQuery HANDHELD_ITEM = DataQuery.of("HandheldItem");
-    private static final DataQuery COMMAND = DataQuery.of("Command");
+    public static final DataQuery KEEP_INVENTORY_OPEN = DataQuery.of("KeepInventoryOpen");
+    public static final DataQuery HANDHELD_ITEM = DataQuery.of("HandheldItem");
+    public static final DataQuery COMMAND = DataQuery.of("Command");
 
     private static final char SEQUENCE_SPLITTER = ';';
 
-    private final ImmutableList<VirtualChestItemTemplateWithNBTAndCount> handheldItem;
+    private final ImmutableList<VirtualChestHandheldItem> handheldItem;
     private final ImmutableList<Boolean> keepInventoryOpen;
     private final ImmutableList<List<String>> commands;
 
@@ -39,7 +41,7 @@ public class VirtualChestActionDispatcher
     {
         this.size = views.size();
 
-        ImmutableList.Builder<VirtualChestItemTemplateWithNBTAndCount> handheldItemBuilder = ImmutableList.builder();
+        ImmutableList.Builder<VirtualChestHandheldItem> handheldItemBuilder = ImmutableList.builder();
         ImmutableList.Builder<Boolean> keepInventoryOpenBuilder = ImmutableList.builder();
         ImmutableList.Builder<List<String>> commandsBuilder = ImmutableList.builder();
 
@@ -64,17 +66,96 @@ public class VirtualChestActionDispatcher
     public CompletableFuture<Boolean> runCommand(VirtualChestPlugin plugin, Player player, List<String> ignoredPermissions)
     {
         ItemStackSnapshot handheldItem = SpongeUnimplemented.getItemHeldByMouse(player);
-        for (int i = 0; i < this.size; ++i)
+        boolean isSomeoneSearchingInventory = false; // check if I should go for step 2
+        boolean[] areSearchingInventory = new boolean[this.size]; // caches for step 2
+        for (int i = 0; i < this.size; ++i) // step 1: check handheld item
         {
-            VirtualChestItemTemplateWithNBTAndCount itemTemplate = this.handheldItem.get(i);
-            if (itemTemplate.matchItem(handheldItem))
+            VirtualChestHandheldItem itemTemplate = this.handheldItem.get(i);
+            boolean isSearchingInventory = itemTemplate.isSearchingInventory();
+            if (itemTemplate.matchItem(handheldItem)) // if it matches an item template, check its count
             {
-                Boolean b = this.keepInventoryOpen.get(i);
-                VirtualChestActions actions = plugin.getVirtualChestActions();
-                return actions.submitCommands(player, this.commands.get(i), ignoredPermissions).thenApply(v -> b);
+                int size = handheldItem.getCount();
+                if (isSearchingInventory) // search inventory to calculate total count
+                {
+                    for (Slot slot : player.getInventory().<Slot>slots())
+                    {
+                        Optional<ItemStack> stackOptional = slot.peek();
+                        if (stackOptional.isPresent())
+                        {
+                            ItemStackSnapshot stackSnapshot = stackOptional.get().createSnapshot();
+                            if (itemTemplate.matchItem(stackSnapshot))
+                            {
+                                size += stackSnapshot.getCount();
+                            }
+                        }
+                    }
+                }
+                if (size >= itemTemplate.getCount()) // it's enough! do action now
+                {
+                    int repetition = itemTemplate.getRepetition(size);
+                    List<String> v2 = Collections.unmodifiableList(ignoredPermissions);
+                    String k1 = HANDHELD_ITEM.toString(), k2 = VirtualChestItem.IGNORED_PERMISSIONS.toString();
+                    return this.getAction(plugin, player, i, repetition, ImmutableMap.of(k1, itemTemplate, k2, v2));
+                }
+                areSearchingInventory[i] = false; // otherwise do not search inventory for it in step 2
+            }
+            else // if it does not match, search inventory in step 2 if user requests
+            {
+                areSearchingInventory[i] = isSearchingInventory;
+                isSomeoneSearchingInventory = isSomeoneSearchingInventory || isSearchingInventory;
+            }
+        }
+        if (isSomeoneSearchingInventory) // step 2: search inventory if no one matches the handheld item
+        {
+            int[] searchCounts = new int[this.size];
+            for (Slot slot : player.getInventory().<Slot>slots())
+            {
+                Optional<ItemStack> stackOptional = slot.peek();
+                if (stackOptional.isPresent())
+                {
+                    ItemStackSnapshot stackSnapshot = stackOptional.get().createSnapshot();
+                    int stackQuantity = stackSnapshot.getCount(); // count for this slot
+                    for (int i = 0; i < this.size; ++i)
+                    {
+                        if (areSearchingInventory[i])
+                        {
+                            VirtualChestHandheldItem itemTemplate = this.handheldItem.get(i);
+                            if (itemTemplate.matchItem(stackSnapshot))
+                            {
+                                searchCounts[i] += stackQuantity;
+                            }
+                        }
+                    }
+                }
+            }
+            for (int i = 0; i < this.size; ++i) // check the templates orderly
+            {
+                int size = searchCounts[i];
+                VirtualChestHandheldItem itemTemplate = this.handheldItem.get(i);
+                if (size >= itemTemplate.getCount()) // it's enough! do action now
+                {
+                    int repetition = itemTemplate.getRepetition(size);
+                    List<String> v2 = Collections.unmodifiableList(ignoredPermissions);
+                    String k1 = HANDHELD_ITEM.toString(), k2 = VirtualChestItem.IGNORED_PERMISSIONS.toString();
+                    return this.getAction(plugin, player, i, repetition, ImmutableMap.of(k1, itemTemplate, k2, v2));
+                }
             }
         }
         return CompletableFuture.completedFuture(Boolean.TRUE);
+    }
+
+    private CompletableFuture<Boolean> getAction(VirtualChestPlugin plugin, Player player,
+                                                 int index, int repetition, Map<String, Object> context)
+    {
+        List<String> commands = this.commands.get(index);
+        VirtualChestActions a = plugin.getVirtualChestActions();
+        Boolean keepInventoryOpen = this.keepInventoryOpen.get(index);
+        CompletableFuture<Void> future = a.submitCommands(player, commands, context);
+        for (int i = 0; i < repetition; ++i)
+        {
+            future = future.thenCompose(v -> a.submitCommands(player, commands, context));
+        }
+        return future.thenApply(v -> keepInventoryOpen);
     }
 
     public Optional<?> getObjectForSerialization()
@@ -90,16 +171,16 @@ public class VirtualChestActionDispatcher
         }
     }
 
-    private VirtualChestItemTemplateWithNBTAndCount parseHandheldItem(Optional<DataView> optional)
+    private VirtualChestHandheldItem parseHandheldItem(Optional<DataView> optional)
     {
         // noinspection OptionalIsPresent
         if (optional.isPresent())
         {
-            return new VirtualChestItemTemplateWithNBTAndCount(optional.get());
+            return new VirtualChestHandheldItem(optional.get());
         }
         else
         {
-            return new VirtualChestItemTemplateWithNBTAndCount();
+            return new VirtualChestHandheldItem();
         }
     }
 
