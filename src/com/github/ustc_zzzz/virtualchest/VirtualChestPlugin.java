@@ -46,6 +46,7 @@ import org.spongepowered.api.event.network.ClientConnectionEvent;
 import org.spongepowered.api.plugin.Dependency;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.plugin.PluginContainer;
+import org.spongepowered.api.profile.GameProfile;
 import org.spongepowered.api.text.channel.MessageReceiver;
 import org.spongepowered.plugin.meta.version.ComparableVersion;
 
@@ -255,7 +256,12 @@ public class VirtualChestPlugin
         {
             // prefetch the profile when a player joins the server
             // TODO: maybe we should also prefetch player profiles in offline mode
-            server.getGameProfileManager().fill(event.getTargetEntity().getProfile());
+            GameProfile profile = event.getTargetEntity().getProfile();
+            server.getGameProfileManager().fill(profile).thenRun(() ->
+            {
+                String message = "Successfully loaded the game profile for {} (player {})";
+                this.logger.debug(message, profile.getUniqueId(), profile.getName().orElse("null"));
+            });
         }
     }
 
