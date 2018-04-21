@@ -14,6 +14,8 @@ import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.scheduler.Scheduler;
+import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.action.TextActions;
 import org.spongepowered.api.text.format.TextColors;
@@ -127,40 +129,32 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
 
     private CommandResult processOpenCommand(CommandSource source, CommandContext args) throws CommandException
     {
-        Tuple<VirtualChestInventory, String> inventory;
-        inventory = args.<Tuple<VirtualChestInventory, String>>getOne("inventory").get();
+        // noinspection ConstantConditions
+        Tuple<VirtualChestInventory, String> t = args.<Tuple<VirtualChestInventory, String>>getOne("inventory").get();
         Collection<Player> players = args.getAll("player");
-        String name = inventory.getSecond();
+        Scheduler spongeScheduler = Sponge.getScheduler();
+        VirtualChestInventory inventory = t.getFirst();
+        String inventoryName = t.getSecond();
         for (Player player : players)
         {
             if (player.equals(source))
             {
-                if (source.hasPermission("virtualchest.open.self." + name))
+                if (!source.hasPermission("virtualchest.open.self." + inventoryName))
                 {
-                    this.openInventory(inventory.getFirst(), name, player);
-                }
-                else
-                {
-                    Text error = translation.take("virtualchest.open.self.noPermission", name);
-                    throw new CommandException(error);
+                    String errorKey = "virtualchest.open.self.noPermission";
+                    throw new CommandException(this.translation.take(errorKey, inventoryName));
                 }
             }
             else if (source instanceof Player)
             {
-                if (source.hasPermission("virtualchest.open.others." + name))
+                if (!source.hasPermission("virtualchest.open.others." + inventoryName))
                 {
-                    this.openInventory(inventory.getFirst(), name, player);
-                }
-                else
-                {
-                    Text error = translation.take("virtualchest.open.others.noPermission", name, player.getName());
-                    throw new CommandException(error);
+                    String errorKey = "virtualchest.open.others.noPermission";
+                    throw new CommandException(this.translation.take(errorKey, inventoryName, player.getName()));
                 }
             }
-            else
-            {
-                this.openInventory(inventory.getFirst(), name, player);
-            }
+            Task.Builder builder = spongeScheduler.createTaskBuilder().name("VirtualChestCommandManager");
+            builder.execute(task -> this.openInventory(inventory, inventoryName, player)).submit(this.plugin);
         }
         return CommandResult.success();
     }
@@ -201,7 +195,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
         }
     }
 
-    private void openInventory(VirtualChestInventory inventory, String name, Player player) throws CommandException
+    private void openInventory(VirtualChestInventory inventory, String name, Player player)
     {
         this.logger.debug("Player {} tries to create the GUI ({}) by a command", player.getName(), name);
         try
