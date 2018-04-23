@@ -326,7 +326,7 @@ public final class VirtualChestInventory implements DataSerializable
             if (dispatcherOptional.isPresent())
             {
                 VirtualChestActionDispatcher actionDispatcher = dispatcherOptional.get();
-                future = future.thenComposeAsync(p ->
+                future = future.thenCompose(p ->
                 {
                     String log = "Player {} tries to click the chest GUI at {}, primary: {}, secondary: {}, shift: {}";
                     logger.debug(log, player.getName(), slotIndexToKey(slotIndex), isPrimary, isSecondary, isShift);
