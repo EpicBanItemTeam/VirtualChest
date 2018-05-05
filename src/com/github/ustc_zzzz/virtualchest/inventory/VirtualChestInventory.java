@@ -210,8 +210,6 @@ public final class VirtualChestInventory implements DataSerializable
         private final List<String> parsedOpenAction;
         private final List<String> parsedCloseAction;
 
-        private final SpongeExecutorService executorService = Sponge.getScheduler().createSyncExecutor(plugin);
-
         private VirtualChestEventListener(Player player, String inventoryName)
         {
             this.parsedOpenAction = VirtualChestActionDispatcher.parseCommand(openActionCommand.orElse(""));
@@ -278,7 +276,7 @@ public final class VirtualChestInventory implements DataSerializable
                 return;
             }
             Player player = optional.get();
-            CompletableFuture<Boolean> future = CompletableFuture.completedFuture(Boolean.TRUE);
+            CompletableFuture<Boolean> future = this.initFuture();
             for (SlotTransaction slotTransaction : e.getTransactions())
             {
                 Slot slot = slotTransaction.getSlot();
@@ -300,6 +298,14 @@ public final class VirtualChestInventory implements DataSerializable
                     SpongeUnimplemented.closeInventory(player, plugin);
                 }
             });
+        }
+
+        private CompletableFuture<Boolean> initFuture()
+        {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Task.Builder builder = Sponge.getScheduler().createTaskBuilder();
+            builder.execute(task -> future.complete(Boolean.TRUE)).submit(plugin);
+            return future;
         }
 
         private CompletableFuture<Boolean> wrapFuture(CompletableFuture<Boolean> future, ClickInventoryEvent e, Player player, int slotIndex)
