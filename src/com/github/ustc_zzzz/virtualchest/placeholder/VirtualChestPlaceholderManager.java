@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 public class VirtualChestPlaceholderManager
 {
     private static final String ARG_BOUNDARY = "%";
-    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("[%]([^%]+)[%]", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("[%]([^%\\s]+)[%]", Pattern.CASE_INSENSITIVE);
 
     private final Logger logger;
 
@@ -57,8 +57,8 @@ public class VirtualChestPlaceholderManager
         while (matcher.find())
         {
             String matched = SpongeUnimplemented.escapeString(text.substring(matcher.start() + 1, matcher.end() - 1));
-            builder.append(text.substring(lastIndex, matcher.start()));
-            builder.append(functionIdentifier).append("('").append(matched).append("')");
+            builder.append(text, lastIndex, matcher.start()).append(functionIdentifier);
+            builder.append("('").append(matched).append("')");
             lastIndex = matcher.end();
         }
         if (lastIndex < text.length())
