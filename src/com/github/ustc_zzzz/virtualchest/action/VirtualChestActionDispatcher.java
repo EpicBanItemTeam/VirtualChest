@@ -6,6 +6,7 @@ import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
@@ -14,6 +15,7 @@ import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.util.Tristate;
+import org.spongepowered.api.util.Tuple;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -63,7 +65,8 @@ public class VirtualChestActionDispatcher
         this.views = dataContainerBuilder.build();
     }
 
-    public CompletableFuture<Boolean> runCommand(VirtualChestPlugin plugin, Player player, List<String> ignoredPermissions)
+    public Tuple<Boolean, CompletableFuture<CommandResult>> runCommand(VirtualChestPlugin plugin,
+                                                                       UUID actionUUID, Player player)
     {
         ItemStackSnapshot handheldItem = SpongeUnimplemented.getItemHeldByMouse(player);
         boolean isSomeoneSearchingInventory = false; // check if I should go for step 2
@@ -93,9 +96,9 @@ public class VirtualChestActionDispatcher
                 if (size >= itemTemplate.getCount()) // it's enough! do action now
                 {
                     int repetition = itemTemplate.getRepetition(size);
-                    List<String> v2 = Collections.unmodifiableList(ignoredPermissions);
-                    String k1 = HANDHELD_ITEM.toString(), k2 = VirtualChestItem.IGNORED_PERMISSIONS.toString();
-                    return this.getAction(plugin, player, i, repetition, ImmutableMap.of(k1, itemTemplate, k2, v2));
+                    String k1 = HANDHELD_ITEM.toString(), k2 = VirtualChestActions.ACTION_UUID_KEY;
+                    ImmutableMap<String, Object> map = ImmutableMap.of(k1, itemTemplate, k2, actionUUID);
+                    return Tuple.of(this.keepInventoryOpen.get(i), this.getAction(plugin, player, i, repetition, map));
                 }
                 areSearchingInventory[i] = false; // otherwise do not search inventory for it in step 2
             }
@@ -135,27 +138,26 @@ public class VirtualChestActionDispatcher
                 if (size >= itemTemplate.getCount()) // it's enough! do action now
                 {
                     int repetition = itemTemplate.getRepetition(size);
-                    List<String> v2 = Collections.unmodifiableList(ignoredPermissions);
-                    String k1 = HANDHELD_ITEM.toString(), k2 = VirtualChestItem.IGNORED_PERMISSIONS.toString();
-                    return this.getAction(plugin, player, i, repetition, ImmutableMap.of(k1, itemTemplate, k2, v2));
+                    String k1 = HANDHELD_ITEM.toString(), k2 = VirtualChestActions.ACTION_UUID_KEY;
+                    ImmutableMap<String, Object> map = ImmutableMap.of(k1, itemTemplate, k2, actionUUID);
+                    return Tuple.of(this.keepInventoryOpen.get(i), this.getAction(plugin, player, i, repetition, map));
                 }
             }
         }
-        return CompletableFuture.completedFuture(Boolean.TRUE);
+        return Tuple.of(Boolean.TRUE, CompletableFuture.completedFuture(CommandResult.success()));
     }
 
-    private CompletableFuture<Boolean> getAction(VirtualChestPlugin plugin, Player player,
-                                                 int index, int repetition, Map<String, Object> context)
+    private CompletableFuture<CommandResult> getAction(VirtualChestPlugin plugin, Player player,
+                                                       int index, int repetition, Map<String, Object> context)
     {
         List<String> commands = this.commands.get(index);
         VirtualChestActions a = plugin.getVirtualChestActions();
-        Boolean keepInventoryOpen = this.keepInventoryOpen.get(index);
-        CompletableFuture<Void> future = a.submitCommands(player, commands, context);
+        CompletableFuture<CommandResult> future = a.submitCommands(player, commands, context);
         for (int i = 0; i < repetition; ++i)
         {
-            future = future.thenCompose(v -> a.submitCommands(player, commands, context));
+            future = future.thenCompose(result -> a.submitCommands(player, commands, context));
         }
-        return future.thenApply(v -> keepInventoryOpen);
+        return future;
     }
 
     public Optional<?> getObjectForSerialization()

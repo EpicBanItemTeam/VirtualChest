@@ -4,8 +4,10 @@ import co.aikar.timings.Timing;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionDispatcher;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
+import com.github.ustc_zzzz.virtualchest.action.VirtualChestActions;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
+import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
 import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
@@ -13,6 +15,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
+import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.data.*;
 import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
@@ -27,6 +30,7 @@ import org.spongepowered.api.scheduler.SpongeExecutorService;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.util.Coerce;
+import org.spongepowered.api.util.Tuple;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.*;
@@ -50,7 +54,9 @@ public final class VirtualChestInventory implements DataSerializable
 
     private final Logger logger;
     private final VirtualChestPlugin plugin;
+    private final SpongeExecutorService executorService;
     private final VirtualChestActionIntervalManager actionIntervalManager;
+
     private final Map<UUID, Inventory> inventories = new HashMap<>();
 
     final List<Collection<VirtualChestItem>> items;
@@ -67,6 +73,7 @@ public final class VirtualChestInventory implements DataSerializable
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.actionIntervalManager = plugin.getActionIntervalManager();
+        this.executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
         this.title = builder.title;
         this.height = builder.height;
@@ -225,11 +232,12 @@ public final class VirtualChestInventory implements DataSerializable
             if (optional.isPresent())
             {
                 Player player = optional.get();
+                UUID actionUUID = UUID.randomUUID();
                 Container targetContainer = e.getTargetInventory();
                 Inventory targetInventory = targetContainer.first();
                 Timing timing = VirtualChestTimings.updateAndRefreshMappings(name);
-                String key = VirtualChestItem.IGNORED_PERMISSIONS.toString();
-                plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction, ImmutableMap.of(key, ImmutableList.of()));
+                Map<String, Object> context = ImmutableMap.of(VirtualChestActions.ACTION_UUID_KEY, actionUUID);
+                plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction, context);
                 if (updateIntervalTick > 0)
                 {
                     Task.Builder builder = Sponge.getScheduler().createTaskBuilder().execute(task ->
@@ -261,8 +269,9 @@ public final class VirtualChestInventory implements DataSerializable
             if (optional.isPresent())
             {
                 Player player = optional.get();
-                String key = VirtualChestItem.IGNORED_PERMISSIONS.toString();
-                plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction, ImmutableMap.of(key, ImmutableList.of()));
+                UUID actionUUID = UUID.randomUUID();
+                Map<String, Object> context = ImmutableMap.of(VirtualChestActions.ACTION_UUID_KEY, actionUUID);
+                plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction, context);
                 logger.debug("Player {} closes the chest GUI", player.getName());
                 actionIntervalManager.onClosingInventory(player);
             }
@@ -271,44 +280,38 @@ public final class VirtualChestInventory implements DataSerializable
         private void fireClickEvent(ClickInventoryEvent e)
         {
             Optional<Player> optional = Sponge.getServer().getPlayer(playerUniqueId);
-            if (!optional.isPresent())
+            if (optional.isPresent())
             {
-                return;
-            }
-            Player player = optional.get();
-            CompletableFuture<Boolean> future = this.initFuture();
-            for (SlotTransaction slotTransaction : e.getTransactions())
-            {
-                Slot slot = slotTransaction.getSlot();
-                SlotIndex pos = SpongeUnimplemented.getSlotOrdinal(slot);
-                if (SpongeUnimplemented.isSlotInInventory(slot, e.getTargetInventory()) && slotToListen.matches(pos))
+                Player player = optional.get();
+                CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> Boolean.TRUE, executorService);
+                for (SlotTransaction slotTransaction : e.getTransactions())
                 {
-                    e.setCancelled(true);
-                    if (actionIntervalManager.allowAction(player, acceptableActionIntervalTick))
+                    Slot slot = slotTransaction.getSlot();
+                    Container targetContainer = e.getTargetInventory();
+                    SlotIndex pos = SpongeUnimplemented.getSlotOrdinal(slot);
+                    if (SpongeUnimplemented.isSlotInInventory(slot, targetContainer) && slotToListen.matches(pos))
                     {
-                        int index = Objects.requireNonNull(pos.getValue());
-                        future = this.wrapFuture(future, e, player, index);
+                        e.setCancelled(true);
+                        if (actionIntervalManager.allowAction(player, acceptableActionIntervalTick))
+                        {
+                            int index = Objects.requireNonNull(pos.getValue());
+                            future = future.thenCompose(b -> this.runCommand(e, player, index).thenApply(a -> a && b));
+                        }
                     }
                 }
+                future.thenAccept(shouldKeepInventoryOpen -> this.closeWhile(shouldKeepInventoryOpen, player));
             }
-            future.thenAccept(shouldKeepInventoryOpen ->
-            {
-                if (!shouldKeepInventoryOpen)
-                {
-                    SpongeUnimplemented.closeInventory(player, plugin);
-                }
-            });
         }
 
-        private CompletableFuture<Boolean> initFuture()
+        private void closeWhile(boolean shouldKeepInventoryOpen, Player player)
         {
-            CompletableFuture<Boolean> future = new CompletableFuture<>();
-            Task.Builder builder = Sponge.getScheduler().createTaskBuilder();
-            builder.execute(task -> future.complete(Boolean.TRUE)).submit(plugin);
-            return future;
+            if (!shouldKeepInventoryOpen)
+            {
+                SpongeUnimplemented.closeInventory(player, plugin);
+            }
         }
 
-        private CompletableFuture<Boolean> wrapFuture(CompletableFuture<Boolean> future, ClickInventoryEvent e, Player player, int slotIndex)
+        private CompletableFuture<Boolean> runCommand(ClickInventoryEvent e, Player player, int slotIndex)
         {
             Timing timing = VirtualChestTimings.updateAndRefreshMapping(name, slotIndex);
             timing.startTimingIfSync();
@@ -317,28 +320,46 @@ public final class VirtualChestInventory implements DataSerializable
             boolean isPrimary = e instanceof ClickInventoryEvent.Primary;
             boolean isSecondary = e instanceof ClickInventoryEvent.Secondary;
 
-            Optional<VirtualChestActionDispatcher> dispatcherOptional = Optional.empty();
-            List<String> ignoredPermissions = new ArrayList<>();
-            for (VirtualChestItem i : items.get(slotIndex))
-            {
-                if (i.matchRequirements(player, slotIndex, name))
-                {
-                    dispatcherOptional = i.getAction(isPrimary, isSecondary, isShift);
-                    ignoredPermissions.addAll(i.getIgnoredPermissions());
-                    break;
-                }
-            }
+            String playerName = player.getName();
+            String keyString = slotIndexToKey(slotIndex);
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            VirtualChestPermissionManager permissionManager = plugin.getPermissionManager();
 
-            if (dispatcherOptional.isPresent())
+            String log = "Player {} tries to click the chest GUI at {}, primary: {}, secondary: {}, shift: {}";
+            logger.debug(log, playerName, keyString, isPrimary, isSecondary, isShift);
+
+            CompletableFuture.allOf(items.get(slotIndex).stream().map(item ->
             {
-                VirtualChestActionDispatcher actionDispatcher = dispatcherOptional.get();
-                future = future.thenCompose(p ->
+                UUID id = UUID.randomUUID();
+                List<String> list = item.getIgnoredPermissions();
+                return permissionManager.setIgnored(player, id, list).thenComposeAsync(v ->
                 {
-                    String log = "Player {} tries to click the chest GUI at {}, primary: {}, secondary: {}, shift: {}";
-                    logger.debug(log, player.getName(), slotIndexToKey(slotIndex), isPrimary, isSecondary, isShift);
-                    return actionDispatcher.runCommand(plugin, player, ignoredPermissions).thenApply(b -> b && p);
-                });
-            }
+                    if (future.isDone() || !item.matchRequirements(player, slotIndex, playerName))
+                    {
+                        return CompletableFuture.completedFuture(CommandResult.success());
+                    }
+                    Optional<VirtualChestActionDispatcher> optional = item.getAction(isPrimary, isSecondary, isShift);
+                    logger.debug("Player {} submits an action: {}", playerName, id);
+                    if (optional.isPresent())
+                    {
+                        Tuple<Boolean, CompletableFuture<CommandResult>> tuple;
+                        tuple = optional.get().runCommand(plugin, id, player);
+                        future.complete(tuple.getFirst());
+                        return tuple.getSecond();
+                    }
+                    else
+                    {
+                        future.complete(Boolean.TRUE);
+                        return CompletableFuture.completedFuture(CommandResult.success());
+                    }
+                }, executorService).thenCompose(result -> permissionManager.clearIgnored(player, id));
+            }).toArray(CompletableFuture[]::new)).thenRun(() ->
+            {
+                if (!future.isDone())
+                {
+                    future.complete(Boolean.TRUE);
+                }
+            });
 
             timing.stopTimingIfSync();
 

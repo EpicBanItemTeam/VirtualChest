@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.permission;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.action.VirtualChestActions;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
@@ -19,10 +20,10 @@ import java.util.concurrent.CompletableFuture;
  */
 public class VirtualChestPermissionManager implements ContextCalculator<Subject>
 {
+    private static final String CONTEXT_KEY = "virtualchest-action-uuid";
+
     private final VirtualChestPlugin plugin;
     private final Logger logger;
-    private final Context contextInAction = new Context("virtualchest-action", "in-action");
-    private final Context contextNotInAction = new Context("virtualchest-action", "not-in-action");
 
     public VirtualChestPermissionManager(VirtualChestPlugin plugin)
     {
@@ -44,60 +45,83 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
         }
     }
 
-    public CompletableFuture<Void> setIgnored(Player player, Collection<String> permissions)
+    public CompletableFuture<?> setIgnored(Player player, UUID actionUUID, Collection<String> permissions)
     {
         SubjectData data = player.getTransientSubjectData();
-        Set<Context> contexts = Collections.singleton(this.contextInAction);
+        Set<Context> contexts = Collections.singleton(new Context(CONTEXT_KEY, actionUUID.toString()));
 
-        return this.clearPermissions(data, contexts)
-                .thenCompose(succeed -> CompletableFuture.allOf(this.setPermissions(permissions, data, contexts)))
-                .thenRun(() -> this.addIgnoredPermissionsToLog(permissions, player.getUniqueId(), player.getName()));
+        return this.clear(data, contexts)
+                .thenCompose(succeed -> CompletableFuture.allOf(this.set(data, contexts, permissions)))
+                .thenRun(() -> this.logIgnoredPermissionsAdded(permissions, actionUUID, player.getName()));
     }
 
-    private CompletableFuture<Boolean> clearPermissions(SubjectData data, Set<Context> contexts)
+    public CompletableFuture<?> clearIgnored(Player player, UUID actionUUID)
+    {
+        SubjectData data = player.getTransientSubjectData();
+        Set<Context> contexts = Collections.singleton(new Context(CONTEXT_KEY, actionUUID.toString()));
+
+        return this.clear(data, contexts)
+                .thenRun(() -> this.logIgnoredPermissionsCleared(actionUUID, player.getName()));
+    }
+
+    private CompletableFuture<Boolean> clear(SubjectData data, Set<Context> contexts)
     {
         return SpongeUnimplemented.clearPermissions(this.plugin, data, contexts);
     }
 
-    private CompletableFuture<Boolean> setPermission(SubjectData data, Set<Context> contexts, String permission)
+    private CompletableFuture<Boolean> set(SubjectData data, Set<Context> contexts, String permission)
     {
         return SpongeUnimplemented.setPermission(this.plugin, data, contexts, permission);
     }
 
-    private CompletableFuture<?>[] setPermissions(Collection<String> permissions, SubjectData data, Set<Context> set)
+    private CompletableFuture<?>[] set(SubjectData data, Set<Context> set, Collection<String> permissions)
     {
-        return permissions.stream().map(p -> this.setPermission(data, set, p)).toArray(CompletableFuture[]::new);
+        return permissions.stream().map(p -> this.set(data, set, p)).toArray(CompletableFuture[]::new);
     }
 
-    private void addIgnoredPermissionsToLog(Collection<String> permissions, UUID uuid, String playerName)
+    private void logIgnoredPermissionsAdded(Collection<String> permissions, UUID actionUUID, String name)
     {
-        this.logger.debug("Ignored {} permission(s) for {} (player {}):", permissions.size(), uuid, playerName);
-        permissions.forEach(permission -> this.logger.debug("- {}", permission));
+        this.logger.debug("Ignored {} permission(s) for action {} (player {}):", permissions.size(), actionUUID, name);
+        permissions.forEach(permission -> this.logger.debug("- {} (true)", permission));
+    }
+
+    private void logIgnoredPermissionsCleared(UUID actionUUID, String name)
+    {
+        this.logger.debug("Cleared ignored permission(s) for action {} (player {}).", actionUUID, name);
     }
 
     @Override
     public void accumulateContexts(Subject subject, Set<Context> accumulator)
     {
-        String identifier = subject.getIdentifier();
-        if (this.plugin.getVirtualChestActions().isPlayerActivated(identifier))
+        VirtualChestActions actions = this.plugin.getVirtualChestActions();
+        for (UUID actionUUID : actions.getActivatedActions(subject.getIdentifier()))
         {
-            accumulator.add(this.contextInAction);
             SubjectData data = subject.getTransientSubjectData();
-            Map<String, Boolean> permissions = data.getPermissions(Collections.singleton(this.contextInAction));
-            this.logger.debug("Ignored {} permission(s) for {} (context):", permissions.size(), identifier);
+            Context context = new Context(CONTEXT_KEY, actionUUID.toString());
+            Map<String, Boolean> permissions = data.getPermissions(Collections.singleton(context));
+
+            this.logger.debug("Ignored {} permission(s) for action {} (context):", permissions.size(), actionUUID);
             permissions.forEach((permission, state) -> this.logger.debug("- {} ({})", permission, state));
-        }
-        else
-        {
-            accumulator.add(this.contextNotInAction);
+            accumulator.add(context);
         }
     }
 
     @Override
     public boolean matches(Context context, Subject subject)
     {
-        String identifier = subject.getIdentifier();
-        boolean isActivated = this.plugin.getVirtualChestActions().isPlayerActivated(identifier);
-        return isActivated ? this.contextInAction.equals(context) : this.contextNotInAction.equals(context);
+        if (CONTEXT_KEY.equals(context.getKey()))
+        {
+            try
+            {
+                UUID value = UUID.fromString(context.getValue());
+                VirtualChestActions actions = this.plugin.getVirtualChestActions();
+                return actions.getActivatedActions(subject.getIdentifier()).contains(value);
+            }
+            catch (IllegalArgumentException e)
+            {
+                return false;
+            }
+        }
+        return false;
     }
 }

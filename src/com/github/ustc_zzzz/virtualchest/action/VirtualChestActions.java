@@ -2,14 +2,12 @@ package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
-import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem;
 import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Multimaps;
-import com.google.common.collect.SortedSetMultimap;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.SetMultimap;
 import org.slf4j.Logger;
 import org.spongepowered.api.GameRegistry;
 import org.spongepowered.api.Sponge;
@@ -36,7 +34,6 @@ import java.lang.ref.WeakReference;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -46,23 +43,21 @@ import java.util.function.Supplier;
 public final class VirtualChestActions
 {
     private static final char PREFIX_SPLITTER = ':';
+    public static final String ACTION_UUID_KEY = "ActionUUID";
 
+    private final Logger logger;
     private final VirtualChestPlugin plugin;
     private final Map<String, VirtualChestActionExecutor> executors = new HashMap<>();
 
     private final Scheduler scheduler = Sponge.getScheduler();
-    private final Set<String> activatedIdentifiers = new HashSet<>();
-
-    private final Queue<Callback> queuedCallbacks;
-    private final SortedSetMultimap<Callback, String> permissionMap;
+    private final SetMultimap<String, UUID> activatedIdentifiers = HashMultimap.create();
 
     private ChannelBinding.RawDataChannel bungeeCordChannel;
 
     public VirtualChestActions(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
-        this.queuedCallbacks = new ConcurrentLinkedQueue<>();
-        this.permissionMap = Multimaps.newSortedSetMultimap(new IdentityHashMap<>(), TreeSet::new);
+        this.logger = plugin.getLogger();
 
         Task.Builder taskBuilder = this.scheduler.createTaskBuilder().intervalTicks(1);
         taskBuilder.name("VirtualChestActionExecutor").execute(this::tick).submit(plugin);
@@ -97,12 +92,12 @@ public final class VirtualChestActions
         this.executors.put(prefix, executor);
     }
 
-    public boolean isPlayerActivated(String identifier)
+    public Set<UUID> getActivatedActions(String identifier)
     {
-        return this.activatedIdentifiers.contains(identifier);
+        return this.activatedIdentifiers.get(identifier);
     }
 
-    public CompletableFuture<Void> submitCommands(Player player, List<String> commands, Map<String, Object> context)
+    public CompletableFuture<CommandResult> submitCommands(Player player, List<String> commands, Map<String, Object> context)
     {
         plugin.getLogger().debug("Player {} tries to run {} command(s)", player.getName(), commands.size());
         VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
@@ -131,10 +126,6 @@ public final class VirtualChestActions
 
     private void tick(Task task)
     {
-        for (Callback c = this.queuedCallbacks.poll(); Objects.nonNull(c); c = this.queuedCallbacks.poll())
-        {
-            c.acceptFirst();
-        }
         this.activatedIdentifiers.clear();
     }
 
@@ -331,13 +322,11 @@ public final class VirtualChestActions
 
     private class Callback implements Consumer<CommandResult>
     {
+        private final UUID actionUUID;
         private final Map<String, Object> context;
-        private final List<String> ignoredPermissions;
         private final WeakReference<Player> playerReference;
         private final Queue<Tuple<String, String>> commandList;
-        private final VirtualChestPermissionManager permissionManager;
-        private final Logger logger = VirtualChestActions.this.plugin.getLogger();
-        private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        private final CompletableFuture<CommandResult> future = new CompletableFuture<>();
 
         @SuppressWarnings("unchecked")
         private Callback(Player p, LinkedList<Tuple<String, String>> commandList, Map<String, Object> context)
@@ -345,22 +334,13 @@ public final class VirtualChestActions
             this.context = context;
             this.commandList = commandList;
             this.playerReference = new WeakReference<>(p);
-            this.permissionManager = VirtualChestActions.this.plugin.getPermissionManager();
-            this.ignoredPermissions = (List<String>) context.get(VirtualChestItem.IGNORED_PERMISSIONS.toString());
+            this.actionUUID = (UUID) context.get(ACTION_UUID_KEY);
         }
 
-        private CompletableFuture<Void> start()
-        {
-            Player p = playerReference.get();
-            permissionMap.putAll(this, ignoredPermissions);
-            permissionManager.setIgnored(p, permissionMap.values()).thenRun(() -> queuedCallbacks.offer(this));
-            return completableFuture;
-        }
-
-        private void acceptFirst()
+        public CompletableFuture<CommandResult> start()
         {
             this.accept(CommandResult.success());
-            completableFuture.complete(null);
+            return this.future;
         }
 
         @Override
@@ -370,18 +350,20 @@ public final class VirtualChestActions
             if (Objects.nonNull(player))
             {
                 Tuple<String, String> t = commandList.poll();
+                String identifier = player.getUniqueId().toString();
                 if (Objects.isNull(t))
                 {
                     logger.debug("Player {} has executed all the commands", player.getName());
-                    permissionMap.removeAll(this);
-                    permissionManager.setIgnored(player, permissionMap.values());
+                    activatedIdentifiers.remove(identifier, actionUUID);
+                    future.complete(commandResult);
                 }
                 else
                 {
-                    activatedIdentifiers.add(player.getIdentifier());
+                    activatedIdentifiers.put(identifier, actionUUID);
                     String prefix = t.getFirst(), suffix = t.getSecond();
                     String command = prefix.isEmpty() ? suffix : prefix + ": " + suffix;
                     String escapedCommand = '\'' + SpongeUnimplemented.escapeString(command) + '\'';
+
                     logger.debug("Player {} is now executing {}", player.getName(), escapedCommand);
                     executors.get(prefix).doAction(player, suffix, context, this);
                 }
