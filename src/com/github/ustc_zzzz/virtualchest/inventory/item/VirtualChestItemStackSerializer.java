@@ -267,19 +267,20 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
 
     private static final class GameProfileSerializer implements TypeSerializer<GameProfile>
     {
-        private static final GameProfile NULL_PROFILE = getNullGameProfile();
         private static final String KEY_UUID = DataQueries.USER_UUID.toString();
         private static final String KEY_NAME = DataQueries.USER_NAME.toString();
         private static final boolean IS_ONLINE_MODE_ENABLED = Sponge.getServer().getOnlineMode();
         private static final GameProfileManager GAME_PROFILE_MANAGER = Sponge.getServer().getGameProfileManager();
 
-        private static GameProfile getNullGameProfile()
+        private final Optional<GameProfile> nullProfile = getNullGameProfile();
+
+        private Optional<GameProfile> getNullGameProfile()
         {
             // noinspection ConstantConditions
             return ItemStack.builder()
                     .itemType(ItemTypes.SKULL).quantity(1)
                     .keyValue(Keys.SKULL_TYPE, SkullTypes.PLAYER).build()
-                    .getOrCreate(RepresentedPlayerData.class).get().owner().get();
+                    .getOrCreate(RepresentedPlayerData.class).map(data -> data.owner().get());
         }
 
         private static GameProfile getFilledGameProfileOrElseFallback(GameProfile profile)
@@ -316,7 +317,7 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
             String name = value.getNode(KEY_NAME).getString(), uuid = value.getNode(KEY_UUID).getString();
             if (Objects.isNull(uuid))
             {
-                return NULL_PROFILE;
+                return this.nullProfile.orElseThrow(() -> new ObjectMappingException("Empty profile is not allowed"));
             }
             return getFilledGameProfileOrElseFallback(GameProfile.of(getUUIDByString(uuid), name));
         }
@@ -324,7 +325,7 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
         @Override
         public void serialize(TypeToken<?> type, GameProfile p, ConfigurationNode value) throws ObjectMappingException
         {
-            if (!Objects.isNull(p) && !NULL_PROFILE.equals(p))
+            if (!Objects.isNull(p) && !(nullProfile.isPresent() && nullProfile.get().equals(p)))
             {
                 value.getNode(KEY_UUID).setValue(p.getUniqueId());
                 p.getName().ifPresent(name -> value.getNode(KEY_NAME).setValue(name));
