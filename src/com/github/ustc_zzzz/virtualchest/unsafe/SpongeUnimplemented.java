@@ -1,6 +1,5 @@
 package com.github.ustc_zzzz.virtualchest.unsafe;
 
-import com.google.common.collect.ImmutableList;
 import org.objectweb.asm.Type;
 import org.spongepowered.api.data.DataView;
 import org.spongepowered.api.entity.living.player.Player;
@@ -19,6 +18,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
@@ -271,9 +271,9 @@ public class SpongeUnimplemented
         FROM_SNAPSHOT_TO_NATIVE = getMethod(
                 lookup, "org.spongepowered.common.item.inventory.util.ItemStackUtil", "fromSnapshotToNative (Lorg/spongepowered/api/item/inventory/ItemStackSnapshot;)Lnet/minecraft/item/ItemStack;");
         PLAYER_CLOSE_INVENTORY = getMethod(
-                lookup, Player.class, "closeInventory");
+                lookup, Player.class, "closeInventory (Lorg/spongepowered/api/event/cause/Cause;)Z", "closeInventory ()Z");
         PLAYER_OPEN_INVENTORY = getMethod(
-                lookup, Player.class, "openInventory");
+                lookup, Player.class, "openInventory (Lorg/spongepowered/api/item/inventory/Inventory;Lorg/spongepowered/api/event/cause/Cause;)Ljava/util/Optional;", "openInventory (Lorg/spongepowered/api/item/inventory/Inventory;)Ljava/util/Optional;");
         CAUSE_APPEND_SOURCE = getMethod(
                 lookup, Cause.Builder.class, "append (Ljava/lang/Object;)Lorg/spongepowered/api/event/cause/Cause$Builder;", "named (Ljava/lang/String;Ljava/lang/Object;)Lorg/spongepowered/api/event/cause/Cause$Builder;");
         CAUSE_BUILD = getMethod(
@@ -334,7 +334,7 @@ public class SpongeUnimplemented
                 }
             }
         }
-        throw new UnsupportedOperationException("Methods " + ImmutableList.of(methods) + " not found");
+        throw new UnsupportedOperationException("Methods " + Arrays.asList(methods) + " not found");
     }
 
     private SpongeUnimplemented()
