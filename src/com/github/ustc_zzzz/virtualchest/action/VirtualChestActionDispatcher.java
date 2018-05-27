@@ -5,7 +5,6 @@ import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
@@ -19,7 +18,6 @@ import org.spongepowered.api.util.Tuple;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 

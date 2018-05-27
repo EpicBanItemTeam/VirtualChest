@@ -2,6 +2,7 @@ package com.github.ustc_zzzz.virtualchest.record;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
+import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import org.javalite.activejdbc.DB;
 import org.slf4j.Logger;
@@ -33,6 +34,7 @@ public class VirtualChestRecordManager
 
     private final Logger logger;
     private final VirtualChestPlugin plugin;
+    private final VirtualChestTranslation translation;
 
     private SqlService sql;
     private String databaseUrl;
@@ -43,6 +45,7 @@ public class VirtualChestRecordManager
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.databaseUrl = DEFAULT_JDBC_URL;
+        this.translation = plugin.getTranslation();
     }
 
     public void init()
@@ -195,12 +198,22 @@ public class VirtualChestRecordManager
     {
         if (this.databaseUrl.isEmpty())
         {
-            node.getNode("enabled").setValue(false);
+            node.getNode("enabled").setValue(false)
+                    .setComment(node.getNode("enabled").getComment().orElse(this.translation
+                            .take("virtualchest.config.recording.enabled.comment").toPlain()));
+            node.setComment(node.getComment().orElse(this.translation
+                    .take("virtualchest.config.recording.comment").toPlain()));
         }
         else
         {
-            node.getNode("enabled").setValue(true);
-            node.getNode("database-url").setValue(this.databaseUrl);
+            node.getNode("enabled").setValue(true)
+                    .setComment(node.getNode("enabled").getComment().orElse(this.translation
+                            .take("virtualchest.config.recording.enabled.comment").toPlain()));
+            node.getNode("database-url").setValue(this.databaseUrl)
+                    .setComment(node.getNode("database-url").getComment().orElse(this.translation
+                            .take("virtualchest.config.recording.databaseUrl.comment").toPlain()));
+            node.setComment(node.getComment().orElse(this.translation
+                    .take("virtualchest.config.recording.comment").toPlain()));
         }
     }
 }
