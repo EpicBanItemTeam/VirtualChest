@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.record;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import org.javalite.activejdbc.DB;
 import org.slf4j.Logger;
@@ -90,15 +91,14 @@ public class VirtualChestRecordManager
         }
     }
 
-    public void recordSlotClick(UUID uuid, String menuName, int menuSlot,
-                                boolean isShift, boolean isPrimary, boolean isSecondary, Player p)
+    public void recordSlotClick(UUID uuid, String menuName, int menuSlot, VirtualChestInventory.ClickStatus s, Player p)
     {
         if (!this.databaseUrl.isEmpty())
         {
             try (DB db = new DB())
             {
                 db.open(this.dataSource);
-                new VirtualChestClickSlotRecord(uuid, menuName, menuSlot, isShift, isPrimary, isSecondary, p).insert();
+                new VirtualChestClickSlotRecord(uuid, menuName, menuSlot, s, p).insert();
             }
         }
     }

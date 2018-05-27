@@ -154,15 +154,15 @@ public class VirtualChestItem
         return matchRequirements;
     }
 
-    public Optional<VirtualChestActionDispatcher> getAction(boolean isPrimary, boolean isSecondary, boolean isShift)
+    public Optional<VirtualChestActionDispatcher> getAction(VirtualChestInventory.ClickStatus status)
     {
-        if (isPrimary)
+        if (status.isPrimary)
         {
-            return isShift ? Optional.of(this.primaryShiftAction) : Optional.of(this.primaryAction);
+            return status.isShift ? Optional.of(this.primaryShiftAction) : Optional.of(this.primaryAction);
         }
-        if (isSecondary)
+        if (status.isSecondary)
         {
-            return isShift ? Optional.of(this.secondaryShiftAction) : Optional.of(this.secondaryAction);
+            return status.isShift ? Optional.of(this.secondaryShiftAction) : Optional.of(this.secondaryAction);
         }
         return Optional.empty();
     }

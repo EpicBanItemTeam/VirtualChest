@@ -31,11 +31,14 @@ import org.spongepowered.api.scheduler.SpongeExecutorService;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.util.Coerce;
+import org.spongepowered.api.util.Tristate;
 import org.spongepowered.api.util.Tuple;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * @author ustc_zzzz
@@ -103,13 +106,13 @@ public final class VirtualChestInventory implements DataSerializable
         UUID uuid = player.getUniqueId();
         if (!inventories.containsKey(uuid))
         {
-            VirtualChestEventListener listener = new VirtualChestEventListener(player, inventoryName);
+            EventListener listener = new EventListener(player, inventoryName);
             Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
-                    .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
                     .property(InventoryDimension.PROPERTY_NAME, new InventoryDimension(9, this.height))
-                    .listener(ClickInventoryEvent.class, listener::fireClickEvent)
-                    .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
+                    .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
                     .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
+                    .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
+                    .listener(ClickInventoryEvent.class, listener::fireClickEvent)
                     .build(this.plugin);
             inventories.put(uuid, chestInventory);
             return chestInventory;
@@ -212,7 +215,35 @@ public final class VirtualChestInventory implements DataSerializable
         return container;
     }
 
-    private class VirtualChestEventListener
+    public static class ClickStatus
+    {
+        public final boolean isShift;
+        public final boolean isPrimary;
+        public final boolean isSecondary;
+
+        public ClickStatus(boolean isShift, boolean isPrimary, boolean isSecondary)
+        {
+            this.isShift = isShift;
+            this.isPrimary = isPrimary;
+            this.isSecondary = isSecondary;
+        }
+
+        public ClickStatus(ClickInventoryEvent e)
+        {
+            this.isShift = e instanceof ClickInventoryEvent.Shift;
+            this.isPrimary = e instanceof ClickInventoryEvent.Primary;
+            this.isSecondary = e instanceof ClickInventoryEvent.Secondary;
+        }
+
+        @Override
+        public String toString()
+        {
+            String format = "ClickStatus{isShift=%s, isPrimary=%s, isSecondary=%s}";
+            return String.format(format, this.isShift, this.isPrimary, this.isSecondary);
+        }
+    }
+
+    private class EventListener
     {
         private final String name;
         private final UUID playerUniqueId;
@@ -220,7 +251,7 @@ public final class VirtualChestInventory implements DataSerializable
         private final List<String> parsedOpenAction;
         private final List<String> parsedCloseAction;
 
-        private VirtualChestEventListener(Player player, String inventoryName)
+        private EventListener(Player player, String inventoryName)
         {
             this.parsedOpenAction = VirtualChestActionDispatcher.parseCommand(openActionCommand.orElse(""));
             this.parsedCloseAction = VirtualChestActionDispatcher.parseCommand(closeActionCommand.orElse(""));
@@ -327,57 +358,53 @@ public final class VirtualChestInventory implements DataSerializable
             Timing timing = VirtualChestTimings.updateAndRefreshMapping(name, slotIndex);
             timing.startTimingIfSync();
 
-            boolean isShift = e instanceof ClickInventoryEvent.Shift;
-            boolean isPrimary = e instanceof ClickInventoryEvent.Primary;
-            boolean isSecondary = e instanceof ClickInventoryEvent.Secondary;
-
             String playerName = player.getName();
+            ClickStatus status = new ClickStatus(e);
             String keyString = slotIndexToKey(slotIndex);
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             VirtualChestPermissionManager permissionManager = plugin.getPermissionManager();
 
-            String log = "Player {} tries to click the chest GUI at {}, primary: {}, secondary: {}, shift: {}";
-            logger.debug(log, playerName, keyString, isPrimary, isSecondary, isShift);
-
             List<VirtualChestItem> items = VirtualChestInventory.this.items.get(slotIndex);
-            CompletableFuture[] futures = new CompletableFuture[items.size()];
-            for (int i = 0; i < futures.length; ++i)
+            logger.debug("Player {} tries to click the chest GUI at {} with {}", playerName, keyString, status);
+
+            int size = items.size();
+            List<CompletableFuture<?>> setFutures = new ArrayList<>(size);
+            List<Supplier<CompletableFuture<?>>> clearFutures = new ArrayList<>(size);
+            for (VirtualChestItem item : items)
             {
-                UUID id = UUID.randomUUID();
-                VirtualChestItem item = items.get(i);
+                UUID actionUUID = UUID.randomUUID();
                 List<String> list = item.getIgnoredPermissions();
-                futures[i] = permissionManager.setIgnored(player, id, list).thenComposeAsync(v ->
+                setFutures.add(permissionManager.setIgnored(player, actionUUID, list));
+                clearFutures.add(() ->
                 {
                     if (future.isDone() || !item.matchRequirements(player, slotIndex, playerName))
                     {
-                        return CompletableFuture.completedFuture(CommandResult.success());
+                        return permissionManager.clearIgnored(player, actionUUID);
                     }
-                    Optional<VirtualChestActionDispatcher> optional = item.getAction(isPrimary, isSecondary, isShift);
-                    recordManager.recordSlotClick(id, name, slotIndex, isShift, isPrimary, isSecondary, player);
-                    logger.debug("Player {} submits an action: {}", playerName, id);
-                    if (optional.isPresent())
+
+                    Optional<VirtualChestActionDispatcher> optional = item.getAction(status);
+                    recordManager.recordSlotClick(actionUUID, name, slotIndex, status, player);
+                    logger.debug("Player {} now submits an action: {}", playerName, actionUUID);
+
+                    if (!optional.isPresent())
                     {
-                        Tuple<Boolean, CompletableFuture<CommandResult>> tuple;
-                        tuple = optional.get().runCommand(plugin, id, player);
-                        future.complete(tuple.getFirst());
-                        return tuple.getSecond();
+                        future.complete(true);
+                        return permissionManager.clearIgnored(player, actionUUID);
                     }
-                    else
-                    {
-                        future.complete(Boolean.TRUE);
-                        return CompletableFuture.completedFuture(CommandResult.success());
-                    }
-                }, executorService).thenCompose(result -> permissionManager.clearIgnored(player, id));
+
+                    Tuple<Boolean, CompletableFuture<CommandResult>> tuple;
+                    tuple = optional.get().runCommand(plugin, actionUUID, player);
+
+                    future.complete(tuple.getFirst());
+                    return tuple.getSecond().thenCompose(r -> permissionManager.clearIgnored(player, actionUUID));
+                });
             }
-            CompletableFuture.allOf(futures).thenRun(() ->
-            {
-                if (!future.isDone())
-                {
-                    future.complete(Boolean.TRUE);
-                }
-            });
 
             timing.stopTimingIfSync();
+
+            CompletableFuture.allOf(setFutures.toArray(new CompletableFuture[0]))
+                    .thenComposeAsync(v -> CompletableFuture.allOf(clearFutures.stream().map(Supplier::get)
+                            .toArray(CompletableFuture[]::new)), executorService).thenRun(() -> future.complete(true));
 
             return future;
         }
