@@ -8,6 +8,7 @@ import com.github.ustc_zzzz.virtualchest.action.VirtualChestActions;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
+import com.github.ustc_zzzz.virtualchest.record.VirtualChestRecordManager;
 import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
@@ -55,11 +56,12 @@ public final class VirtualChestInventory implements DataSerializable
     private final Logger logger;
     private final VirtualChestPlugin plugin;
     private final SpongeExecutorService executorService;
+    private final VirtualChestRecordManager recordManager;
     private final VirtualChestActionIntervalManager actionIntervalManager;
 
     private final Map<UUID, Inventory> inventories = new HashMap<>();
 
-    final List<Collection<VirtualChestItem>> items;
+    final List<List<VirtualChestItem>> items;
     final Text title;
     final int height;
     final List<VirtualChestTriggerItem> triggerItems;
@@ -72,6 +74,7 @@ public final class VirtualChestInventory implements DataSerializable
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
+        this.recordManager = plugin.getRecordManager();
         this.actionIntervalManager = plugin.getActionIntervalManager();
         this.executorService = Sponge.getScheduler().createSyncExecutor(plugin);
 
@@ -114,9 +117,9 @@ public final class VirtualChestInventory implements DataSerializable
         return inventories.get(uuid);
     }
 
-    private <T> List<Collection<T>> createListFromMultiMap(Multimap<SlotIndex, T> list, int max)
+    private <T> List<List<T>> createListFromMultiMap(Multimap<SlotIndex, T> list, int max)
     {
-        ImmutableList.Builder<Collection<T>> builder = ImmutableList.builder();
+        ImmutableList.Builder<List<T>> builder = ImmutableList.builder();
         for (int i = 0; i < max; ++i)
         {
             builder.add(ImmutableList.copyOf(list.get(SlotIndex.of(i))));
@@ -138,7 +141,7 @@ public final class VirtualChestInventory implements DataSerializable
 
     private void setItemInInventory(Player player, Slot slot, int index, String name)
     {
-        Collection<VirtualChestItem> items = this.items.get(index);
+        List<VirtualChestItem> items = this.items.get(index);
         for (VirtualChestItem i : items)
         {
             if (i.matchRequirements(player, index, name))
@@ -191,7 +194,7 @@ public final class VirtualChestInventory implements DataSerializable
         this.closeActionCommand.ifPresent(c -> container.set(CLOSE_ACTION_COMMAND, c));
         for (int i = 0; i < this.items.size(); i++)
         {
-            Collection<VirtualChestItem> items = this.items.get(i);
+            List<VirtualChestItem> items = this.items.get(i);
             switch (items.size())
             {
             case 0:
@@ -237,7 +240,11 @@ public final class VirtualChestInventory implements DataSerializable
                 Inventory targetInventory = targetContainer.first();
                 Timing timing = VirtualChestTimings.updateAndRefreshMappings(name);
                 Map<String, Object> context = ImmutableMap.of(VirtualChestActions.ACTION_UUID_KEY, actionUUID);
-                plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction, context);
+
+                recordManager.recordOpen(actionUUID, name, player);
+                logger.debug("Player {} opens the chest GUI", player.getName());
+                plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction.stream(), context);
+
                 if (updateIntervalTick > 0)
                 {
                     Task.Builder builder = Sponge.getScheduler().createTaskBuilder().execute(task ->
@@ -255,8 +262,9 @@ public final class VirtualChestInventory implements DataSerializable
                     });
                     builder.delayTicks(updateIntervalTick).intervalTicks(updateIntervalTick).submit(plugin);
                 }
-                logger.debug("Player {} opens the chest GUI", player.getName());
+
                 plugin.getScriptManager().onOpeningInventory(player);
+
                 timing.startTimingIfSync();
                 updateInventory(player, targetInventory, name);
                 timing.stopTimingIfSync();
@@ -271,8 +279,11 @@ public final class VirtualChestInventory implements DataSerializable
                 Player player = optional.get();
                 UUID actionUUID = UUID.randomUUID();
                 Map<String, Object> context = ImmutableMap.of(VirtualChestActions.ACTION_UUID_KEY, actionUUID);
-                plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction, context);
+
+                recordManager.recordClose(actionUUID, name, player);
                 logger.debug("Player {} closes the chest GUI", player.getName());
+                plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction.stream(), context);
+
                 actionIntervalManager.onClosingInventory(player);
             }
         }
@@ -328,17 +339,21 @@ public final class VirtualChestInventory implements DataSerializable
             String log = "Player {} tries to click the chest GUI at {}, primary: {}, secondary: {}, shift: {}";
             logger.debug(log, playerName, keyString, isPrimary, isSecondary, isShift);
 
-            CompletableFuture.allOf(items.get(slotIndex).stream().map(item ->
+            List<VirtualChestItem> items = VirtualChestInventory.this.items.get(slotIndex);
+            CompletableFuture[] futures = new CompletableFuture[items.size()];
+            for (int i = 0; i < futures.length; ++i)
             {
                 UUID id = UUID.randomUUID();
+                VirtualChestItem item = items.get(i);
                 List<String> list = item.getIgnoredPermissions();
-                return permissionManager.setIgnored(player, id, list).thenComposeAsync(v ->
+                futures[i] = permissionManager.setIgnored(player, id, list).thenComposeAsync(v ->
                 {
                     if (future.isDone() || !item.matchRequirements(player, slotIndex, playerName))
                     {
                         return CompletableFuture.completedFuture(CommandResult.success());
                     }
                     Optional<VirtualChestActionDispatcher> optional = item.getAction(isPrimary, isSecondary, isShift);
+                    recordManager.recordSlotClick(id, name, slotIndex, isShift, isPrimary, isSecondary, player);
                     logger.debug("Player {} submits an action: {}", playerName, id);
                     if (optional.isPresent())
                     {
@@ -353,7 +368,8 @@ public final class VirtualChestInventory implements DataSerializable
                         return CompletableFuture.completedFuture(CommandResult.success());
                     }
                 }, executorService).thenCompose(result -> permissionManager.clearIgnored(player, id));
-            }).toArray(CompletableFuture[]::new)).thenRun(() ->
+            }
+            CompletableFuture.allOf(futures).thenRun(() ->
             {
                 if (!future.isDone())
                 {

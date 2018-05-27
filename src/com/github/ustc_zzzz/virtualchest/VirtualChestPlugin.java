@@ -10,11 +10,11 @@ import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryBuilder;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
 import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
+import com.github.ustc_zzzz.virtualchest.record.VirtualChestRecordManager;
 import com.github.ustc_zzzz.virtualchest.script.VirtualChestJavaScriptManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.github.ustc_zzzz.virtualchest.unsafe.PlaceholderAPIUtils;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.github.ustc_zzzz.virtualchest.util.repackage.org.bstats.sponge.Metrics;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -23,6 +23,7 @@ import com.google.gson.JsonParser;
 import com.google.inject.Inject;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
+import org.bstats.sponge.Metrics;
 import org.slf4j.Logger;
 import org.spongepowered.api.Platform;
 import org.spongepowered.api.Server;
@@ -96,6 +97,8 @@ public class VirtualChestPlugin
 
     private VirtualChestTranslation translation;
 
+    private VirtualChestRecordManager recordManager;
+
     private VirtualChestActions virtualChestActions;
 
     private VirtualChestCommandManager virtualChestCommandManager;
@@ -163,6 +166,7 @@ public class VirtualChestPlugin
         CommentedConfigurationNode root = config.load();
         this.doCheckUpdate = root.getNode(PLUGIN_ID, "check-update").getBoolean(true);
 
+        this.recordManager.loadConfig(root.getNode(PLUGIN_ID, "recording"));
         this.commandAliases.loadConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.loadConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
         this.actionIntervalManager.loadConfig(root.getNode(PLUGIN_ID, "acceptable-action-interval-tick"));
@@ -175,6 +179,7 @@ public class VirtualChestPlugin
         CommentedConfigurationNode root = Optional.ofNullable(this.rootConfigNode).orElseGet(config::createEmptyNode);
         root.getNode(PLUGIN_ID, "check-update").setValue(this.doCheckUpdate);
 
+        this.recordManager.saveConfig(root.getNode(PLUGIN_ID, "recording"));
         this.commandAliases.saveConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.saveConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
         this.actionIntervalManager.saveConfig(root.getNode(PLUGIN_ID, "acceptable-action-interval-tick"));
@@ -189,6 +194,7 @@ public class VirtualChestPlugin
         Optional<VirtualChestInventory> inventoryOptional = Optional.empty();
         for (String inventoryName : this.dispatcher.listInventories())
         {
+            // noinspection ConstantConditions
             VirtualChestInventory inventory = this.dispatcher.getInventory(inventoryName).get();
             if (inventory.matchItemForOpeningWithPrimaryAction(event.getItemStack()))
             {
@@ -222,6 +228,7 @@ public class VirtualChestPlugin
         Optional<VirtualChestInventory> inventoryOptional = Optional.empty();
         for (String inventoryName : this.dispatcher.listInventories())
         {
+            // noinspection ConstantConditions
             VirtualChestInventory inventory = this.dispatcher.getInventory(inventoryName).get();
             if (inventory.matchItemForOpeningWithSecondaryAction(event.getItemStack()))
             {
@@ -293,6 +300,7 @@ public class VirtualChestPlugin
     public void onPostInitialization(GamePostInitializationEvent event)
     {
         this.translation = new VirtualChestTranslation(this);
+        this.recordManager = new VirtualChestRecordManager(this);
         this.virtualChestActions = new VirtualChestActions(this);
         this.commandAliases = new VirtualChestCommandAliases(this);
         this.economyManager = new VirtualChestEconomyManager(this);
@@ -307,6 +315,7 @@ public class VirtualChestPlugin
     @Listener
     public void onStartingServer(GameStartingServerEvent event)
     {
+        this.recordManager.init();
         this.virtualChestCommandManager.init();
         this.economyManager.init();
         this.permissionManager.init();
@@ -362,6 +371,11 @@ public class VirtualChestPlugin
     public VirtualChestTranslation getTranslation()
     {
         return this.translation;
+    }
+
+    public VirtualChestRecordManager getRecordManager()
+    {
+        return this.recordManager;
     }
 
     public VirtualChestActions getVirtualChestActions()

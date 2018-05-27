@@ -1,11 +1,11 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
@@ -19,6 +19,9 @@ import org.spongepowered.api.util.Tuple;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * @author ustc_zzzz
@@ -152,12 +155,8 @@ public class VirtualChestActionDispatcher
     {
         List<String> commands = this.commands.get(index);
         VirtualChestActions a = plugin.getVirtualChestActions();
-        CompletableFuture<CommandResult> future = a.submitCommands(player, commands, context);
-        for (int i = 0; i < repetition; ++i)
-        {
-            future = future.thenCompose(result -> a.submitCommands(player, commands, context));
-        }
-        return future;
+        Stream<Integer> rangeStream = IntStream.rangeClosed(0, repetition).boxed();
+        return a.submitCommands(player, rangeStream.flatMap(i -> commands.stream()), context);
     }
 
     public Optional<?> getObjectForSerialization()

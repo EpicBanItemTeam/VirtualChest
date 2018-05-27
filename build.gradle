@@ -1,6 +1,6 @@
 buildscript {
     repositories {
-        mavenCentral()
+        jcenter()
         maven {
             name = 'forge'
             url = 'http://files.minecraftforge.net/maven'
@@ -9,13 +9,22 @@ buildscript {
             name = 'minecrell'
             url = 'http://repo.minecrell.net/releases'
         }
-        dependencies {
-            classpath 'net.minecrell:VanillaGradle:2.0.3_1'
-            classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+        maven {
+            name = 'javalite'
+            url = 'http://repo.javalite.io'
         }
+    }
+    dependencies {
+        classpath 'net.minecrell:VanillaGradle:2.0.3_1'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.4'
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+        classpath 'org.javalite:activejdbc-gradle-plugin:1.4.13-SNAPSHOT'
     }
 }
 
+apply plugin: 'java'
+apply plugin: 'org.javalite.activejdbc'
+apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'net.minecrell.vanilla.server.library'
 
 sourceCompatibility = '1.8'
@@ -31,7 +40,8 @@ def getGitHash = {
 }
 
 def getReleaseDate = {
-    def format = new java.text.SimpleDateFormat("yyyy-MM-dd") // RFC 3339
+    // noinspection UnnecessaryQualifiedReference
+    def format = new java.text.SimpleDateFormat('yyyy-MM-dd') // RFC 3339
     return format.format(new Date())
 }
 
@@ -41,28 +51,37 @@ repositories {
         name = 'sponge'
         url = 'http://repo.spongepowered.org/maven'
     }
+    maven {
+        name = 'bstats-repo'
+        url = 'http://repo.bstats.org/content/repositories/releases'
+    }
+    maven {
+        name = 'javalite'
+        url = 'http://repo.javalite.io'
+    }
 //  maven {
 //      name = 'jitpack'
 //      url = 'https://jitpack.io'
 //  }
 }
 
-version = '1.0.0-beta-5'
-archivesBaseName = "VirtualChest"
+version = '1.0.0-beta-6'
+archivesBaseName = 'VirtualChest'
+group = 'com.github.ustc_zzzz.virtualchest'
 
 minecraft {
     version = '1.10.2'
     mappings = 'snapshot_20161111'
 
-    replace "@version@", project.version
-    replace "@git_hash@", getGitHash()
-    replace "@release_date@", getReleaseDate()
+    replace '@version@', project.version
+    replace '@git_hash@', getGitHash()
+    replace '@release_date@', getReleaseDate()
 }
 
 task apiJar(type: Jar, dependsOn: sourceJar) {
     from 'build/sources/api/java/'
     baseName = 'VirtualChestAPI'
-    
+
     from 'api/LICENSE'
 }
 
@@ -72,12 +91,16 @@ task javadocJar(type: Jar, dependsOn: javadoc) {
 }
 
 artifacts {
-    archives sourceJar
     archives apiJar
+    archives shadowJar
+    archives sourceJar
     archives javadocJar
 }
 
 dependencies {
+    compile 'org.bstats:bstats-sponge:1.2'
+    compile 'org.javalite:activejdbc:1.4.13-SNAPSHOT'
+
     compile 'org.spongepowered:spongeapi:5.2.0-SNAPSHOT'
     compile 'org.spongepowered:spongecommon:5.2.0-SNAPSHOT:dev'
 //  compile 'com.github.rojo8399:PlaceholderAPI:master-SNAPSHOT'
@@ -94,9 +117,24 @@ sourceSets {
     }
 }
 
+shadowJar {
+    classifier = null
+
+    dependencies {
+        // noinspection GroovyAssignabilityCheck
+        include dependency('org.bstats:.*')
+        // noinspection GroovyAssignabilityCheck
+        include dependency('org.javalite:.*')
+    }
+
+    relocate 'org.bstats', project.group.toString() + '.util.repackage.org.bstats'
+    relocate 'org.javalite', project.group.toString() + '.util.repackage.org.javalite'
+}
+
 reobf {
     jar {
         mappingType = 'SEARGE'
     }
 }
 
+reobfJar.dependsOn shadowJar

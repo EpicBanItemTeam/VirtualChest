@@ -3,7 +3,6 @@ package com.github.ustc_zzzz.virtualchest.action;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem;
-import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.HashMultimap;
@@ -36,6 +35,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * @author ustc_zzzz
@@ -97,12 +97,11 @@ public final class VirtualChestActions
         return this.activatedIdentifiers.get(identifier);
     }
 
-    public CompletableFuture<CommandResult> submitCommands(Player player, List<String> commands, Map<String, Object> context)
+    public CompletableFuture<CommandResult> submitCommands(Player player, Stream<String> commands, Map<String, Object> context)
     {
-        plugin.getLogger().debug("Player {} tries to run {} command(s)", player.getName(), commands.size());
         VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
         LinkedList<Tuple<String, String>> commandList = new LinkedList<>();
-        for (String command : commands)
+        commands.forEach(command ->
         {
             int colonPos = command.indexOf(PREFIX_SPLITTER);
             String prefix = colonPos > 0 ? command.substring(0, colonPos) : "";
@@ -120,7 +119,8 @@ public final class VirtualChestActions
             {
                 commandList.add(Tuple.of("", placeholderManager.parseText(player, command)));
             }
-        }
+        });
+        plugin.getLogger().debug("Player {} tries to run {} command(s)", player.getName(), commandList.size());
         return new Callback(player, commandList, context).start();
     }
 
@@ -322,6 +322,8 @@ public final class VirtualChestActions
 
     private class Callback implements Consumer<CommandResult>
     {
+        private int actionOrder = -1;
+
         private final UUID actionUUID;
         private final Map<String, Object> context;
         private final WeakReference<Player> playerReference;
@@ -359,11 +361,13 @@ public final class VirtualChestActions
                 }
                 else
                 {
+                    ++actionOrder;
                     activatedIdentifiers.put(identifier, actionUUID);
                     String prefix = t.getFirst(), suffix = t.getSecond();
                     String command = prefix.isEmpty() ? suffix : prefix + ": " + suffix;
                     String escapedCommand = '\'' + SpongeUnimplemented.escapeString(command) + '\'';
 
+                    plugin.getRecordManager().recordExecution(actionUUID, actionOrder, prefix, suffix);
                     logger.debug("Player {} is now executing {}", player.getName(), escapedCommand);
                     executors.get(prefix).doAction(player, suffix, context, this);
                 }

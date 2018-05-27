@@ -3,7 +3,6 @@ package com.github.ustc_zzzz.virtualchest.inventory.trigger;
 import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestItemTemplateWithNBT;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
-import org.spongepowered.api.data.MemoryDataContainer;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 
 /**

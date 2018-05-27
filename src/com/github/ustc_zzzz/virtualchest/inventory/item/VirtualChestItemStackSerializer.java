@@ -31,10 +31,11 @@ import org.spongepowered.api.profile.GameProfileManager;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.util.Coerce;
-import org.spongepowered.common.data.util.DataQueries;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
@@ -267,8 +268,8 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
 
     private static final class GameProfileSerializer implements TypeSerializer<GameProfile>
     {
-        private static final String KEY_UUID = DataQueries.USER_UUID.toString();
-        private static final String KEY_NAME = DataQueries.USER_NAME.toString();
+        private static final String KEY_UUID = "UUID";
+        private static final String KEY_NAME = "Name";
         private static final boolean IS_ONLINE_MODE_ENABLED = Sponge.getServer().getOnlineMode();
         private static final GameProfileManager GAME_PROFILE_MANAGER = Sponge.getServer().getGameProfileManager();
 
@@ -291,9 +292,9 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
             }
             try
             {
-                return GAME_PROFILE_MANAGER.fill(profile/*, false, true*/).get(); // TODO: asynchronous action
+                return GAME_PROFILE_MANAGER.fill(profile).get(50, TimeUnit.MILLISECONDS); // TODO: asynchronous action
             }
-            catch (InterruptedException | ExecutionException e)
+            catch (InterruptedException | ExecutionException | TimeoutException e)
             {
                 return profile;
             }
