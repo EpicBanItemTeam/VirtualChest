@@ -9,10 +9,10 @@ import org.slf4j.Logger;
 import org.slf4j.helpers.NOPLogger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.service.sql.SqlService;
 
 import javax.sql.DataSource;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.sql.Connection;
@@ -26,6 +26,7 @@ import java.util.UUID;
 public class VirtualChestRecordManager
 {
     private static final String DEFAULT_JDBC_URL = "jdbc:h2:record";
+    private static final String TASK_NAME = "VirtualChestRecordManager";
 
     static final String OPEN_RECORD = "virtualchest_open_record";
     static final String CLOSE_RECORD = "virtualchest_close_record";
@@ -37,14 +38,13 @@ public class VirtualChestRecordManager
     private final VirtualChestTranslation translation;
 
     private SqlService sql;
-    private String databaseUrl;
     private DataSource dataSource;
+    private volatile String databaseUrl = ""; // the record feature will be disabled if the field is empty
 
     public VirtualChestRecordManager(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
-        this.databaseUrl = DEFAULT_JDBC_URL;
         this.translation = plugin.getTranslation();
     }
 
@@ -118,39 +118,34 @@ public class VirtualChestRecordManager
         }
     }
 
-    public void loadConfig(CommentedConfigurationNode node) throws IOException
+    public void loadConfig(CommentedConfigurationNode node)
     {
+        this.databaseUrl = "";
         if (node.getNode("enabled").getBoolean(true))
         {
-            this.databaseUrl = node.getNode("database-url").getString(DEFAULT_JDBC_URL);
             this.logger.debug("Trying to connect and initialize the database ...");
-            this.connectDB();
-        }
-        else
-        {
-            this.databaseUrl = "";
+            String databaseUrl = node.getNode("database-url").getString(DEFAULT_JDBC_URL);
+            Task.builder().async().name(TASK_NAME).execute(() -> this.connectDB(databaseUrl)).submit(this.plugin);
         }
     }
 
-    private void connectDB() throws IOException
+    private void connectDB(String databaseUrl)
     {
         try
         {
-            Optional<String> aliasOptional = this.sql.getConnectionUrlFromAlias(this.databaseUrl);
+            Optional<String> aliasOptional = this.sql.getConnectionUrlFromAlias(databaseUrl);
             if (aliasOptional.isPresent())
             {
-                String jdbcUrl = aliasOptional.get();
-                this.dataSource = this.sql.getDataSource(jdbcUrl);
+                this.dataSource = this.sql.getDataSource(aliasOptional.get());
             }
             else
             {
-                String jdbcUrl = this.databaseUrl;
-                this.dataSource = this.sql.getDataSource(this.plugin, jdbcUrl);
+                this.dataSource = this.sql.getDataSource(this.plugin, databaseUrl);
             }
         }
         catch (SQLException e)
         {
-            throw new IOException("Failed to initialize tables for " + this.databaseUrl, e);
+            throw new RuntimeException("Failed to initialize tables for " + databaseUrl, e);
         }
         try (Connection c = this.dataSource.getConnection())
         {
@@ -187,14 +182,15 @@ public class VirtualChestRecordManager
                     " execution_time    DATETIME NOT NULL," +
                     " PRIMARY KEY       (submit_uuid, execution_order))").execute();
             this.logger.debug("Successfully connected and initialized database.");
+            this.databaseUrl = databaseUrl;
         }
         catch (SQLException e)
         {
-            throw new IOException("Failed to initialize tables for " + this.databaseUrl, e);
+            throw new RuntimeException("Failed to initialize tables for " + databaseUrl, e);
         }
     }
 
-    public void saveConfig(CommentedConfigurationNode node) throws IOException
+    public void saveConfig(CommentedConfigurationNode node)
     {
         if (this.databaseUrl.isEmpty())
         {
