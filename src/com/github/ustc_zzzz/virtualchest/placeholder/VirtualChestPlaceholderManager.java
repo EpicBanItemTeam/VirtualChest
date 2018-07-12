@@ -8,12 +8,8 @@ import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.TextRepresentable;
 import org.spongepowered.api.text.TextTemplate;
-import org.spongepowered.api.text.serializer.TextSerializers;
 
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -43,10 +39,10 @@ public class VirtualChestPlaceholderManager
         }
     }
 
-    public Map<String, Object> getPlaceholderAPIMap(Player player, String textToBeReplaced)
+    public Object replacePlaceholder(Player player, String token)
     {
-        TextTemplate template = this.toTemplate(textToBeReplaced);
-        return PlaceholderAPIUtils.fillPlaceholders(template, player);
+        TextTemplate template = TextTemplate.of(ARG_BOUNDARY, ARG_BOUNDARY, TextTemplate.arg(token));
+        return Objects.requireNonNull(PlaceholderAPIUtils.fillPlaceholders(template, player).get(token));
     }
 
     public String parseJavaScriptLiteral(String text, String functionIdentifier)
@@ -72,23 +68,19 @@ public class VirtualChestPlaceholderManager
     {
         Map<String, Object> args = new HashMap<>();
         TextTemplate template = this.toTemplate(textToBeReplaced);
-        for (Map.Entry<String, Object> entry : PlaceholderAPIUtils.fillPlaceholders(template, player).entrySet())
-        {
-            args.put(entry.getKey(), TextSerializers.PLAIN.serialize(Text.of(entry.getValue())));
-        }
-        return TextSerializers.PLAIN.serialize(template.apply(args).build());
+        PlaceholderAPIUtils.fillPlaceholders(template, player).forEach((k, v) -> args.put(k, Text.of(v).toPlain()));
+        return template.apply(args).build().toPlain();
     }
 
     private TextTemplate toTemplate(String text)
     {
+        int lastIndex;
         List<TextRepresentable> parts = new LinkedList<>();
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
-        int lastIndex = 0;
-        while (matcher.find())
+        for (lastIndex = 0; matcher.find(); lastIndex = matcher.end())
         {
-            parts.add(TextSerializers.PLAIN.deserialize(text.substring(lastIndex, matcher.start())));
+            parts.add(Text.of(text.substring(lastIndex, matcher.start())));
             parts.add(TextTemplate.arg(text.substring(matcher.start() + 1, matcher.end() - 1)).build());
-            lastIndex = matcher.end();
         }
         if (lastIndex < text.length())
         {

@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.script;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
@@ -69,7 +70,7 @@ public class VirtualChestJavaScriptManager
     public boolean execute(Player player, Tuple<String, CompiledScript> tuple)
     {
         String scriptLiteral = tuple.getFirst();
-        ScriptContext context = this.getContext(player, scriptLiteral);
+        ScriptContext context = this.getContext(player);
         try
         {
             VirtualChestTimings.executeRequirementScript().startTimingIfSync();
@@ -96,16 +97,16 @@ public class VirtualChestJavaScriptManager
         context.removeAttribute("player", ScriptContext.ENGINE_SCOPE);
     }
 
-    private ScriptContext getContext(Player player, String scriptLiteral)
+    private ScriptContext getContext(Player player)
     {
         VirtualChestTimings.prepareRequirementBindings().startTimingIfSync();
 
         SimpleScriptContext context = this.tempContext;
-        Map<String, Object> map = this.plugin.getPlaceholderManager().getPlaceholderAPIMap(player, scriptLiteral);
-        Function<String, Object> papiTransformation = s -> map.containsKey(s) ? Text.of(map.get(s)).toPlain() : null;
+        VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
+        Function<String, Object> papi = s -> Text.of(placeholderManager.replacePlaceholder(player, s)).toPlain();
 
+        context.setAttribute("papi", papi, ScriptContext.ENGINE_SCOPE);
         context.setAttribute("player", player, ScriptContext.ENGINE_SCOPE);
-        context.setAttribute("papi", papiTransformation, ScriptContext.ENGINE_SCOPE);
         context.setAttribute("tick", this.getTickFromOpeningInventory(player), ScriptContext.ENGINE_SCOPE);
 
         VirtualChestTimings.prepareRequirementBindings().stopTimingIfSync();
