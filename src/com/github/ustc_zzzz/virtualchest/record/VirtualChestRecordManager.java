@@ -146,7 +146,7 @@ public class VirtualChestRecordManager
         if (node.getNode("enabled").getBoolean(true))
         {
             this.databaseUrl = "";
-            this.logger.debug("Trying to connect and initialize the database ...");
+            this.logger.info("Trying to connect and initialize the database ...");
             String databaseUrl = node.getNode("database-url").getString(DEFAULT_JDBC_URL);
             Task.builder().async().name(TASK_NAME).execute(() -> this.connectDB(databaseUrl)).submit(this.plugin);
         }
@@ -204,7 +204,7 @@ public class VirtualChestRecordManager
                     " execution_order   INT NOT NULL," +
                     " execution_time    DATETIME NOT NULL," +
                     " PRIMARY KEY       (submit_uuid, execution_order))").execute();
-            this.logger.debug("Successfully connected and initialized database.");
+            this.logger.info("Successfully connected and initialized database.");
             this.databaseUrl = databaseUrl;
         }
         catch (SQLException e)
