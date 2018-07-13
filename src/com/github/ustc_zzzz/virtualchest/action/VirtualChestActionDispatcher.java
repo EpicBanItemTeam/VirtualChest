@@ -67,7 +67,7 @@ public class VirtualChestActionDispatcher
     }
 
     public Tuple<Boolean, CompletableFuture<CommandResult>> runCommand(VirtualChestPlugin plugin,
-                                                                       UUID actionUUID, Player player)
+                                                                       UUID actionUUID, Player player, boolean record)
     {
         ItemStackSnapshot handheldItem = SpongeUnimplemented.getItemHeldByMouse(player);
         boolean isSomeoneSearchingInventory = false; // check if I should go for step 2
@@ -96,10 +96,10 @@ public class VirtualChestActionDispatcher
                 }
                 if (size >= itemTemplate.getCount()) // it's enough! do action now
                 {
-                    int repetition = itemTemplate.getRepetition(size);
+                    int rep = itemTemplate.getRepetition(size);
                     String k1 = HANDHELD_ITEM.toString(), k2 = VirtualChestActions.ACTION_UUID_KEY;
                     ImmutableMap<String, Object> map = ImmutableMap.of(k1, itemTemplate, k2, actionUUID);
-                    return Tuple.of(this.keepInventoryOpen.get(i), this.getAction(plugin, player, i, repetition, map));
+                    return Tuple.of(this.keepInventoryOpen.get(i), this.getAction(plugin, player, i, rep, map, record));
                 }
                 areSearchingInventory[i] = false; // otherwise do not search inventory for it in step 2
             }
@@ -138,23 +138,23 @@ public class VirtualChestActionDispatcher
                 VirtualChestHandheldItem itemTemplate = this.handheldItem.get(i);
                 if (size >= itemTemplate.getCount()) // it's enough! do action now
                 {
-                    int repetition = itemTemplate.getRepetition(size);
+                    int rep = itemTemplate.getRepetition(size);
                     String k1 = HANDHELD_ITEM.toString(), k2 = VirtualChestActions.ACTION_UUID_KEY;
                     ImmutableMap<String, Object> map = ImmutableMap.of(k1, itemTemplate, k2, actionUUID);
-                    return Tuple.of(this.keepInventoryOpen.get(i), this.getAction(plugin, player, i, repetition, map));
+                    return Tuple.of(this.keepInventoryOpen.get(i), this.getAction(plugin, player, i, rep, map, record));
                 }
             }
         }
         return Tuple.of(Boolean.TRUE, CompletableFuture.completedFuture(CommandResult.success()));
     }
 
-    private CompletableFuture<CommandResult> getAction(VirtualChestPlugin plugin, Player player,
-                                                       int index, int repetition, Map<String, Object> context)
+    private CompletableFuture<CommandResult> getAction(VirtualChestPlugin plugin, Player player, int index,
+                                                       int repetition, Map<String, Object> context, boolean record)
     {
         List<String> commands = this.commands.get(index);
         VirtualChestActions a = plugin.getVirtualChestActions();
         Stream<Integer> rangeStream = IntStream.rangeClosed(0, repetition).boxed();
-        return a.submitCommands(player, rangeStream.flatMap(i -> commands.stream()), context);
+        return a.submitCommands(player, rangeStream.flatMap(i -> commands.stream()), context, record);
     }
 
     public Optional<?> getObjectForSerialization()

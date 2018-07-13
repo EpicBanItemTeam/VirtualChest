@@ -2,6 +2,8 @@ package com.github.ustc_zzzz.virtualchest.translation;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.google.common.base.Charsets;
+import ninja.leaping.configurate.ConfigurationNode;
+import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.asset.Asset;
@@ -44,6 +46,11 @@ public class VirtualChestTranslation
         {
             throw new RuntimeException(e);
         }
+    }
+
+    public CommentedConfigurationNode withComment(CommentedConfigurationNode node, String key)
+    {
+        return node.setComment(node.getComment().orElse(this.take(key).toPlain()));
     }
 
     public void info(String key)

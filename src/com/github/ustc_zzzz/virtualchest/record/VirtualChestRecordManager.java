@@ -3,7 +3,11 @@ package com.github.ustc_zzzz.virtualchest.record;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.google.common.collect.ImmutableList;
+import com.google.common.reflect.TypeToken;
+import ninja.leaping.configurate.Types;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
+import ninja.leaping.configurate.objectmapping.ObjectMappingException;
 import org.javalite.activejdbc.DB;
 import org.slf4j.Logger;
 import org.slf4j.helpers.NOPLogger;
@@ -13,10 +17,12 @@ import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.service.sql.SqlService;
 
 import javax.sql.DataSource;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,6 +46,9 @@ public class VirtualChestRecordManager
     private SqlService sql;
     private DataSource dataSource;
     private volatile String databaseUrl = ""; // the record feature will be disabled if the field is empty
+
+    private FilterMode filterMode = FilterMode.BLACKLIST;
+    private List<String> filterRuleList = ImmutableList.of();
 
     public VirtualChestRecordManager(VirtualChestPlugin plugin)
     {
@@ -68,6 +77,11 @@ public class VirtualChestRecordManager
         {
             throw new IllegalStateException(e);
         }
+    }
+
+    public boolean filter(String name, VirtualChestInventory inv)
+    {
+        return this.filterMode.check(this.filterRuleList, name, inv);
     }
 
     public void recordOpen(UUID uuid, String menuName, Player p)
@@ -118,11 +132,20 @@ public class VirtualChestRecordManager
         }
     }
 
-    public void loadConfig(CommentedConfigurationNode node)
+    public void loadConfig(CommentedConfigurationNode node) throws IOException
     {
-        this.databaseUrl = "";
+        try
+        {
+            this.filterMode = node.getNode("filter", "mode").getValue(FilterMode.TYPE_TOKEN, FilterMode.BLACKLIST);
+            this.filterRuleList = node.getNode("filter", "rules").getList(Types::asString, ImmutableList.of());
+        }
+        catch (ObjectMappingException e)
+        {
+            throw new IOException(e);
+        }
         if (node.getNode("enabled").getBoolean(true))
         {
+            this.databaseUrl = "";
             this.logger.debug("Trying to connect and initialize the database ...");
             String databaseUrl = node.getNode("database-url").getString(DEFAULT_JDBC_URL);
             Task.builder().async().name(TASK_NAME).execute(() -> this.connectDB(databaseUrl)).submit(this.plugin);
@@ -192,24 +215,45 @@ public class VirtualChestRecordManager
 
     public void saveConfig(CommentedConfigurationNode node)
     {
+        String databaseUrlComment = "virtualchest.config.recording.databaseUrl.comment";
+        String rulesComment = "virtualchest.config.recording.filter.rules.comment";
+        String modeComment = "virtualchest.config.recording.filter.mode.comment";
+        String enabledComment = "virtualchest.config.recording.enabled.comment";
+        String filterComment = "virtualchest.config.recording.filter.comment";
+        String recordingComment = "virtualchest.config.recording.comment";
         if (this.databaseUrl.isEmpty())
         {
-            node.getNode("enabled").setValue(false)
-                    .setComment(node.getNode("enabled").getComment().orElse(this.translation
-                            .take("virtualchest.config.recording.enabled.comment").toPlain()));
-            node.setComment(node.getComment().orElse(this.translation
-                    .take("virtualchest.config.recording.comment").toPlain()));
+            this.translation.withComment(node.getNode("enabled"), enabledComment).setValue(false);
+            this.translation.withComment(node, recordingComment);
         }
         else
         {
-            node.getNode("enabled").setValue(true)
-                    .setComment(node.getNode("enabled").getComment().orElse(this.translation
-                            .take("virtualchest.config.recording.enabled.comment").toPlain()));
-            node.getNode("database-url").setValue(this.databaseUrl)
-                    .setComment(node.getNode("database-url").getComment().orElse(this.translation
-                            .take("virtualchest.config.recording.databaseUrl.comment").toPlain()));
-            node.setComment(node.getComment().orElse(this.translation
-                    .take("virtualchest.config.recording.comment").toPlain()));
+            this.translation.withComment(node.getNode("filter", "mode"), modeComment).setValue(this.filterMode.name().toLowerCase());
+            this.translation.withComment(node.getNode("filter", "rules"), rulesComment).setValue(this.filterRuleList);
+            this.translation.withComment(node.getNode("database-url"), databaseUrlComment).setValue(this.databaseUrl);
+            this.translation.withComment(node.getNode("enabled"), enabledComment).setValue(true);
+            this.translation.withComment(node.getNode("filter"), filterComment);
+            this.translation.withComment(node, recordingComment);
+        }
+    }
+
+    public enum FilterMode
+    {
+        WHITELIST, BLACKLIST;
+
+        public static final TypeToken<FilterMode> TYPE_TOKEN = TypeToken.of(FilterMode.class);
+
+        public boolean check(List<String> filterRules, String name, VirtualChestInventory inv)
+        {
+            switch (this)
+            {
+            case BLACKLIST:
+                return filterRules.stream().noneMatch(name::equals);
+            case WHITELIST:
+                return filterRules.stream().anyMatch(name::equals);
+            default:
+                return false;
+            }
         }
     }
 }

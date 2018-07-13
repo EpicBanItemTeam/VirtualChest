@@ -97,7 +97,7 @@ public final class VirtualChestActions
         return this.activatedIdentifiers.get(identifier);
     }
 
-    public CompletableFuture<CommandResult> submitCommands(Player player, Stream<String> commands, Map<String, Object> context)
+    public CompletableFuture<CommandResult> submitCommands(Player player, Stream<String> commands, Map<String, Object> context, boolean record)
     {
         VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
         LinkedList<Tuple<String, String>> commandList = new LinkedList<>();
@@ -121,7 +121,7 @@ public final class VirtualChestActions
             }
         });
         plugin.getLogger().debug("Player {} tries to run {} command(s)", player.getName(), commandList.size());
-        return new Callback(player, commandList, context).start();
+        return new Callback(player, commandList, context, record).start();
     }
 
     private void tick(Task task)
@@ -324,6 +324,7 @@ public final class VirtualChestActions
     {
         private int actionOrder = -1;
 
+        private final boolean record;
         private final UUID actionUUID;
         private final Map<String, Object> context;
         private final WeakReference<Player> playerReference;
@@ -331,8 +332,9 @@ public final class VirtualChestActions
         private final CompletableFuture<CommandResult> future = new CompletableFuture<>();
 
         @SuppressWarnings("unchecked")
-        private Callback(Player p, LinkedList<Tuple<String, String>> commandList, Map<String, Object> context)
+        private Callback(Player p, LinkedList<Tuple<String, String>> commandList, Map<String, Object> context, boolean record)
         {
+            this.record = record;
             this.context = context;
             this.commandList = commandList;
             this.playerReference = new WeakReference<>(p);
@@ -366,9 +368,11 @@ public final class VirtualChestActions
                     String prefix = t.getFirst(), suffix = t.getSecond();
                     String command = prefix.isEmpty() ? suffix : prefix + ": " + suffix;
                     String escapedCommand = '\'' + SpongeUnimplemented.escapeString(command) + '\'';
-
-                    plugin.getRecordManager().recordExecution(actionUUID, actionOrder, prefix, suffix);
-                    logger.debug("Player {} is now executing {}", player.getName(), escapedCommand);
+                    if (record)
+                    {
+                        plugin.getRecordManager().recordExecution(actionUUID, actionOrder, prefix, suffix);
+                        logger.debug("Player {} is now executing {}", player.getName(), escapedCommand);
+                    }
                     executors.get(prefix).doAction(player, suffix, context, this);
                 }
             }

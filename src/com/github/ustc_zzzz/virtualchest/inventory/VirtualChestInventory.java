@@ -270,9 +270,13 @@ public final class VirtualChestInventory implements DataSerializable
                 Timing timing = VirtualChestTimings.updateAndRefreshMappings(name);
                 Map<String, Object> context = ImmutableMap.of(VirtualChestActions.ACTION_UUID_KEY, actionUUID);
 
-                recordManager.recordOpen(actionUUID, name, player);
-                logger.debug("Player {} opens the chest GUI", player.getName());
-                plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction.stream(), context);
+                boolean record = recordManager.filter(name, VirtualChestInventory.this);
+                if (record)
+                {
+                    recordManager.recordOpen(actionUUID, name, player);
+                    logger.debug("Player {} opens the chest GUI", player.getName());
+                }
+                plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction.stream(), context, record);
 
                 if (updateIntervalTick > 0)
                 {
@@ -309,9 +313,13 @@ public final class VirtualChestInventory implements DataSerializable
                 UUID actionUUID = UUID.randomUUID();
                 Map<String, Object> context = ImmutableMap.of(VirtualChestActions.ACTION_UUID_KEY, actionUUID);
 
-                recordManager.recordClose(actionUUID, name, player);
-                logger.debug("Player {} closes the chest GUI", player.getName());
-                plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction.stream(), context);
+                boolean record = recordManager.filter(name, VirtualChestInventory.this);
+                if (record)
+                {
+                    recordManager.recordClose(actionUUID, name, player);
+                    logger.debug("Player {} closes the chest GUI", player.getName());
+                }
+                plugin.getVirtualChestActions().submitCommands(player, parsedCloseAction.stream(), context, record);
 
                 actionIntervalManager.onClosingInventory(player);
             }
@@ -380,9 +388,13 @@ public final class VirtualChestInventory implements DataSerializable
                         return permissionManager.clearIgnored(player, actionUUID);
                     }
 
+                    boolean record = recordManager.filter(name, VirtualChestInventory.this);
                     Optional<VirtualChestActionDispatcher> optional = item.getAction(status);
-                    recordManager.recordSlotClick(actionUUID, name, slotIndex, status, player);
-                    logger.debug("Player {} now submits an action: {}", playerName, actionUUID);
+                    if (record)
+                    {
+                        recordManager.recordSlotClick(actionUUID, name, slotIndex, status, player);
+                        logger.debug("Player {} now submits an action: {}", playerName, actionUUID);
+                    }
 
                     if (!optional.isPresent())
                     {
@@ -391,7 +403,7 @@ public final class VirtualChestInventory implements DataSerializable
                     }
 
                     Tuple<Boolean, CompletableFuture<CommandResult>> tuple;
-                    tuple = optional.get().runCommand(plugin, actionUUID, player);
+                    tuple = optional.get().runCommand(plugin, actionUUID, player, record);
 
                     future.complete(tuple.getFirst());
                     return tuple.getSecond().thenCompose(r -> permissionManager.clearIgnored(player, actionUUID));
