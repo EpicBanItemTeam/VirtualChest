@@ -78,7 +78,7 @@ public class VirtualChestActionDispatcher
             boolean isSearchingInventory = itemTemplate.isSearchingInventory();
             if (itemTemplate.matchItem(handheldItem)) // if it matches an item template, check its count
             {
-                int size = handheldItem.getCount();
+                int size = SpongeUnimplemented.getCount(handheldItem);
                 if (isSearchingInventory) // search inventory to calculate total count
                 {
                     for (Slot slot : player.getInventory().<Slot>slots())
@@ -89,7 +89,7 @@ public class VirtualChestActionDispatcher
                             ItemStackSnapshot stackSnapshot = stackOptional.get().createSnapshot();
                             if (itemTemplate.matchItem(stackSnapshot))
                             {
-                                size += stackSnapshot.getCount();
+                                size += SpongeUnimplemented.getCount(stackSnapshot);
                             }
                         }
                     }
@@ -118,7 +118,7 @@ public class VirtualChestActionDispatcher
                 if (stackOptional.isPresent())
                 {
                     ItemStackSnapshot stackSnapshot = stackOptional.get().createSnapshot();
-                    int stackQuantity = stackSnapshot.getCount(); // count for this slot
+                    int stackQuantity = SpongeUnimplemented.getCount(stackSnapshot); // count for this slot
                     for (int i = 0; i < this.size; ++i)
                     {
                         if (areSearchingInventory[i])

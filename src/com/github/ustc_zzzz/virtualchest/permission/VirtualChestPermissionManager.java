@@ -11,6 +11,7 @@ import org.spongepowered.api.service.context.ContextCalculator;
 import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.service.permission.Subject;
 import org.spongepowered.api.service.permission.SubjectData;
+import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -18,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * @author ustc_zzzz
  */
+@NonnullByDefault
 public class VirtualChestPermissionManager implements ContextCalculator<Subject>
 {
     private static final String CONTEXT_KEY = "virtualchest-action-uuid";

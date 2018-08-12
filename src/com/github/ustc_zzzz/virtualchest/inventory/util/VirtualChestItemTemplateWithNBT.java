@@ -21,7 +21,7 @@ public class VirtualChestItemTemplateWithNBT extends VirtualChestItemTemplate
 
     public VirtualChestItemTemplateWithNBT()
     {
-        super(new MemoryDataContainer());
+        super(SpongeUnimplemented.newDataContainer(DataView.SafetyMode.ALL_DATA_CLONED));
         this.nbt = Optional.empty();
     }
 

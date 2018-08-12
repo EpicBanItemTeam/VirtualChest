@@ -2,7 +2,6 @@ package com.github.ustc_zzzz.virtualchest.translation;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.google.common.base.Charsets;
-import ninja.leaping.configurate.ConfigurationNode;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;

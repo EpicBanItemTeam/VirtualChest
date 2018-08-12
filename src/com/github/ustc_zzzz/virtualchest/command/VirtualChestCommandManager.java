@@ -20,7 +20,6 @@ import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.action.TextActions;
 import org.spongepowered.api.text.format.TextColors;
 import org.spongepowered.api.text.format.TextStyles;
-import org.spongepowered.api.util.GuavaCollectors;
 import org.spongepowered.api.util.Tuple;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
@@ -32,6 +31,7 @@ import java.util.Date;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * @author ustc_zzzz
@@ -171,7 +171,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
         if (source instanceof Player)
         {
             Predicate<String> inventoryNamePredict = name -> dispatcher.hasPermission((Player) source, name);
-            inventories = inventories.stream().filter(inventoryNamePredict).collect(GuavaCollectors.toImmutableSet());
+            inventories = inventories.stream().filter(inventoryNamePredict).collect(Collectors.toSet());
         }
         source.sendMessage(translation.take("virtualchest.list.overview", inventories.size()));
         source.sendMessage(Text.of(String.join(", ", inventories)));

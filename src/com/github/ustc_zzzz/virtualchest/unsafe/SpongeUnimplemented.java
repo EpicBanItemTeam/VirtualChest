@@ -1,7 +1,9 @@
 package com.github.ustc_zzzz.virtualchest.unsafe;
 
 import org.objectweb.asm.Type;
+import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataView;
+import org.spongepowered.api.data.MemoryDataContainer;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.item.inventory.Inventory;
@@ -254,6 +256,18 @@ public class SpongeUnimplemented
         {
             throw new UnsupportedOperationException(throwable);
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    public static int getCount(ItemStackSnapshot stackSnapshot)
+    {
+        return stackSnapshot.getCount();
+    }
+
+    @SuppressWarnings("deprecation")
+    public static DataContainer newDataContainer(DataView.SafetyMode safetyMode)
+    {
+        return new MemoryDataContainer(safetyMode);
     }
 
     static

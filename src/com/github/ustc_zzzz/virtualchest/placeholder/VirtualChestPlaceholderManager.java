@@ -1,15 +1,22 @@
 package com.github.ustc_zzzz.virtualchest.placeholder;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.unsafe.PlaceholderAPIUtils;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import org.slf4j.Logger;
+import com.google.common.collect.Maps;
+import me.rojo8399.placeholderapi.PlaceholderService;
+import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.event.service.ChangeServiceProviderEvent;
+import org.spongepowered.api.service.ProviderRegistration;
+import org.spongepowered.api.service.ServiceManager;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.TextRepresentable;
 import org.spongepowered.api.text.TextTemplate;
 
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,28 +28,28 @@ public class VirtualChestPlaceholderManager
     private static final String ARG_BOUNDARY = "%";
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("[%]([^%\\s]+)[%]", Pattern.CASE_INSENSITIVE);
 
-    private final Logger logger;
+    private final String papiVersion;
+    private final PlaceholderService papiService;
 
     public VirtualChestPlaceholderManager(VirtualChestPlugin plugin)
     {
-        this.logger = plugin.getLogger();
+        ProviderRegistration<PlaceholderService> registration;
+        ServiceManager serviceManager = Sponge.getServiceManager();
+        plugin.getLogger().info("Try to load the PlaceholderAPI service ... ");
+        registration = serviceManager.getRegistration(PlaceholderService.class).orElseThrow(RuntimeException::new);
+        this.papiVersion = registration.getPlugin().getVersion().orElse("unknown");
+        this.papiService = registration.getProvider();
     }
 
-    public void init()
+    public String getPlaceholderAPIVersion()
     {
-        this.logger.info("Try to load the PlaceholderAPI service ... ");
-        if (!PlaceholderAPIUtils.isPlaceholderAPIAvailable())
-        {
-            this.logger.warn("VirtualChest could not find the PlaceholderAPI service. ");
-            this.logger.warn("Features related to PlaceholderAPI may not work normally. ");
-            this.logger.warn("Maybe you should look for a PlaceholderAPI plugin and download it?");
-        }
+        return this.papiVersion;
     }
 
     public Object replacePlaceholder(Player player, String token)
     {
         TextTemplate template = TextTemplate.of(ARG_BOUNDARY, ARG_BOUNDARY, TextTemplate.arg(token));
-        return Objects.requireNonNull(PlaceholderAPIUtils.fillPlaceholders(template, player).get(token));
+        return Objects.requireNonNull(this.papiService.fillPlaceholders(template, player, player).get(token));
     }
 
     public String parseJavaScriptLiteral(String text, String functionIdentifier)
@@ -66,10 +73,9 @@ public class VirtualChestPlaceholderManager
 
     public String parseText(Player player, String textToBeReplaced)
     {
-        Map<String, Object> args = new HashMap<>();
         TextTemplate template = this.toTemplate(textToBeReplaced);
-        PlaceholderAPIUtils.fillPlaceholders(template, player).forEach((k, v) -> args.put(k, Text.of(v).toPlain()));
-        return template.apply(args).build().toPlain();
+        Map<String, Object> placeholders = this.papiService.fillPlaceholders(template, player, player);
+        return template.apply(Maps.transformValues(placeholders, v -> Text.of(v).toPlain())).build().toPlain();
     }
 
     private TextTemplate toTemplate(String text)

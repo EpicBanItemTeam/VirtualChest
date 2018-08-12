@@ -59,10 +59,10 @@ repositories {
         name = 'javalite'
         url = 'http://repo.javalite.io'
     }
-//  maven {
-//      name = 'jitpack'
-//      url = 'https://jitpack.io'
-//  }
+      maven {
+          name = 'jitpack'
+          url = 'https://jitpack.io'
+      }
 }
 
 version = '1.0.0-beta-7'
@@ -101,9 +101,9 @@ dependencies {
     compile 'org.bstats:bstats-sponge:1.2'
     compile 'org.javalite:activejdbc:1.4.13-SNAPSHOT'
 
-    compile 'org.spongepowered:spongeapi:5.2.0-SNAPSHOT'
-    compile 'org.spongepowered:spongecommon:5.2.0-SNAPSHOT:dev'
-//  compile 'com.github.rojo8399:PlaceholderAPI:master-SNAPSHOT'
+    compile 'org.spongepowered:spongeapi:7.1.0-SNAPSHOT'
+    compile 'org.spongepowered:spongecommon:7.1.0-SNAPSHOT:dev'
+    compile 'com.github.rojo8399:PlaceholderAPI:master-SNAPSHOT'
 }
 
 sourceSets {

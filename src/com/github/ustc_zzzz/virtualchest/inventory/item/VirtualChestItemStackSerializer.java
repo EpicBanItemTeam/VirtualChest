@@ -280,7 +280,7 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
             // noinspection ConstantConditions
             return ItemStack.builder()
                     .itemType(ItemTypes.SKULL).quantity(1)
-                    .keyValue(Keys.SKULL_TYPE, SkullTypes.PLAYER).build()
+                    .add(Keys.SKULL_TYPE, SkullTypes.PLAYER).build()
                     .getOrCreate(RepresentedPlayerData.class).map(data -> data.owner().get());
         }
 

@@ -13,7 +13,6 @@ import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderMana
 import com.github.ustc_zzzz.virtualchest.record.VirtualChestRecordManager;
 import com.github.ustc_zzzz.virtualchest.script.VirtualChestJavaScriptManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
-import com.github.ustc_zzzz.virtualchest.unsafe.PlaceholderAPIUtils;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -63,14 +62,14 @@ import java.util.Optional;
 /**
  * @author ustc_zzzz
  */
-@Plugin(id = VirtualChestPlugin.PLUGIN_ID, name = "VirtualChest", dependencies =
-        {@Dependency(id = "spongeapi"), @Dependency(id = "placeholderapi", optional = true)}, authors =
-        {"ustc_zzzz"}, version = VirtualChestPlugin.VERSION, description = VirtualChestPlugin.DESCRIPTION)
+@Plugin(name = "VirtualChest", id = VirtualChestPlugin.PLUGIN_ID,
+        dependencies = {@Dependency(id = "spongeapi"), @Dependency(id = "placeholderapi", version = "[4.0,)")},
+        authors = {"ustc_zzzz"}, version = VirtualChestPlugin.VERSION, description = VirtualChestPlugin.DESCRIPTION)
 public class VirtualChestPlugin
 {
+    public static final String VERSION = "@version@";
     public static final String PLUGIN_ID = "virtualchest";
     public static final String DESCRIPTION = "A sponge plugin providing virtual chest GUIs for menus.";
-    public static final String VERSION = "@version@";
 
     public static final String API_URL = "https://api.github.com/repos/ustc-zzzz/VirtualChest/releases";
     public static final String GITHUB_URL = "https://github.com/ustc-zzzz/VirtualChest";
@@ -320,7 +319,6 @@ public class VirtualChestPlugin
         this.economyManager.init();
         this.permissionManager.init();
         this.virtualChestActions.init();
-        this.placeholderManager.init();
     }
 
     @Listener
@@ -352,7 +350,7 @@ public class VirtualChestPlugin
                         () -> this.dispatcher.listInventories().size()));
         this.metrics.addCustomChart(
                 new Metrics.AdvancedPie("placeholderapiVersion",
-                        () -> ImmutableMap.of(PlaceholderAPIUtils.getPlaceholderAPIVersion(), 1)));
+                        () -> ImmutableMap.of(this.placeholderManager.getPlaceholderAPIVersion(), 1)));
         this.metrics.addCustomChart(
                 new Metrics.DrilldownPie("platformImplementation",
                         () -> ImmutableMap.of(p.getName(), ImmutableMap.of(p.getVersion().orElse("unknown"), 1))));

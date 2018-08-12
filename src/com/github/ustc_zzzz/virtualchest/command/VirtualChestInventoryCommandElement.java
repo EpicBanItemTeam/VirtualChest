@@ -4,6 +4,7 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.google.common.collect.ImmutableList;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.command.args.ArgumentParseException;
 import org.spongepowered.api.command.args.CommandArgs;
@@ -11,7 +12,6 @@ import org.spongepowered.api.command.args.CommandContext;
 import org.spongepowered.api.command.args.CommandElement;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.text.Text;
-import org.spongepowered.api.util.GuavaCollectors;
 import org.spongepowered.api.util.StartsWithPredicate;
 import org.spongepowered.api.util.Tuple;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
@@ -54,8 +54,8 @@ public class VirtualChestInventoryCommandElement extends CommandElement
     public List<String> complete(CommandSource src, CommandArgs args, CommandContext context)
     {
         String prefix = args.nextIfPresent().orElse("");
-        Predicate<String> predicate = new StartsWithPredicate(prefix).and(name -> this.hasPermission(src, name));
-        return this.dispatcher.listInventories().stream().filter(predicate).collect(GuavaCollectors.toImmutableList());
+        Predicate<String> predicate = new StartsWithPredicate(prefix).and(n -> this.hasPermission(src, n));
+        return ImmutableList.copyOf(this.dispatcher.listInventories().stream().filter(predicate).iterator());
     }
 
     private boolean hasPermission(CommandSource source, String inventoryName)

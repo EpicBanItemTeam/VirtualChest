@@ -5,6 +5,7 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionDispatcher;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
+import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
@@ -46,7 +47,7 @@ public class VirtualChestItem
 
     public static DataContainer serialize(VirtualChestPlugin plugin, VirtualChestItem item) throws InvalidDataException
     {
-        DataContainer container = new MemoryDataContainer();
+        DataContainer container = SpongeUnimplemented.newDataContainer(DataView.SafetyMode.ALL_DATA_CLONED);
         container.set(ITEM, item.serializedStack);
         item.primaryAction.getObjectForSerialization().ifPresent(o -> container.set(PRIMARY_ACTION, o));
         item.secondaryAction.getObjectForSerialization().ifPresent(o -> container.set(SECONDARY_ACTION, o));
@@ -120,7 +121,7 @@ public class VirtualChestItem
         ImmutableList.Builder<DataView> builder = ImmutableList.builder();
         for (Object data : listOptional.get())
         {
-            DataContainer container = new MemoryDataContainer(DataView.SafetyMode.NO_DATA_CLONED);
+            DataContainer container = SpongeUnimplemented.newDataContainer(DataView.SafetyMode.NO_DATA_CLONED);
             container.set(key, data).getView(key).ifPresent(builder::add);
         }
         return builder.build();

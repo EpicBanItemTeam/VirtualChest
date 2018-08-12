@@ -162,7 +162,7 @@ public final class VirtualChestActions
         String key = VirtualChestActionDispatcher.HANDHELD_ITEM.toString();
         VirtualChestHandheldItem itemTemplate = (VirtualChestHandheldItem) context.get(key);
         ItemStackSnapshot itemHeldByMouse = SpongeUnimplemented.getItemHeldByMouse(player);
-        int stackUsedQuantity = itemHeldByMouse.getCount();
+        int stackUsedQuantity = SpongeUnimplemented.getCount(itemHeldByMouse);
         if (itemTemplate.matchItem(itemHeldByMouse))
         {
             count -= stackUsedQuantity;
@@ -189,7 +189,7 @@ public final class VirtualChestActions
                 if (stackOptional.isPresent())
                 {
                     ItemStackSnapshot slotItem = stackOptional.get().createSnapshot();
-                    int slotItemSize = slotItem.getCount();
+                    int slotItemSize = SpongeUnimplemented.getCount(slotItem);
                     if (itemTemplate.matchItem(slotItem))
                     {
                         count -= slotItemSize;
@@ -430,7 +430,7 @@ public final class VirtualChestActions
 
     private static class SoundManager
     {
-        private static SoundCategory soundCategory;
+        private static final SoundCategory soundCategory;
 
         private static void playSound(String command, Player player, Location<World> location, double pitch)
         {

@@ -175,7 +175,7 @@ public final class VirtualChestInventory implements DataSerializable
     @Override
     public DataContainer toContainer()
     {
-        DataContainer container = new MemoryDataContainer();
+        DataContainer container = SpongeUnimplemented.newDataContainer(DataView.SafetyMode.ALL_DATA_CLONED);
         container.set(TITLE, this.title);
         container.set(HEIGHT, this.height);
         switch (this.triggerItems.size())
