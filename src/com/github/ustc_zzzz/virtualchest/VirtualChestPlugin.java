@@ -131,25 +131,25 @@ public class VirtualChestPlugin
             String version = jsonObject.get("tag_name").getAsString();
             if (version.startsWith("v"))
             {
+                Logger l = this.logger;
                 version = version.substring(1);
                 String releaseName = jsonObject.get("name").getAsString();
                 String releaseUrl = jsonObject.get("html_url").getAsString();
                 String releaseDate = RFC3339.format(ISO8601.parse(jsonObject.get("published_at").getAsString()));
                 if (new ComparableVersion(version).compareTo(new ComparableVersion(VERSION)) > 0)
                 {
-                    this.logger.info("================================================================");
-                    this.logger.warn("   #   # ##### #   #      #   # ####  ####    #   ##### #####   ");
-                    this.logger.warn("   #   # #     # # #      #   # #   #  #  #  # #    #   #       ");
-                    this.logger.warn("   ##  # #     # # #      #   # #   #  #  # #   #   #   #       ");
-                    this.logger.warn("   # # # ##### # # #      #   # ####   #  # #   #   #   #####   ");
-                    this.logger.warn("   #  ## #     ## ##      #   # #      #  # #####   #   #       ");
-                    this.logger.warn("   #   # #     #   #      #   # #      #  # #   #   #   #       ");
-                    this.logger.warn("   #   # ##### #   #       ###  #     ####  #   #   #   #####   ");
-                    this.logger.warn("================================================================");
-                    this.logger.warn("An update was found: " + releaseName);
-                    this.logger.warn("This new update was released at: " + releaseDate);
-                    this.logger.warn("You can get the latest version at: " + releaseUrl);
-                    this.logger.info("================================================================");
+                    l.info("================================================================================");
+                    l.warn("███╗   ██╗███████╗██╗    ██╗  ██╗   ██╗██████╗ ██████╗  █████╗ ████████╗███████╗");
+                    l.warn("████╗  ██║██╔════╝██║    ██║  ██║   ██║██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔════╝");
+                    l.warn("██╔██╗ ██║█████╗  ██║ █╗ ██║  ██║   ██║██████╔╝██║  ██║███████║   ██║   █████╗  ");
+                    l.warn("██║╚██╗██║██╔══╝  ██║███╗██║  ██║   ██║██╔═══╝ ██║  ██║██╔══██║   ██║   ██╔══╝  ");
+                    l.warn("██║ ╚████║███████╗╚███╔███╔╝  ╚██████╔╝██║     ██████╔╝██║  ██║   ██║   ███████╗");
+                    l.warn("╚═╝  ╚═══╝╚══════╝ ╚══╝╚══╝    ╚═════╝ ╚═╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝");
+                    l.warn("================================================================================");
+                    l.warn("An update was found: " + releaseName);
+                    l.warn("This new update was released at: " + releaseDate);
+                    l.warn("You can get the latest version at: " + releaseUrl);
+                    l.info("================================================================================");
                 }
             }
         }
