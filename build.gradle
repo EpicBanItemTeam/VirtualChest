@@ -59,10 +59,10 @@ repositories {
         name = 'javalite'
         url = 'http://repo.javalite.io'
     }
-      maven {
-          name = 'jitpack'
-          url = 'https://jitpack.io'
-      }
+    maven {
+        name = 'jitpack'
+        url = 'https://jitpack.io'
+    }
 }
 
 version = '1.0.0-beta-7'
