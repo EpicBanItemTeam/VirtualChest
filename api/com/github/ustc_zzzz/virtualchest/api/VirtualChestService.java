@@ -46,7 +46,7 @@ public interface VirtualChestService
      *
      * @param identifier the id for the chest GUI to be opened
      * @param player     the player
-     * @return true if the chest GUI is available and marked to be opened, false otherwise
+     * @return true if the chest GUI is available and finally marked to be opened, false otherwise
      */
     boolean open(String identifier, Player player);
 
@@ -55,7 +55,7 @@ public interface VirtualChestService
      *
      * @param identifier the id for the chest GUI to be opened
      * @param player     the player
-     * @return true if the chest GUI is available and mark to be closed, false otherwise
+     * @return true if the chest GUI is available and finally mark to be closed, false otherwise
      */
     boolean close(String identifier, Player player);
 }
