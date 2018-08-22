@@ -17,6 +17,7 @@ import org.spongepowered.api.asset.Asset;
 import org.spongepowered.api.asset.AssetManager;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
+import org.spongepowered.api.event.impl.AbstractEvent;
 import org.spongepowered.api.item.inventory.Container;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.util.Tuple;
@@ -183,26 +184,7 @@ public class VirtualChestInventoryDispatcher implements VirtualChestService
 
     private void fireLoadEvent()
     {
-        Sponge.getEventManager().post(new VirtualChest.LoadEvent()
-        {
-            @Override
-            public void unregister(String identifier)
-            {
-                inventories.remove(identifier);
-            }
-
-            @Override
-            public void register(String identifier, VirtualChest chest)
-            {
-                inventories.put(identifier, chest);
-            }
-
-            @Override
-            public Cause getCause()
-            {
-                return SpongeUnimplemented.createCause(plugin);
-            }
-        });
+        Sponge.getEventManager().post(new LoadEvent());
     }
 
     private void updateInventories(Map<String, VirtualChestInventory> newInventories)
@@ -238,5 +220,26 @@ public class VirtualChestInventoryDispatcher implements VirtualChestService
             }
         }
         return newInventories;
+    }
+
+    private class LoadEvent extends AbstractEvent implements VirtualChest.LoadEvent
+    {
+        @Override
+        public void unregister(String identifier)
+        {
+            inventories.remove(identifier);
+        }
+
+        @Override
+        public void register(String identifier, VirtualChest chest)
+        {
+            inventories.put(identifier, chest);
+        }
+
+        @Override
+        public Cause getCause()
+        {
+            return SpongeUnimplemented.createCause(plugin);
+        }
     }
 }
