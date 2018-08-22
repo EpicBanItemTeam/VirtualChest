@@ -197,14 +197,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
     private void openInventory(VirtualChestInventory inventory, String name, Player player)
     {
         this.logger.debug("Player {} tries to create the GUI ({}) by a command", player.getName(), name);
-        try
-        {
-            this.plugin.getDispatcher().open(name, player);
-        }
-        catch (InvalidDataException e)
-        {
-            this.logger.error("There is something wrong with the GUI configuration (" + name + ")", e);
-        }
+        this.plugin.getDispatcher().open(name, player);
     }
 
     @Override
