@@ -59,6 +59,7 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
     private final VirtualChestPlugin plugin;
     private final SpongeExecutorService executorService;
     private final VirtualChestRecordManager recordManager;
+    private final VirtualChestInventoryDispatcher dispatcher;
     private final VirtualChestActionIntervalManager actionIntervalManager;
 
     private final Map<UUID, Inventory> inventories = new HashMap<>();
@@ -76,6 +77,7 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
+        this.dispatcher = plugin.getDispatcher();
         this.recordManager = plugin.getRecordManager();
         this.actionIntervalManager = plugin.getActionIntervalManager();
         this.executorService = Sponge.getScheduler().createSyncExecutor(plugin);
@@ -291,7 +293,7 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
                 {
                     Task.Builder builder = Sponge.getScheduler().createTaskBuilder().execute(task ->
                     {
-                        if (player.getOpenInventory().filter(targetContainer::equals).isPresent())
+                        if (dispatcher.isInventoryOpening(player, targetContainer))
                         {
                             timing.startTimingIfSync();
                             updateInventory(player, targetInventory, name);
