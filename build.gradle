@@ -65,7 +65,7 @@ repositories {
     }
 }
 
-version = '1.0.0-beta-7'
+version = '1.0.0-rc-1'
 archivesBaseName = 'VirtualChest'
 group = 'com.github.ustc_zzzz.virtualchest'
 
