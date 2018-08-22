@@ -23,6 +23,7 @@ buildscript {
 }
 
 apply plugin: 'java'
+apply plugin: 'maven-publish'
 apply plugin: 'org.javalite.activejdbc'
 apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'net.minecrell.vanilla.server.library'
@@ -30,7 +31,7 @@ apply plugin: 'net.minecrell.vanilla.server.library'
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
 
-def getGitHash = {
+def getProjectGitHash = {
     def stdout = new ByteArrayOutputStream()
     exec {
         commandLine 'git', 'rev-parse', '--short', 'HEAD'
@@ -39,7 +40,7 @@ def getGitHash = {
     return stdout.toString().trim()
 }
 
-def getReleaseDate = {
+def getProjectReleaseDate = {
     // noinspection UnnecessaryQualifiedReference
     def format = new java.text.SimpleDateFormat('yyyy-MM-dd') // RFC 3339
     return format.format(new Date())
@@ -74,27 +75,22 @@ minecraft {
     mappings = 'snapshot_20171003'
 
     replace '@version@', project.version
-    replace '@git_hash@', getGitHash()
-    replace '@release_date@', getReleaseDate()
+    replace '@git_hash@', getProjectGitHash()
+    replace '@release_date@', getProjectReleaseDate()
 }
 
 task apiJar(type: Jar, dependsOn: sourceJar) {
-    from 'build/sources/api/java/'
     baseName = 'VirtualChestAPI'
 
-    from 'api/LICENSE'
-}
-
-task javadocJar(type: Jar, dependsOn: javadoc) {
-    from 'build/docs/javadoc/'
-    classifier = 'javadoc'
+    from sourceSets.api.allSource
+    from sourceSets.api.output
+    from 'LICENSE'
 }
 
 artifacts {
     archives apiJar
     archives shadowJar
     archives sourceJar
-    archives javadocJar
 }
 
 dependencies {
@@ -115,6 +111,16 @@ sourceSets {
     api {
         java.srcDir 'api/'
     }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication).artifact apiJar
+    }
+}
+
+jar {
+    classifier = 'pure'
 }
 
 shadowJar {
