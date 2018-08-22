@@ -3,7 +3,6 @@ package com.github.ustc_zzzz.virtualchest.inventory;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.api.VirtualChest;
 import com.github.ustc_zzzz.virtualchest.api.VirtualChestService;
-import com.github.ustc_zzzz.virtualchest.api.event.VirtualChestLoadEvent;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
@@ -184,7 +183,7 @@ public class VirtualChestInventoryDispatcher implements VirtualChestService
 
     private void fireLoadEvent()
     {
-        Sponge.getEventManager().post(new VirtualChestLoadEvent()
+        Sponge.getEventManager().post(new VirtualChest.LoadEvent()
         {
             @Override
             public void unregister(String identifier)

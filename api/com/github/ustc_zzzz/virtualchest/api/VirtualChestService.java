@@ -1,6 +1,5 @@
 package com.github.ustc_zzzz.virtualchest.api;
 
-import com.github.ustc_zzzz.virtualchest.api.event.VirtualChestLoadEvent;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.service.ServiceManager;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
@@ -13,12 +12,12 @@ import java.util.Set;
  * {@link ServiceManager#provideUnchecked}. The implementation may not be thread safe.
  * <p>
  * The interface does not handle chest GUI registration. Please firstly register an event listener
- * for {@link VirtualChestLoadEvent} and then invoke {@link VirtualChestLoadEvent#register} method
- * to register all the chest GUIs.
+ * for {@link VirtualChest.LoadEvent} and while the event is fired, register all the chest GUIs by
+ * invoking {@link VirtualChest.LoadEvent#register} method.
  *
  * @author ustc_zzzz
  * @see ServiceManager
- * @see VirtualChestLoadEvent
+ * @see VirtualChest.LoadEvent
  */
 @NonnullByDefault
 public interface VirtualChestService
@@ -28,7 +27,7 @@ public interface VirtualChestService
      * <p>
      * The set itself is unmodifiable, while the values in this set may be changed dynamically. A
      * typical implementation is to wrap with {@link java.util.Collections#unmodifiableSet}. It is
-     * promised that the set would not be changed, until a {@link VirtualChestLoadEvent} is fired.
+     * promised that the set would not be changed until a {@link VirtualChest.LoadEvent} is fired.
      *
      * @return An unmodifiable set for ids.
      */
