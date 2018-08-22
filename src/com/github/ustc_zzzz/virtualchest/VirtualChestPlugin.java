@@ -13,7 +13,6 @@ import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderMana
 import com.github.ustc_zzzz.virtualchest.record.VirtualChestRecordManager;
 import com.github.ustc_zzzz.virtualchest.script.VirtualChestJavaScriptManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
-import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -31,7 +30,6 @@ import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.config.DefaultConfig;
 import org.spongepowered.api.data.DataManager;
-import org.spongepowered.api.data.persistence.InvalidDataException;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
@@ -190,33 +188,22 @@ public class VirtualChestPlugin
     public void onInteractItemPrimary(InteractItemEvent.Primary event, @First Player player)
     {
         String name = "";
-        Optional<VirtualChestInventory> inventoryOptional = Optional.empty();
-        for (String inventoryName : this.dispatcher.listInventories())
+        for (String inventoryName : this.dispatcher.ids())
         {
-            // noinspection ConstantConditions
-            VirtualChestInventory inventory = this.dispatcher.getInventory(inventoryName).get();
-            if (inventory.matchItemForOpeningWithPrimaryAction(event.getItemStack()))
+            if (player.hasPermission("virtualchest.open.self." + inventoryName))
             {
-                if (player.hasPermission("virtualchest.open.self." + inventoryName))
+                if (this.dispatcher.isInventoryMatchingPrimaryAction(inventoryName, event.getItemStack()))
                 {
-                    name = inventoryName;
-                    inventoryOptional = Optional.of(inventory);
                     event.setCancelled(true);
+                    name = inventoryName;
                     break;
                 }
             }
         }
-        if (inventoryOptional.isPresent())
+        if (!name.isEmpty())
         {
-            try
-            {
-                this.logger.debug("Player {} tries to create the GUI ({}) by primary action", player.getName(), name);
-                SpongeUnimplemented.openInventory(player, inventoryOptional.get().createInventory(player, name), this);
-            }
-            catch (InvalidDataException e)
-            {
-                this.logger.error("There is something wrong with the GUI configuration (" + name + ")", e);
-            }
+            this.logger.debug("Player {} tries to create the GUI ({}) by primary action", player.getName(), name);
+            this.dispatcher.open(name, player);
         }
     }
 
@@ -224,33 +211,22 @@ public class VirtualChestPlugin
     public void onInteractItemSecondary(InteractItemEvent.Secondary event, @First Player player)
     {
         String name = "";
-        Optional<VirtualChestInventory> inventoryOptional = Optional.empty();
-        for (String inventoryName : this.dispatcher.listInventories())
+        for (String inventoryName : this.dispatcher.ids())
         {
-            // noinspection ConstantConditions
-            VirtualChestInventory inventory = this.dispatcher.getInventory(inventoryName).get();
-            if (inventory.matchItemForOpeningWithSecondaryAction(event.getItemStack()))
+            if (player.hasPermission("virtualchest.open.self." + inventoryName))
             {
-                if (player.hasPermission("virtualchest.open.self." + inventoryName))
+                if (this.dispatcher.isInventoryMatchingSecondaryAction(inventoryName, event.getItemStack()))
                 {
-                    name = inventoryName;
-                    inventoryOptional = Optional.of(inventory);
                     event.setCancelled(true);
+                    name = inventoryName;
                     break;
                 }
             }
         }
-        if (inventoryOptional.isPresent())
+        if (!name.isEmpty())
         {
-            try
-            {
-                this.logger.debug("Player {} tries to create the GUI ({}) by secondary action", player.getName(), name);
-                SpongeUnimplemented.openInventory(player, inventoryOptional.get().createInventory(player, name), this);
-            }
-            catch (InvalidDataException e)
-            {
-                this.logger.error("There is something wrong with the GUI configuration (" + name + ")", e);
-            }
+            this.logger.debug("Player {} tries to create the GUI ({}) by secondary action", player.getName(), name);
+            this.dispatcher.open(name, player);
         }
     }
 
@@ -347,7 +323,7 @@ public class VirtualChestPlugin
         PluginContainer p = Sponge.getPlatform().getContainer(Platform.Component.IMPLEMENTATION);
         this.metrics.addCustomChart(
                 new Metrics.SingleLineChart("onlineInventories",
-                        () -> this.dispatcher.listInventories().size()));
+                        () -> this.dispatcher.ids().size()));
         this.metrics.addCustomChart(
                 new Metrics.AdvancedPie("placeholderapiVersion",
                         () -> ImmutableMap.of(this.placeholderManager.getPlaceholderAPIVersion(), 1)));

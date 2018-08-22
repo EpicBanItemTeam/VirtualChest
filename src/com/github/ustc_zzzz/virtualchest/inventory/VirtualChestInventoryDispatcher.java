@@ -1,8 +1,13 @@
 package com.github.ustc_zzzz.virtualchest.inventory;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChest;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestService;
+import com.github.ustc_zzzz.virtualchest.api.event.VirtualChestLoadEvent;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
@@ -12,51 +17,98 @@ import org.spongepowered.api.Sponge;
 import org.spongepowered.api.asset.Asset;
 import org.spongepowered.api.asset.AssetManager;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.event.cause.Cause;
+import org.spongepowered.api.item.inventory.Container;
+import org.spongepowered.api.item.inventory.ItemStackSnapshot;
+import org.spongepowered.api.util.Tuple;
+import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.util.*;
 
 /**
  * @author ustc_zzzz
  */
-public class VirtualChestInventoryDispatcher
+@NonnullByDefault
+public class VirtualChestInventoryDispatcher implements VirtualChestService
 {
     private final Logger logger;
     private final VirtualChestPlugin plugin;
     private final VirtualChestTranslation translation;
 
     private List<String> menuDirs = ImmutableList.of();
-    private Map<String, VirtualChestInventory> inventories = new LinkedHashMap<>();
+    private Map<String, VirtualChest> inventories = new LinkedHashMap<>();
+    private Map<UUID, Tuple<String, WeakReference<Container>>> containers = new HashMap<>();
 
     public VirtualChestInventoryDispatcher(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.translation = plugin.getTranslation();
+        Sponge.getServiceManager().setProvider(plugin, VirtualChestService.class, this);
     }
 
-    public void updateInventories(Map<String, VirtualChestInventory> newInventories, boolean purgeOldOnes)
+    @Override
+    public Set<String> ids()
     {
-        if (purgeOldOnes)
+        return Collections.unmodifiableSet(inventories.keySet());
+    }
+
+    @Override
+    public Optional<String> lookup(Player player)
+    {
+        UUID uuid = player.getUniqueId();
+        Tuple<String, WeakReference<Container>> tuple = containers.get(uuid);
+        return Optional.ofNullable(tuple).filter(t -> this.isInventoryOpening(player, t)).map(Tuple::getFirst);
+    }
+
+    @Override
+    public boolean open(String id, Player player)
+    {
+        UUID uuid = player.getUniqueId();
+        if (inventories.containsKey(id))
         {
-            inventories.clear();
+            Tuple<String, WeakReference<Container>> tuple = containers.get(uuid);
+            if (!Objects.nonNull(tuple) || !this.isInventoryOpening(player, id, tuple))
+            {
+                SpongeUnimplemented.openInventory(player, inventories.get(id).create(id, player), plugin);
+                Container container = player.getOpenInventory().orElseThrow(IllegalStateException::new);
+                containers.put(uuid, Tuple.of(id, new WeakReference<>(container)));
+                return true;
+            }
         }
-        for (Map.Entry<String, VirtualChestInventory> entry : newInventories.entrySet())
+        return false;
+    }
+
+    @Override
+    public boolean close(String id, Player player)
+    {
+        UUID uuid = player.getUniqueId();
+        if (inventories.containsKey(id))
         {
-            inventories.put(entry.getKey(), Objects.requireNonNull(entry.getValue()));
+            Tuple<String, WeakReference<Container>> tuple = containers.remove(uuid);
+            if (!Objects.isNull(tuple) && this.isInventoryOpening(player, id, tuple))
+            {
+                SpongeUnimplemented.closeInventory(player, plugin);
+                return true;
+            }
         }
+        return false;
     }
 
-    public Set<String> listInventories()
+    public boolean isInventoryMatchingPrimaryAction(String id, ItemStackSnapshot item)
     {
-        return inventories.keySet();
+        VirtualChest chest = inventories.get(id);
+        return chest instanceof VirtualChestInventory && ((VirtualChestInventory) chest).matchPrimaryAction(item);
     }
 
-    public Optional<VirtualChestInventory> getInventory(String inventoryName)
+    public boolean isInventoryMatchingSecondaryAction(String id, ItemStackSnapshot item)
     {
-        return Optional.ofNullable(inventories.get(inventoryName));
+        VirtualChest chest = inventories.get(id);
+        return chest instanceof VirtualChestInventory && ((VirtualChestInventory) chest).matchSecondaryAction(item);
     }
 
     public void loadConfig(CommentedConfigurationNode node) throws IOException
@@ -67,7 +119,8 @@ public class VirtualChestInventoryDispatcher
             Map<String, VirtualChestInventory> newOnes = new LinkedHashMap<>();
             this.menuDirs = ImmutableList.copyOf(node.getList(TypeToken.of(String.class), this::releaseExample));
             this.menuDirs.stream().map(configDir::resolve).forEach(p -> newOnes.putAll(this.scanDir(p.toFile())));
-            this.updateInventories(newOnes, true);
+            this.updateInventories(newOnes);
+            this.fireLoadEvent();
         }
         catch (ObjectMappingException e)
         {
@@ -109,6 +162,54 @@ public class VirtualChestInventoryDispatcher
         boolean hasSelfPermission = player.hasPermission("virtualchest.open.self." + inventoryName);
         boolean hasOthersPermission = player.hasPermission("virtualchest.open.others." + inventoryName);
         return hasSelfPermission || hasOthersPermission;
+    }
+
+    public boolean isInventoryOpening(Player player, Container container)
+    {
+        Optional<Container> openInventory = player.getOpenInventory();
+        return openInventory.isPresent() && container.equals(openInventory.get());
+    }
+
+    private boolean isInventoryOpening(Player player, Tuple<String, WeakReference<Container>> tuple)
+    {
+        Container container = tuple.getSecond().get();
+        return Objects.nonNull(container) && this.isInventoryOpening(player, container);
+    }
+
+    private boolean isInventoryOpening(Player player, String id, Tuple<String, WeakReference<Container>> tuple)
+    {
+        String first = tuple.getFirst();
+        return id.equals(first) && this.isInventoryOpening(player, tuple);
+    }
+
+    private void fireLoadEvent()
+    {
+        Sponge.getEventManager().post(new VirtualChestLoadEvent()
+        {
+            @Override
+            public void unregister(String identifier)
+            {
+                inventories.remove(identifier);
+            }
+
+            @Override
+            public void register(String identifier, VirtualChest chest)
+            {
+                inventories.put(identifier, chest);
+            }
+
+            @Override
+            public Cause getCause()
+            {
+                return SpongeUnimplemented.createCause(plugin);
+            }
+        });
+    }
+
+    private void updateInventories(Map<String, VirtualChestInventory> newInventories)
+    {
+        inventories.clear();
+        inventories.putAll(Maps.transformValues(newInventories, Objects::requireNonNull));
     }
 
     private Map<String, VirtualChestInventory> scanDir(File file)

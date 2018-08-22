@@ -39,15 +39,14 @@ public class VirtualChestInventoryCommandElement extends CommandElement
 
     @Nullable
     @Override
-    protected Object parseValue(CommandSource src, CommandArgs args) throws ArgumentParseException
+    protected String parseValue(CommandSource src, CommandArgs args) throws ArgumentParseException
     {
         String name = args.next();
-        Optional<VirtualChestInventory> inventoryOptional = this.dispatcher.getInventory(name);
-        return new Tuple<>(inventoryOptional.filter(inventory -> this.hasPermission(src, name)).orElseThrow(() ->
+        if (this.dispatcher.ids().contains(name) && this.hasPermission(src, name))
         {
-            Text error = this.translation.take("virtualchest.open.notExists", name);
-            return args.createError(error);
-        }), name);
+            return name;
+        }
+        throw args.createError(this.translation.take("virtualchest.open.notExists", name));
     }
 
     @Override
@@ -55,7 +54,7 @@ public class VirtualChestInventoryCommandElement extends CommandElement
     {
         String prefix = args.nextIfPresent().orElse("");
         Predicate<String> predicate = new StartsWithPredicate(prefix).and(n -> this.hasPermission(src, n));
-        return ImmutableList.copyOf(this.dispatcher.listInventories().stream().filter(predicate).iterator());
+        return ImmutableList.copyOf(this.dispatcher.ids().stream().filter(predicate).iterator());
     }
 
     private boolean hasPermission(CommandSource source, String inventoryName)

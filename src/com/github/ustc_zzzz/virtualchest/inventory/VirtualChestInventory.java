@@ -5,6 +5,7 @@ import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionDispatcher;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActions;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChest;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
@@ -42,7 +43,7 @@ import java.util.function.Supplier;
  * @author ustc_zzzz
  */
 @NonnullByDefault
-public final class VirtualChestInventory implements DataSerializable
+public final class VirtualChestInventory implements VirtualChest, DataSerializable
 {
     static final DataQuery TITLE = Queries.TEXT_TITLE;
     static final DataQuery HEIGHT = DataQuery.of("Rows");
@@ -89,31 +90,39 @@ public final class VirtualChestInventory implements DataSerializable
         this.acceptableActionIntervalTick = builder.actionIntervalTick.map(OptionalInt::of).orElse(OptionalInt.empty());
     }
 
-    public boolean matchItemForOpeningWithPrimaryAction(ItemStackSnapshot item)
+    public boolean matchPrimaryAction(ItemStackSnapshot item)
     {
         return triggerItems.stream().anyMatch(t -> t.matchItemForOpeningWithPrimaryAction(item));
     }
 
-    public boolean matchItemForOpeningWithSecondaryAction(ItemStackSnapshot item)
+    public boolean matchSecondaryAction(ItemStackSnapshot item)
     {
         return triggerItems.stream().anyMatch(t -> t.matchItemForOpeningWithSecondaryAction(item));
     }
 
-    public Inventory createInventory(Player player, String inventoryName)
+    @Override
+    public Inventory create(String inventoryName, Player player)
     {
         UUID uuid = player.getUniqueId();
         if (!inventories.containsKey(uuid))
         {
-            EventListener listener = new EventListener(player, inventoryName);
-            Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
-                    .property(InventoryDimension.PROPERTY_NAME, new InventoryDimension(9, this.height))
-                    .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
-                    .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
-                    .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
-                    .listener(ClickInventoryEvent.class, listener::fireClickEvent)
-                    .build(this.plugin);
-            inventories.put(uuid, chestInventory);
-            return chestInventory;
+            try
+            {
+                EventListener listener = new EventListener(player, inventoryName);
+                Inventory chestInventory = Inventory.builder().of(InventoryArchetypes.CHEST).withCarrier(player)
+                        .property(InventoryDimension.PROPERTY_NAME, new InventoryDimension(9, this.height))
+                        .property(InventoryTitle.PROPERTY_NAME, new InventoryTitle(this.title))
+                        .listener(InteractInventoryEvent.Close.class, listener::fireCloseEvent)
+                        .listener(InteractInventoryEvent.Open.class, listener::fireOpenEvent)
+                        .listener(ClickInventoryEvent.class, listener::fireClickEvent)
+                        .build(this.plugin);
+                inventories.put(uuid, chestInventory);
+                return chestInventory;
+            }
+            catch (Exception e)
+            {
+                this.logger.error("There is something wrong with the GUI configuration (" + inventoryName + ")", e);
+            }
         }
         return inventories.get(uuid);
     }

@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.virtualchest.command;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChest;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
@@ -130,11 +131,9 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
     private CommandResult processOpenCommand(CommandSource source, CommandContext args) throws CommandException
     {
         // noinspection ConstantConditions
-        Tuple<VirtualChestInventory, String> t = args.<Tuple<VirtualChestInventory, String>>getOne("inventory").get();
+        String inventoryName = args.<String>getOne("inventory").get();
         Collection<Player> players = args.getAll("player");
         Scheduler spongeScheduler = Sponge.getScheduler();
-        VirtualChestInventory inventory = t.getFirst();
-        String inventoryName = t.getSecond();
         for (Player player : players)
         {
             if (player.equals(source))
@@ -154,7 +153,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
                 }
             }
             Task.Builder builder = spongeScheduler.createTaskBuilder().name("VirtualChestCommandManager");
-            builder.execute(task -> this.openInventory(inventory, inventoryName, player)).submit(this.plugin);
+            builder.execute(task -> this.plugin.getDispatcher().open(inventoryName, player)).submit(this.plugin);
         }
         return CommandResult.success();
     }
@@ -167,7 +166,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
             Text error = translation.take("virtualchest.list.noPermission", source.getName());
             throw new CommandException(error);
         }
-        Set<String> inventories = dispatcher.listInventories();
+        Set<String> inventories = dispatcher.ids();
         if (source instanceof Player)
         {
             Predicate<String> inventoryNamePredict = name -> dispatcher.hasPermission((Player) source, name);
@@ -200,7 +199,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
         this.logger.debug("Player {} tries to create the GUI ({}) by a command", player.getName(), name);
         try
         {
-            SpongeUnimplemented.openInventory(player, inventory.createInventory(player, name), this);
+            this.plugin.getDispatcher().open(name, player);
         }
         catch (InvalidDataException e)
         {
