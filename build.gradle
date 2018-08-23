@@ -17,6 +17,7 @@ buildscript {
     dependencies {
         classpath 'net.minecrell:VanillaGradle:2.0.3_1'
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.4'
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7'
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
         classpath 'org.javalite:activejdbc-gradle-plugin:1.4.13-SNAPSHOT'
     }
@@ -24,12 +25,22 @@ buildscript {
 
 apply plugin: 'java'
 apply plugin: 'maven-publish'
+apply plugin: 'com.jfrog.bintray'
 apply plugin: 'org.javalite.activejdbc'
 apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'net.minecrell.vanilla.server.library'
 
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
+
+def getProjectVersion = {
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'describe', '--abbrev=0', '--tags'
+        standardOutput = stdout
+    }
+    return stdout.toString().trim().substring(1) // drop the 'v' prefix
+}
 
 def getProjectGitHash = {
     def stdout = new ByteArrayOutputStream()
@@ -41,9 +52,13 @@ def getProjectGitHash = {
 }
 
 def getProjectReleaseDate = {
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'show', '-s', '--format=%ct'
+        standardOutput = stdout
+    }
     // noinspection UnnecessaryQualifiedReference
-    def format = new java.text.SimpleDateFormat('yyyy-MM-dd') // RFC 3339
-    return format.format(new Date())
+    return new java.util.Date(Long.valueOf(stdout.toString().trim()) * 1000)
 }
 
 repositories {
@@ -66,9 +81,9 @@ repositories {
     }
 }
 
-version = '1.0.0-rc-1'
+version = getProjectVersion()
+group = 'com.github.ustc_zzzz'
 archivesBaseName = 'VirtualChest'
-group = 'com.github.ustc_zzzz.virtualchest'
 
 minecraft {
     version = '1.12.2'
@@ -76,7 +91,12 @@ minecraft {
 
     replace '@version@', project.version
     replace '@git_hash@', getProjectGitHash()
-    replace '@release_date@', getProjectReleaseDate()
+    replace '@release_date@', getProjectReleaseDate().with {
+        // noinspection UnnecessaryQualifiedReference
+        def format = new java.text.SimpleDateFormat('yyyy-MM-dd', Locale.ENGLISH) // RFC 3339
+        format.setTimeZone(TimeZone.getTimeZone('GMT+08:00')) // the author comes from China
+        return format.format(it)
+    }
 }
 
 task apiJar(type: Jar, dependsOn: sourceJar) {
@@ -116,6 +136,25 @@ sourceSets {
 publishing {
     publications {
         maven(MavenPublication).artifact apiJar
+        maven(MavenPublication).artifactId 'VirtualChestAPI'
+    }
+}
+
+bintray {
+    user = 'zzzz'
+    publications = ['maven']
+    key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
+    pkg {
+        repo = 'VirtualChest'
+        licenses = ['LGPL-3.0']
+        name = 'VirtualChestAPI'
+        vcsUrl = 'https://github.com/ustc-zzzz/VirtualChest.git'
+        version {
+            name = project.version
+            vcsTag = 'v' + project.version
+            released = getProjectReleaseDate()
+            desc = 'VirtualChestAPI v' + project.version
+        }
     }
 }
 
