@@ -166,14 +166,12 @@ shadowJar {
     classifier = null
 
     dependencies {
-        // noinspection GroovyAssignabilityCheck
-        include dependency('org.bstats:.*')
-        // noinspection GroovyAssignabilityCheck
-        include dependency('org.javalite:.*')
+        it.include it.dependency('org.bstats:.*')
+        it.include it.dependency('org.javalite:.*')
     }
 
-    relocate 'org.bstats', project.group.toString() + '.util.repackage.org.bstats'
-    relocate 'org.javalite', project.group.toString() + '.util.repackage.org.javalite'
+    relocate 'org.bstats', project.group.toString() + '.virtualchest.util.repackage.org.bstats'
+    relocate 'org.javalite', project.group.toString() + '.virtualchest.util.repackage.org.javalite'
 }
 
 reobf {
