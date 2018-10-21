@@ -11,6 +11,8 @@ import org.spongepowered.api.util.annotation.NonnullByDefault;
 @NonnullByDefault
 public class VirtualChestHandheldItem extends VirtualChestItemTemplateWithNBT
 {
+    public static final VirtualChestHandheldItem DEFAULT = new VirtualChestHandheldItem();
+
     private static final DataQuery COUNT = DataQuery.of("Count");
     private static final DataQuery SEARCH_INVENTORY = DataQuery.of("SearchInventory");
     private static final DataQuery REPETITION_UPPER_LIMIT = DataQuery.of("RepetitionUpperLimit");
@@ -19,7 +21,7 @@ public class VirtualChestHandheldItem extends VirtualChestItemTemplateWithNBT
     private final boolean searchInventory;
     private final int repetitionLimit;
 
-    public VirtualChestHandheldItem()
+    private VirtualChestHandheldItem()
     {
         super();
         this.count = 0;

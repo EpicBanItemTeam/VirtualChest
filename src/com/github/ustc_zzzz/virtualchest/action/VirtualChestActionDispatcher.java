@@ -172,15 +172,7 @@ public class VirtualChestActionDispatcher
 
     private VirtualChestHandheldItem parseHandheldItem(Optional<DataView> optional)
     {
-        // noinspection OptionalIsPresent
-        if (optional.isPresent())
-        {
-            return new VirtualChestHandheldItem(optional.get());
-        }
-        else
-        {
-            return new VirtualChestHandheldItem();
-        }
+        return optional.map(VirtualChestHandheldItem::new).orElse(VirtualChestHandheldItem.DEFAULT);
     }
 
     public static List<String> parseCommand(String commandSequence)
