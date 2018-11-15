@@ -95,17 +95,15 @@ public class VirtualChestPermissionManager implements ContextCalculator<Subject>
     @Override
     public void accumulateContexts(Subject subject, Set<Context> accumulator)
     {
-        VirtualChestActions actions = this.plugin.getVirtualChestActions();
-        for (UUID actionUUID : actions.getActivatedActions(subject.getIdentifier()))
+        this.plugin.getVirtualChestActions().getActivatedActions(subject.getIdentifier()).forEach(actionUUID ->
         {
             SubjectData data = subject.getTransientSubjectData();
             Context context = new Context(CONTEXT_KEY, actionUUID.toString());
             Map<String, Boolean> permissions = data.getPermissions(Collections.singleton(context));
-
             this.logger.debug("Ignored {} permission(s) for action {} (context):", permissions.size(), actionUUID);
             permissions.forEach((permission, state) -> this.logger.debug("- {} ({})", permission, state));
             accumulator.add(context);
-        }
+        });
     }
 
     @Override

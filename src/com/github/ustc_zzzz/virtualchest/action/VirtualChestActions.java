@@ -6,6 +6,7 @@ import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import org.slf4j.Logger;
 import org.spongepowered.api.GameRegistry;
@@ -50,7 +51,7 @@ public final class VirtualChestActions
     private final Map<String, VirtualChestActionExecutor> executors = new HashMap<>();
 
     private final Scheduler scheduler = Sponge.getScheduler();
-    private final SetMultimap<String, UUID> activatedIdentifiers = HashMultimap.create();
+    private final SetMultimap<String, UUID> activatedIdentifiers = Multimaps.synchronizedSetMultimap(HashMultimap.create());
 
     private ChannelBinding.RawDataChannel bungeeCordChannel;
 
