@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.inject.Inject;
+import de.randombyte.byteitems.api.ByteItemsService;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import org.bstats.sponge.Metrics;
@@ -48,6 +49,7 @@ import org.spongepowered.api.profile.GameProfile;
 import org.spongepowered.api.text.channel.MessageReceiver;
 import org.spongepowered.plugin.meta.version.ComparableVersion;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.HttpsURLConnection;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -61,7 +63,10 @@ import java.util.Optional;
  * @author ustc_zzzz
  */
 @Plugin(name = "VirtualChest", id = VirtualChestPlugin.PLUGIN_ID,
-        dependencies = {@Dependency(id = "spongeapi"), @Dependency(id = "placeholderapi", version = "[4.0,)")},
+        dependencies = {
+            @Dependency(id = "placeholderapi", version = "[4.0,)"),
+            @Dependency(id = "byte-items", version = "[2.3,)", optional = true)
+        },
         authors = {"ustc_zzzz"}, version = VirtualChestPlugin.VERSION, description = VirtualChestPlugin.DESCRIPTION)
 public class VirtualChestPlugin
 {
@@ -113,6 +118,9 @@ public class VirtualChestPlugin
     private VirtualChestPlaceholderManager placeholderManager;
 
     private VirtualChestActionIntervalManager actionIntervalManager;
+
+    @Nullable
+    private Object byteItemsService = null;
 
     private boolean doCheckUpdate = true;
 
@@ -285,6 +293,11 @@ public class VirtualChestPlugin
         this.placeholderManager = new VirtualChestPlaceholderManager(this);
         this.virtualChestCommandManager = new VirtualChestCommandManager(this);
         this.actionIntervalManager = new VirtualChestActionIntervalManager(this);
+
+        if (Sponge.getPluginManager().getPlugin("byte-items").isPresent())
+        {
+            byteItemsService = Sponge.getServiceManager().provide(ByteItemsService.class).get();
+        }
     }
 
     @Listener
@@ -385,5 +398,11 @@ public class VirtualChestPlugin
     public VirtualChestActionIntervalManager getActionIntervalManager()
     {
         return this.actionIntervalManager;
+    }
+
+    @Nullable
+    public Object getByteItemsService()
+    {
+        return byteItemsService;
     }
 }

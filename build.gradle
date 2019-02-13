@@ -114,6 +114,7 @@ dependencies {
     compile 'org.spongepowered:spongeapi:7.1.0-SNAPSHOT'
     compile 'org.spongepowered:spongecommon:7.1.0-SNAPSHOT:dev'
     compile 'com.github.rojo8399:PlaceholderAPI:master-SNAPSHOT'
+    compile 'com.github.randombyte-developer:byte-items:v2.3.1'
 }
 
 sourceSets {
