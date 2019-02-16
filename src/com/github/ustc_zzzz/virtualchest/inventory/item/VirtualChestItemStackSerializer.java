@@ -1,5 +1,6 @@
 package com.github.ustc_zzzz.virtualchest.inventory.item;
 
+import co.aikar.timings.Timing;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
@@ -153,8 +154,7 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
 
     private ConfigurationNode applyPlaceholders(Player player, DataView view)
     {
-        VirtualChestTimings.applyPlaceholders().startTimingIfSync();
-        try
+        try (Timing ignored = VirtualChestTimings.applyPlaceholders().startTiming())
         {
             return this.applyPlaceholders(player, this.convertToConfigurationNode(view));
         }
@@ -166,16 +166,11 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
         {
             throw new InvalidDataException(e);
         }
-        finally
-        {
-            VirtualChestTimings.applyPlaceholders().stopTimingIfSync();
-        }
     }
 
     private ItemStack deserializeItemFrom(ConfigurationNode node)
     {
-        VirtualChestTimings.deserializeItem().startTimingIfSync();
-        try
+        try (Timing ignored = VirtualChestTimings.deserializeItem().startTiming())
         {
             ItemStack stack = Objects.requireNonNull(node.getValue(TypeToken.of(ItemStack.class)));
             for (Map.Entry<Object, ? extends ConfigurationNode> entry : node.getChildrenMap().entrySet())
@@ -206,10 +201,6 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
         catch (Exception e)
         {
             throw new InvalidDataException(e);
-        }
-        finally
-        {
-            VirtualChestTimings.deserializeItem().stopTimingIfSync();
         }
     }
 

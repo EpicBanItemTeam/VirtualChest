@@ -141,13 +141,16 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
 
     private void updateInventory(Player player, Inventory inventory, String name)
     {
-        int index = 0;
-        for (Slot slot : inventory.<Slot>slots())
+        try (Timing ignored1 = VirtualChestTimings.updateAndRefreshMappings(name).startTiming())
         {
-            Timing timing = VirtualChestTimings.updateAndRefreshMapping(name, index);
-            timing.startTimingIfSync();
-            this.setItemInInventory(player, slot, index++, name);
-            timing.stopTimingIfSync();
+            int index = 0;
+            for (Slot slot : inventory.<Slot>slots())
+            {
+                try (Timing ignored2 = VirtualChestTimings.updateAndRefreshMapping(name, index).startTiming())
+                {
+                    this.setItemInInventory(player, slot, index++, name);
+                }
+            }
         }
     }
 
@@ -276,18 +279,23 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
             {
                 Player player = optional.get();
                 UUID actionUUID = UUID.randomUUID();
+
                 Container targetContainer = e.getTargetInventory();
                 Inventory targetInventory = targetContainer.first();
-                Timing timing = VirtualChestTimings.updateAndRefreshMappings(name);
+
+                VirtualChestActions actions = plugin.getVirtualChestActions();
                 Map<String, Object> context = ImmutableMap.of(VirtualChestActions.ACTION_UUID_KEY, actionUUID);
 
-                boolean record = recordManager.filter(name, VirtualChestInventory.this);
-                if (record)
+                if (recordManager.filter(name, VirtualChestInventory.this))
                 {
                     recordManager.recordOpen(actionUUID, name, player);
                     logger.debug("Player {} opens the chest GUI", player.getName());
+                    actions.submitCommands(player, parsedOpenAction.stream(), context, true);
                 }
-                plugin.getVirtualChestActions().submitCommands(player, parsedOpenAction.stream(), context, record);
+                else
+                {
+                    actions.submitCommands(player, parsedOpenAction.stream(), context, false);
+                }
 
                 if (updateIntervalTick > 0)
                 {
@@ -295,9 +303,7 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
                     {
                         if (dispatcher.isInventoryOpening(player, targetContainer))
                         {
-                            timing.startTimingIfSync();
                             updateInventory(player, targetInventory, name);
-                            timing.stopTimingIfSync();
                         }
                         else
                         {
@@ -309,9 +315,7 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
 
                 plugin.getScriptManager().onOpeningInventory(player);
 
-                timing.startTimingIfSync();
                 updateInventory(player, targetInventory, name);
-                timing.stopTimingIfSync();
             }
         }
 
@@ -372,56 +376,56 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
 
         private CompletableFuture<Boolean> runCommand(ClickInventoryEvent e, Player player, int slotIndex)
         {
-            Timing timing = VirtualChestTimings.updateAndRefreshMapping(name, slotIndex);
-            timing.startTimingIfSync();
-
-            String playerName = player.getName();
-            ClickStatus status = new ClickStatus(e);
-            String keyString = slotIndexToKey(slotIndex);
             CompletableFuture<Boolean> future = new CompletableFuture<>();
-            VirtualChestPermissionManager permissionManager = plugin.getPermissionManager();
-
             List<VirtualChestItem> items = VirtualChestInventory.this.items.get(slotIndex);
-            logger.debug("Player {} tries to click the chest GUI at {} with {}", playerName, keyString, status);
 
             int size = items.size();
             List<CompletableFuture<?>> setFutures = new ArrayList<>(size);
             List<Supplier<CompletableFuture<?>>> clearFutures = new ArrayList<>(size);
-            for (VirtualChestItem item : items)
+
+            try (Timing ignored = VirtualChestTimings.updateAndRefreshMapping(name, slotIndex).startTiming())
             {
-                UUID actionUUID = UUID.randomUUID();
-                List<String> list = item.getIgnoredPermissions();
-                setFutures.add(permissionManager.setIgnored(player, actionUUID, list));
-                clearFutures.add(() ->
+                String playerName = player.getName();
+                ClickStatus status = new ClickStatus(e);
+                String keyString = slotIndexToKey(slotIndex);
+                VirtualChestPermissionManager permissionManager = plugin.getPermissionManager();
+
+                logger.debug("Player {} tries to click the chest GUI at {} with {}", playerName, keyString, status);
+
+                for (VirtualChestItem item : items)
                 {
-                    if (future.isDone() || !item.matchRequirements(player, slotIndex, playerName))
+                    UUID actionUUID = UUID.randomUUID();
+                    List<String> list = item.getIgnoredPermissions();
+                    setFutures.add(permissionManager.setIgnored(player, actionUUID, list));
+                    clearFutures.add(() ->
                     {
-                        return permissionManager.clearIgnored(player, actionUUID);
-                    }
+                        if (future.isDone() || !item.matchRequirements(player, slotIndex, playerName))
+                        {
+                            return permissionManager.clearIgnored(player, actionUUID);
+                        }
 
-                    boolean record = recordManager.filter(name, VirtualChestInventory.this);
-                    Optional<VirtualChestActionDispatcher> optional = item.getAction(status);
-                    if (record)
-                    {
-                        recordManager.recordSlotClick(actionUUID, name, slotIndex, status, player);
-                        logger.debug("Player {} now submits an action: {}", playerName, actionUUID);
-                    }
+                        boolean record = recordManager.filter(name, VirtualChestInventory.this);
+                        Optional<VirtualChestActionDispatcher> optional = item.getAction(status);
+                        if (record)
+                        {
+                            recordManager.recordSlotClick(actionUUID, name, slotIndex, status, player);
+                            logger.debug("Player {} now submits an action: {}", playerName, actionUUID);
+                        }
 
-                    if (!optional.isPresent())
-                    {
-                        future.complete(true);
-                        return permissionManager.clearIgnored(player, actionUUID);
-                    }
+                        if (!optional.isPresent())
+                        {
+                            future.complete(true);
+                            return permissionManager.clearIgnored(player, actionUUID);
+                        }
 
-                    Tuple<Boolean, CompletableFuture<CommandResult>> tuple;
-                    tuple = optional.get().runCommand(plugin, actionUUID, player, record);
+                        Tuple<Boolean, CompletableFuture<CommandResult>> tuple;
+                        tuple = optional.get().runCommand(plugin, actionUUID, player, record);
 
-                    future.complete(tuple.getFirst());
-                    return tuple.getSecond().thenCompose(r -> permissionManager.clearIgnored(player, actionUUID));
-                });
+                        future.complete(tuple.getFirst());
+                        return tuple.getSecond().thenCompose(r -> permissionManager.clearIgnored(player, actionUUID));
+                    });
+                }
             }
-
-            timing.stopTimingIfSync();
 
             CompletableFuture.allOf(setFutures.toArray(new CompletableFuture<?>[0]))
                     .thenComposeAsync(v -> CompletableFuture.allOf(clearFutures.stream().map(Supplier::get)

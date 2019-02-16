@@ -1,5 +1,6 @@
 package com.github.ustc_zzzz.virtualchest.script;
 
+import co.aikar.timings.Timing;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
@@ -71,9 +72,8 @@ public class VirtualChestJavaScriptManager
     {
         String scriptLiteral = tuple.getFirst();
         ScriptContext context = this.getContext(player);
-        try
+        try (Timing ignored = VirtualChestTimings.executeRequirementScript().startTiming())
         {
-            VirtualChestTimings.executeRequirementScript().startTimingIfSync();
             return Boolean.valueOf(String.valueOf(tuple.getSecond().eval(context)));
         }
         catch (ScriptException e)
@@ -86,7 +86,6 @@ public class VirtualChestJavaScriptManager
         finally
         {
             this.removeContextAttributes(context);
-            VirtualChestTimings.executeRequirementScript().stopTimingIfSync();
         }
     }
 
@@ -99,18 +98,18 @@ public class VirtualChestJavaScriptManager
 
     private ScriptContext getContext(Player player)
     {
-        VirtualChestTimings.prepareRequirementBindings().startTimingIfSync();
+        try (Timing ignored = VirtualChestTimings.prepareRequirementBindings().startTiming())
+        {
+            SimpleScriptContext context = this.tempContext;
+            VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
+            Function<String, Object> papi = s -> Text.of(placeholderManager.replacePlaceholder(player, s)).toPlain();
 
-        SimpleScriptContext context = this.tempContext;
-        VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
-        Function<String, Object> papi = s -> Text.of(placeholderManager.replacePlaceholder(player, s)).toPlain();
+            context.setAttribute("papi", papi, ScriptContext.ENGINE_SCOPE);
+            context.setAttribute("player", player, ScriptContext.ENGINE_SCOPE);
+            context.setAttribute("tick", this.getTickFromOpeningInventory(player), ScriptContext.ENGINE_SCOPE);
 
-        context.setAttribute("papi", papi, ScriptContext.ENGINE_SCOPE);
-        context.setAttribute("player", player, ScriptContext.ENGINE_SCOPE);
-        context.setAttribute("tick", this.getTickFromOpeningInventory(player), ScriptContext.ENGINE_SCOPE);
-
-        VirtualChestTimings.prepareRequirementBindings().stopTimingIfSync();
-        return context;
+            return context;
+        }
     }
 
     private Long getTickFromOpeningInventory(Player player)

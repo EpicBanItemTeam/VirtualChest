@@ -128,9 +128,7 @@ public class VirtualChestItem
 
     public void fillInventory(Player player, Inventory inventory, int index, String name)
     {
-        Timing timing = VirtualChestTimings.setItemInInventory(name, index);
-        timing.startTimingIfSync();
-        try
+        try (Timing ignored = VirtualChestTimings.setItemInInventory(name, index).startTiming())
         {
             inventory.set(this.serializer.apply(player, this.serializedStack));
         }
@@ -139,19 +137,14 @@ public class VirtualChestItem
             String posString = VirtualChestInventory.slotIndexToKey(index);
             throw new InvalidDataException("Find error when generating item at " + posString, e);
         }
-        finally
-        {
-            timing.stopTimingIfSync();
-        }
     }
 
     public boolean matchRequirements(Player player, int index, String name)
     {
-        Timing timing = VirtualChestTimings.checkRequirements(name, index);
-        timing.startTimingIfSync();
-        boolean matchRequirements = this.plugin.getScriptManager().execute(player, this.requirements);
-        timing.stopTimingIfSync();
-        return matchRequirements;
+        try (Timing ignored = VirtualChestTimings.checkRequirements(name, index).startTiming())
+        {
+            return this.plugin.getScriptManager().execute(player, this.requirements);
+        }
     }
 
     public Optional<VirtualChestActionDispatcher> getAction(VirtualChestInventory.ClickStatus status)
