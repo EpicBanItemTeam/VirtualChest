@@ -123,7 +123,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
         }
         catch (MalformedURLException | ParseException e)
         {
-            Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
         return CommandResult.success();
     }

@@ -260,7 +260,7 @@ public class VirtualChestPlugin
         }
         catch (IOException e)
         {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -313,7 +313,7 @@ public class VirtualChestPlugin
         }
         catch (IOException e)
         {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
         this.addMetricsInformation();
     }

@@ -3,7 +3,6 @@ package com.github.ustc_zzzz.virtualchest.unsafe;
 import org.objectweb.asm.Type;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataView;
-import org.spongepowered.api.data.MemoryDataContainer;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.item.inventory.Inventory;
@@ -267,7 +266,7 @@ public class SpongeUnimplemented
     @SuppressWarnings("deprecation")
     public static DataContainer newDataContainer(DataView.SafetyMode safetyMode)
     {
-        return new MemoryDataContainer(safetyMode);
+        return new org.spongepowered.api.data.MemoryDataContainer(safetyMode);
     }
 
     static

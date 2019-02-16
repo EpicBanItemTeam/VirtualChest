@@ -423,7 +423,7 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
 
             timing.stopTimingIfSync();
 
-            CompletableFuture.allOf(setFutures.toArray(new CompletableFuture[0]))
+            CompletableFuture.allOf(setFutures.toArray(new CompletableFuture<?>[0]))
                     .thenComposeAsync(v -> CompletableFuture.allOf(clearFutures.stream().map(Supplier::get)
                             .toArray(CompletableFuture[]::new)), executorService).thenRun(() -> future.complete(true));
 

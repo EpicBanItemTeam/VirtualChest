@@ -15,6 +15,8 @@ import java.util.UUID;
 @Table(VirtualChestRecordManager.CLOSE_RECORD)
 public class VirtualChestCloseRecord extends Model
 {
+    private static final long serialVersionUID = 1L;
+
     VirtualChestCloseRecord(UUID uuid, String menuName, Player p)
     {
         this.set("submit_time", new Date());

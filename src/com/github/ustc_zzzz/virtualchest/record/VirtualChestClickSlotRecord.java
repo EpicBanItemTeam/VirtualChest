@@ -16,6 +16,8 @@ import java.util.UUID;
 @Table(VirtualChestRecordManager.SLOT_CLICK_RECORD)
 public class VirtualChestClickSlotRecord extends Model
 {
+    private static final long serialVersionUID = 1L;
+
     VirtualChestClickSlotRecord(UUID uuid, String menuName, int menuSlot, VirtualChestInventory.ClickStatus s, Player p)
     {
         this.set("submit_time", new Date());
