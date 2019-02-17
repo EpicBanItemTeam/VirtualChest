@@ -64,6 +64,7 @@ import java.util.Optional;
  */
 @Plugin(name = "VirtualChest", id = VirtualChestPlugin.PLUGIN_ID,
         dependencies = {
+            @Dependency(id = "spongeapi"),
             @Dependency(id = "placeholderapi", version = "[4.0,)"),
             @Dependency(id = "byte-items", version = "[2.3,)", optional = true)
         },
