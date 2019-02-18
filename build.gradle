@@ -10,8 +10,8 @@ buildscript {
             url = 'http://repo.minecrell.net/releases'
         }
         maven {
-            name = 'javalite'
-            url = 'http://repo.javalite.io'
+            name = 'Sonatype Snapshots'
+            url = 'https://oss.sonatype.org/content/repositories/snapshots/'
         }
     }
     dependencies {
@@ -19,14 +19,13 @@ buildscript {
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.4'
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7'
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
-        classpath 'org.javalite:activejdbc-gradle-plugin:1.4.13-SNAPSHOT'
+        classpath 'org.javalite:activejdbc-gradle-plugin:2.2'
     }
 }
 
 apply plugin: 'java'
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.bintray'
-apply plugin: 'org.javalite.activejdbc'
 apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'net.minecrell.vanilla.server.library'
 
@@ -72,8 +71,8 @@ repositories {
         url = 'http://repo.bstats.org/content/repositories/releases'
     }
     maven {
-        name = 'javalite'
-        url = 'http://repo.javalite.io'
+        name = 'Sonatype Snapshots'
+        url = 'https://oss.sonatype.org/content/repositories/snapshots/'
     }
     maven {
         name = 'jitpack'
@@ -120,11 +119,12 @@ artifacts {
 
 dependencies {
     compile 'org.bstats:bstats-sponge:1.2'
-    compile 'org.javalite:activejdbc:1.4.13-SNAPSHOT'
+    compile 'org.javalite:activejdbc:2.2'
 
     compile 'org.spongepowered:spongeapi:7.1.0-SNAPSHOT'
     compile 'org.spongepowered:spongecommon:7.1.0-SNAPSHOT:dev'
     compile 'com.github.rojo8399:PlaceholderAPI:master-SNAPSHOT'
+    compile 'com.github.randombyte-developer:byte-items:v2.3.1'
 }
 
 sourceSets {

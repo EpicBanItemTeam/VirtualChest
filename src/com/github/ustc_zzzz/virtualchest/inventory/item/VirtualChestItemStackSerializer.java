@@ -6,6 +6,7 @@ import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.reflect.TypeToken;
+import de.randombyte.byteitems.api.ByteItemsService;
 import ninja.leaping.configurate.ConfigurationNode;
 import ninja.leaping.configurate.ConfigurationOptions;
 import ninja.leaping.configurate.SimpleConfigurationNode;
@@ -172,7 +173,29 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
     {
         try (Timing ignored = VirtualChestTimings.deserializeItem().startTiming())
         {
-            ItemStack stack = Objects.requireNonNull(node.getValue(TypeToken.of(ItemStack.class)));
+            ItemStack stack;
+
+            Object byteItems = plugin.getByteItemsService();
+            String itemTypeString = node.getNode("ItemType").getString("");
+
+            if (byteItems != null && itemTypeString.startsWith(((ByteItemsService) byteItems).getPrefix()))
+            {
+                stack = ((ByteItemsService) byteItems)
+                    .get(itemTypeString)
+                    .orElseThrow(() -> new IllegalArgumentException("Cannot find ByteItem '" + itemTypeString + "'!"))
+                    .createStack();
+
+                int count = node.getNode("Count").getInt(0);
+                // if an explicit quantity is given, overwrite the quantity ByteItems gave us
+                if (count > 1)
+                {
+                    stack.setQuantity(count);
+                }
+            }
+            else
+            {
+                stack = Objects.requireNonNull(node.getValue(TypeToken.of(ItemStack.class)));
+            }
             for (Map.Entry<Object, ? extends ConfigurationNode> entry : node.getChildrenMap().entrySet())
             {
                 try
