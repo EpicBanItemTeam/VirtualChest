@@ -26,6 +26,7 @@ buildscript {
 apply plugin: 'java'
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.bintray'
+apply plugin: 'org.javalite.activejdbc'
 apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'net.minecrell.vanilla.server.library'
 
@@ -168,10 +169,12 @@ shadowJar {
     dependencies {
         it.include it.dependency('org.bstats:.*')
         it.include it.dependency('org.javalite:.*')
+        it.include it.dependency('com.fasterxml.jackson.core:.*')
     }
 
     relocate 'org.bstats', project.group.toString() + '.virtualchest.util.repackage.org.bstats'
     relocate 'org.javalite', project.group.toString() + '.virtualchest.util.repackage.org.javalite'
+    relocate 'com.fasterxml.jackson', project.group.toString() + '.virtualchest.util.repackage.com.fasterxml.jackson'
 }
 
 reobf {
