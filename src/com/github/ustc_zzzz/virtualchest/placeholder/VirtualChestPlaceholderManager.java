@@ -6,12 +6,13 @@ import com.google.common.collect.Maps;
 import me.rojo8399.placeholderapi.PlaceholderService;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.service.ChangeServiceProviderEvent;
 import org.spongepowered.api.service.ProviderRegistration;
 import org.spongepowered.api.service.ServiceManager;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.TextRepresentable;
 import org.spongepowered.api.text.TextTemplate;
+import org.spongepowered.api.text.serializer.TextSerializer;
+import org.spongepowered.api.text.serializer.TextSerializers;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -73,9 +74,10 @@ public class VirtualChestPlaceholderManager
 
     public String parseText(Player player, String textToBeReplaced)
     {
+        TextSerializer s = TextSerializers.FORMATTING_CODE;
         TextTemplate template = this.toTemplate(textToBeReplaced);
         Map<String, Object> placeholders = this.papiService.fillPlaceholders(template, player, player);
-        return template.apply(Maps.transformValues(placeholders, v -> Text.of(v).toPlain())).build().toPlain();
+        return template.apply(Maps.transformValues(placeholders, v -> s.serialize(Text.of(v)))).build().toPlain();
     }
 
     private TextTemplate toTemplate(String text)
