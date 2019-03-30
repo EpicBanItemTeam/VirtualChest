@@ -43,14 +43,14 @@ public interface VirtualChest
     interface LoadEvent extends Event
     {
         /**
-         * unregister an id and its corresponding chest GUI.
+         * Unregister an id and its corresponding chest GUI.
          *
          * @param identifier the id to be unregistered
          */
         void unregister(String identifier);
 
         /**
-         * register an id and its corresponding chest GUI.
+         * Register an id and its corresponding chest GUI.
          *
          * @param identifier the id to be registered
          * @param chest      the corresponding chest GUI

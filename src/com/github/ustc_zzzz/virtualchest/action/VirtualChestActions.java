@@ -513,9 +513,9 @@ public final class VirtualChestActions
         }
 
         @Override
-        public void register(String prefix, VirtualChestActionExecutor action)
+        public void register(String prefix, VirtualChestActionExecutor actionExecutor)
         {
-            VirtualChestActions.this.executors.put(prefix, action);
+            VirtualChestActions.this.executors.put(prefix, actionExecutor);
         }
     }
 }
