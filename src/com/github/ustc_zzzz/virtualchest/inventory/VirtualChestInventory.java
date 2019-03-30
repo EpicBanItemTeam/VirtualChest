@@ -6,15 +6,14 @@ import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionDispatcher;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActionIntervalManager;
 import com.github.ustc_zzzz.virtualchest.action.VirtualChestActions;
 import com.github.ustc_zzzz.virtualchest.api.VirtualChest;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.*;
 import com.github.ustc_zzzz.virtualchest.inventory.item.VirtualChestItem;
 import com.github.ustc_zzzz.virtualchest.inventory.trigger.VirtualChestTriggerItem;
 import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManager;
 import com.github.ustc_zzzz.virtualchest.record.VirtualChestRecordManager;
 import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.*;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
@@ -284,7 +283,13 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
                 Inventory targetInventory = targetContainer.first();
 
                 VirtualChestActions actions = plugin.getVirtualChestActions();
-                Map<String, Object> context = ImmutableMap.of(VirtualChestActions.ACTION_UUID_KEY, actionUUID);
+                ImmutableClassToInstanceMap.Builder<Context> contextBuilder = ImmutableClassToInstanceMap.builder();
+
+                contextBuilder.put(Context.HANDHELD_ITEM, new HandheldItemContext(item -> true));
+                contextBuilder.put(Context.ACTION_UUID, new ActionUUIDContext(actionUUID));
+                contextBuilder.put(Context.PLAYER, new PlayerContext(player));
+
+                ClassToInstanceMap<Context> context = contextBuilder.build();
 
                 if (recordManager.filter(name, VirtualChestInventory.this))
                 {
@@ -326,8 +331,13 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
             {
                 Player player = optional.get();
                 UUID actionUUID = UUID.randomUUID();
-                Map<String, Object> context = ImmutableMap.of(VirtualChestActions.ACTION_UUID_KEY, actionUUID);
+                ImmutableClassToInstanceMap.Builder<Context> contextBuilder = ImmutableClassToInstanceMap.builder();
 
+                contextBuilder.put(Context.HANDHELD_ITEM, new HandheldItemContext(item -> true));
+                contextBuilder.put(Context.ACTION_UUID, new ActionUUIDContext(actionUUID));
+                contextBuilder.put(Context.PLAYER, new PlayerContext(player));
+
+                ClassToInstanceMap<Context> context = contextBuilder.build();
                 boolean record = recordManager.filter(name, VirtualChestInventory.this);
                 if (record)
                 {

@@ -1,10 +1,15 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.ActionUUIDContext;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.Context;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.HandheldItemContext;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.PlayerContext;
 import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
+import com.google.common.collect.ClassToInstanceMap;
+import com.google.common.collect.ImmutableClassToInstanceMap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
@@ -16,7 +21,10 @@ import org.spongepowered.api.item.inventory.Slot;
 import org.spongepowered.api.util.Tristate;
 import org.spongepowered.api.util.Tuple;
 
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -96,9 +104,15 @@ public class VirtualChestActionDispatcher
                 }
                 if (size >= itemTemplate.getCount()) // it's enough! do action now
                 {
+                    ImmutableClassToInstanceMap.Builder<Context> contextBuilder = ImmutableClassToInstanceMap.builder();
+
+                    contextBuilder.put(Context.HANDHELD_ITEM, new HandheldItemContext(itemTemplate::matchItem));
+                    contextBuilder.put(Context.ACTION_UUID, new ActionUUIDContext(actionUUID));
+                    contextBuilder.put(Context.PLAYER, new PlayerContext(player));
+
+                    ClassToInstanceMap<Context> map = contextBuilder.build();
                     int rep = itemTemplate.getRepetition(size);
-                    String k1 = HANDHELD_ITEM.toString(), k2 = VirtualChestActions.ACTION_UUID_KEY;
-                    ImmutableMap<String, Object> map = ImmutableMap.of(k1, itemTemplate, k2, actionUUID);
+
                     return Tuple.of(this.keepInventoryOpen.get(i), this.getAction(plugin, player, i, rep, map, record));
                 }
                 areSearchingInventory[i] = false; // otherwise do not search inventory for it in step 2
@@ -138,9 +152,15 @@ public class VirtualChestActionDispatcher
                 VirtualChestHandheldItem itemTemplate = this.handheldItem.get(i);
                 if (size >= itemTemplate.getCount()) // it's enough! do action now
                 {
+                    ImmutableClassToInstanceMap.Builder<Context> contextBuilder = ImmutableClassToInstanceMap.builder();
+
+                    contextBuilder.put(Context.HANDHELD_ITEM, new HandheldItemContext(itemTemplate::matchItem));
+                    contextBuilder.put(Context.ACTION_UUID, new ActionUUIDContext(actionUUID));
+                    contextBuilder.put(Context.PLAYER, new PlayerContext(player));
+
+                    ClassToInstanceMap<Context> map = contextBuilder.build();
                     int rep = itemTemplate.getRepetition(size);
-                    String k1 = HANDHELD_ITEM.toString(), k2 = VirtualChestActions.ACTION_UUID_KEY;
-                    ImmutableMap<String, Object> map = ImmutableMap.of(k1, itemTemplate, k2, actionUUID);
+
                     return Tuple.of(this.keepInventoryOpen.get(i), this.getAction(plugin, player, i, rep, map, record));
                 }
             }
@@ -149,7 +169,7 @@ public class VirtualChestActionDispatcher
     }
 
     private CompletableFuture<CommandResult> getAction(VirtualChestPlugin plugin, Player player, int index,
-                                                       int repetition, Map<String, Object> context, boolean record)
+                                                       int repetition, ClassToInstanceMap<Context> context, boolean record)
     {
         List<String> commands = this.commands.get(index);
         VirtualChestActions a = plugin.getVirtualChestActions();

@@ -1,20 +1,24 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.Context;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.HandheldItemContext;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
-import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimaps;
-import com.google.common.collect.SetMultimap;
+import com.google.common.collect.*;
 import org.slf4j.Logger;
 import org.spongepowered.api.GameRegistry;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
+import org.spongepowered.api.command.CommandSource;
+import org.spongepowered.api.command.source.ConsoleSource;
 import org.spongepowered.api.effect.sound.SoundCategory;
 import org.spongepowered.api.effect.sound.SoundType;
 import org.spongepowered.api.entity.living.player.Player;
+import org.spongepowered.api.event.cause.Cause;
+import org.spongepowered.api.event.impl.AbstractEvent;
 import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.Slot;
@@ -27,6 +31,7 @@ import org.spongepowered.api.text.chat.ChatTypes;
 import org.spongepowered.api.text.serializer.TextSerializers;
 import org.spongepowered.api.text.title.Title;
 import org.spongepowered.api.util.Tuple;
+import org.spongepowered.api.util.annotation.NonnullByDefault;
 import org.spongepowered.api.world.Location;
 import org.spongepowered.api.world.World;
 
@@ -41,6 +46,7 @@ import java.util.stream.Stream;
 /**
  * @author ustc_zzzz
  */
+@NonnullByDefault
 public final class VirtualChestActions
 {
     private static final char PREFIX_SPLITTER = ':';
@@ -48,9 +54,8 @@ public final class VirtualChestActions
 
     private final Logger logger;
     private final VirtualChestPlugin plugin;
-    private final Map<String, VirtualChestActionExecutor> executors = new HashMap<>();
+    private final ListMultimap<String, VirtualChestAction> executors = ArrayListMultimap.create();
 
-    private final Scheduler scheduler = Sponge.getScheduler();
     private final SetMultimap<String, UUID> activatedIdentifiers = Multimaps.synchronizedSetMultimap(HashMultimap.create());
 
     private ChannelBinding.RawDataChannel bungeeCordChannel;
@@ -60,8 +65,17 @@ public final class VirtualChestActions
         this.plugin = plugin;
         this.logger = plugin.getLogger();
 
-        Task.Builder taskBuilder = this.scheduler.createTaskBuilder().intervalTicks(1);
-        taskBuilder.name("VirtualChestActionExecutor").execute(this::tick).submit(plugin);
+        Task.builder().intervalTicks(1).name("VirtualChestActionExecutor").execute(this::tick).submit(plugin);
+
+        TitleManager.enable(plugin);
+    }
+
+    public void init()
+    {
+        ChannelRegistrar channelRegistrar = Sponge.getChannelRegistrar();
+        this.bungeeCordChannel = channelRegistrar.getOrCreateRaw(this.plugin, "BungeeCord");
+
+        registerPrefix("", this::process);
 
         registerPrefix("console", this::processConsole);
         registerPrefix("tell", this::processTell);
@@ -77,18 +91,10 @@ public final class VirtualChestActions
         registerPrefix("sound", this::processSound);
         registerPrefix("sound-with-pitch", this::processSoundWithPitch);
 
-        registerPrefix("", this::process);
-
-        TitleManager.enable(plugin);
+        Sponge.getEventManager().post(new LoadEvent());
     }
 
-    public void init()
-    {
-        ChannelRegistrar channelRegistrar = Sponge.getChannelRegistrar();
-        this.bungeeCordChannel = channelRegistrar.getOrCreateRaw(this.plugin, "BungeeCord");
-    }
-
-    public void registerPrefix(String prefix, VirtualChestActionExecutor executor)
+    public void registerPrefix(String prefix, VirtualChestAction executor)
     {
         this.executors.put(prefix, executor);
     }
@@ -98,7 +104,7 @@ public final class VirtualChestActions
         return this.activatedIdentifiers.get(identifier);
     }
 
-    public CompletableFuture<CommandResult> submitCommands(Player player, Stream<String> commands, Map<String, Object> context, boolean record)
+    public CompletableFuture<CommandResult> submitCommands(Player player, Stream<String> commands, ClassToInstanceMap<Context> context, boolean record)
     {
         VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
         LinkedList<Tuple<String, String>> commandList = new LinkedList<>();
@@ -130,38 +136,56 @@ public final class VirtualChestActions
         this.activatedIdentifiers.clear();
     }
 
-    private void process(Player player, String command,
-                         Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> process(CommandResult parent, String command,
+                                                     ClassToInstanceMap<Context> contextMap)
     {
+        Optional<Player> playerOptional = contextMap.getInstance(Context.PLAYER).getPlayer();
+        CommandSource source = playerOptional.isPresent() ? playerOptional.get() : Sponge.getServer().getConsole();
         if (!command.replaceFirst("\\s++$", "").isEmpty())
         {
-            callback.accept(Sponge.getCommandManager().process(player, command));
+            return CompletableFuture.completedFuture(Sponge.getCommandManager().process(source, command));
+        }
+        else
+        {
+            return CompletableFuture.completedFuture(CommandResult.success());
         }
     }
 
-    private void processSoundWithPitch(Player player, String command,
-                                       Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processSoundWithPitch(CommandResult parent, String command,
+                                                                   ClassToInstanceMap<Context> contextMap)
     {
-        int index = command.lastIndexOf(':');
-        String prefix = index > 0 ? command.substring(0, index).toLowerCase() : "";
-        String suffix = command.substring(index + 1).replaceFirst("\\s++$", "");
-        SoundManager.playSound(prefix, player, player.getLocation(), Double.parseDouble(suffix));
-        callback.accept(CommandResult.success());
+        contextMap.getInstance(Context.PLAYER).getPlayer().ifPresent(player ->
+        {
+            int index = command.lastIndexOf(':');
+            String prefix = index > 0 ? command.substring(0, index).toLowerCase() : "";
+            String suffix = command.substring(index + 1).replaceFirst("\\s++$", "");
+            SoundManager.playSound(prefix, player, player.getLocation(), Double.parseDouble(suffix));
+        });
+        return CompletableFuture.completedFuture(CommandResult.success());
     }
 
-    private void processSound(Player player, String command,
-                              Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processSound(CommandResult parent, String command,
+                                                          ClassToInstanceMap<Context> contextMap)
     {
-        SoundManager.playSound(command.replaceFirst("\\s++$", ""), player, player.getLocation(), Double.NaN);
-        callback.accept(CommandResult.success());
+        contextMap.getInstance(Context.PLAYER).getPlayer().ifPresent(player ->
+        {
+            String prefix = command.replaceFirst("\\s++$", "");
+            SoundManager.playSound(prefix, player, player.getLocation(), Double.NaN);
+        });
+        return CompletableFuture.completedFuture(CommandResult.success());
     }
 
-    private void processCostItem(Player player, String command,
-                                 Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processCostItem(CommandResult parent, String command,
+                                                             ClassToInstanceMap<Context> contextMap)
     {
         int count = Integer.parseInt(command.replaceFirst("\\s++$", ""));
-        String key = VirtualChestActionDispatcher.HANDHELD_ITEM.toString();
-        VirtualChestHandheldItem itemTemplate = (VirtualChestHandheldItem) context.get(key);
+        HandheldItemContext itemTemplate = contextMap.getInstance(Context.HANDHELD_ITEM);
+        Optional<Player> playerOptional = contextMap.getInstance(Context.PLAYER).getPlayer();
+        if (Objects.isNull(itemTemplate) || !playerOptional.isPresent())
+        {
+            return CompletableFuture.completedFuture(CommandResult.empty());
+        }
+        Player player = playerOptional.get();
         ItemStackSnapshot itemHeldByMouse = SpongeUnimplemented.getItemHeldByMouse(player);
         int stackUsedQuantity = SpongeUnimplemented.getCount(itemHeldByMouse);
         if (itemTemplate.matchItem(itemHeldByMouse))
@@ -180,7 +204,7 @@ public final class VirtualChestActions
         }
         if (count <= 0)
         {
-            callback.accept(CommandResult.success());
+            return CompletableFuture.completedFuture(CommandResult.success());
         }
         else
         {
@@ -208,51 +232,58 @@ public final class VirtualChestActions
                 }
                 if (count <= 0)
                 {
-                    callback.accept(CommandResult.success());
-                    break;
+                    return CompletableFuture.completedFuture(CommandResult.success());
                 }
             }
-            if (count > 0)
+            return CompletableFuture.completedFuture(CommandResult.empty());
+        }
+    }
+
+    private CompletableFuture<CommandResult> processCost(CommandResult parent, String command,
+                                                         ClassToInstanceMap<Context> contextMap)
+    {
+        boolean isSuccessful = true;
+        Optional<Player> playerOptional = contextMap.getInstance(Context.PLAYER).getPlayer();
+        if (playerOptional.isPresent())
+        {
+            Player p = playerOptional.get();
+            int index = command.lastIndexOf(':');
+            String currencyName = index < 0 ? "" : command.substring(0, index).toLowerCase();
+            BigDecimal cost = new BigDecimal(command.substring(index + 1).replaceFirst("\\s++$", ""));
+            VirtualChestEconomyManager economyManager = this.plugin.getEconomyManager();
+            switch (cost.signum())
             {
-                callback.accept(CommandResult.empty());
+            case 1:
+                isSuccessful = economyManager.withdrawBalance(currencyName, p, cost);
+                break;
+            case -1:
+                isSuccessful = economyManager.depositBalance(currencyName, p, cost.negate());
+                break;
             }
         }
+        return CompletableFuture.completedFuture(isSuccessful ? CommandResult.success() : CommandResult.empty());
     }
 
-    private void processCost(Player player, String command,
-                             Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processConnect(CommandResult parent, String command,
+                                                            ClassToInstanceMap<Context> contextMap)
     {
-        int index = command.lastIndexOf(':');
-        String currencyName = index < 0 ? "" : command.substring(0, index).toLowerCase();
-        BigDecimal cost = new BigDecimal(command.substring(index + 1).replaceFirst("\\s++$", ""));
-        VirtualChestEconomyManager economyManager = this.plugin.getEconomyManager();
-        boolean isSuccessful = true;
-        switch (cost.signum())
+        Optional<Player> playerOptional = contextMap.getInstance(Context.PLAYER).getPlayer();
+        if (playerOptional.isPresent())
         {
-        case 1:
-            isSuccessful = economyManager.withdrawBalance(currencyName, player, cost);
-            break;
-        case -1:
-            isSuccessful = economyManager.depositBalance(currencyName, player, cost.negate());
-            break;
+            Player p = playerOptional.get();
+            this.bungeeCordChannel.sendTo(p, buf ->
+            {
+                buf.writeUTF("Connect");
+                buf.writeUTF(command.replaceFirst("\\s++$", ""));
+            });
         }
-        callback.accept(isSuccessful ? CommandResult.success() : CommandResult.empty());
+        return CompletableFuture.completedFuture(CommandResult.success());
     }
 
-    private void processConnect(Player player, String command,
-                                Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processDelay(CommandResult parent, String command,
+                                                          ClassToInstanceMap<Context> contextMap)
     {
-        this.bungeeCordChannel.sendTo(player, buf ->
-        {
-            buf.writeUTF("Connect");
-            buf.writeUTF(command.replaceFirst("\\s++$", ""));
-        });
-        callback.accept(CommandResult.success());
-    }
-
-    private void processDelay(Player player, String command,
-                              Map<String, Object> context, Consumer<CommandResult> callback)
-    {
+        CompletableFuture<CommandResult> future = new CompletableFuture<>();
         try
         {
             int delayTick = Integer.parseInt(command.replaceFirst("\\s++$", ""));
@@ -260,65 +291,69 @@ public final class VirtualChestActions
             {
                 throw new NumberFormatException();
             }
-            Runnable taskExecutor = () -> callback.accept(CommandResult.success());
-            this.scheduler.createTaskBuilder().delayTicks(delayTick).execute(taskExecutor).submit(this.plugin);
+            Runnable taskExecutor = () -> future.complete(CommandResult.success());
+            Task.builder().delayTicks(delayTick).execute(taskExecutor).submit(this.plugin);
         }
         catch (NumberFormatException e)
         {
-            callback.accept(CommandResult.empty());
+            future.complete(CommandResult.empty());
         }
+        return future;
     }
 
-    private void processBigtitle(Player player, String command,
-                                 Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processBigtitle(CommandResult parent, String command,
+                                                             ClassToInstanceMap<Context> contextMap)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
-        TitleManager.pushBigtitle(text, player);
-        callback.accept(CommandResult.success());
+        contextMap.getInstance(Context.PLAYER).getPlayer().ifPresent(p -> TitleManager.pushBigtitle(text, p));
+        return CompletableFuture.completedFuture(CommandResult.success());
     }
 
-    private void processSubtitle(Player player, String command,
-                                 Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processSubtitle(CommandResult parent, String command,
+                                                             ClassToInstanceMap<Context> contextMap)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
-        TitleManager.pushSubtitle(text, player);
-        callback.accept(CommandResult.success());
+        contextMap.getInstance(Context.PLAYER).getPlayer().ifPresent(p -> TitleManager.pushSubtitle(text, p));
+        return CompletableFuture.completedFuture(CommandResult.success());
     }
 
-    private void processTitle(Player player, String command,
-                              Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processTitle(CommandResult parent, String command,
+                                                          ClassToInstanceMap<Context> contextMap)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
-        player.sendMessage(ChatTypes.ACTION_BAR, text);
-        callback.accept(CommandResult.success());
+        contextMap.getInstance(Context.PLAYER).getPlayer().ifPresent(p -> p.sendMessage(ChatTypes.ACTION_BAR, text));
+        return CompletableFuture.completedFuture(CommandResult.success());
     }
 
-    private void processBroadcast(Player player, String command,
-                                  Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processBroadcast(CommandResult parent, String command,
+                                                              ClassToInstanceMap<Context> contextMap)
     {
         Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
         Sponge.getServer().getBroadcastChannel().send(text);
-        callback.accept(CommandResult.success());
+        return CompletableFuture.completedFuture(CommandResult.success());
     }
 
-    private void processTellraw(Player player, String command,
-                                Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processTellraw(CommandResult parent, String command,
+                                                            ClassToInstanceMap<Context> contextMap)
     {
-        player.sendMessage(TextSerializers.JSON.deserialize(command));
-        callback.accept(CommandResult.success());
+        Text text = TextSerializers.JSON.deserialize(command);
+        contextMap.getInstance(Context.PLAYER).getPlayer().ifPresent(p -> p.sendMessage(text));
+        return CompletableFuture.completedFuture(CommandResult.success());
     }
 
-    private void processTell(Player player, String command,
-                             Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processTell(CommandResult parent, String command,
+                                                         ClassToInstanceMap<Context> contextMap)
     {
-        player.sendMessage(TextSerializers.FORMATTING_CODE.deserialize(command));
-        callback.accept(CommandResult.success());
+        Text text = TextSerializers.FORMATTING_CODE.deserialize(command);
+        contextMap.getInstance(Context.PLAYER).getPlayer().ifPresent(p -> p.sendMessage(text));
+        return CompletableFuture.completedFuture(CommandResult.success());
     }
 
-    private void processConsole(Player player, String command,
-                                Map<String, Object> context, Consumer<CommandResult> callback)
+    private CompletableFuture<CommandResult> processConsole(CommandResult parent, String command,
+                                                            ClassToInstanceMap<Context> contextMap)
     {
-        callback.accept(Sponge.getCommandManager().process(Sponge.getServer().getConsole(), command));
+        ConsoleSource source = Sponge.getServer().getConsole();
+        return CompletableFuture.completedFuture(Sponge.getCommandManager().process(source, command));
     }
 
     private class Callback implements Consumer<CommandResult>
@@ -327,19 +362,19 @@ public final class VirtualChestActions
 
         private final boolean record;
         private final UUID actionUUID;
-        private final Map<String, Object> context;
+        private final ClassToInstanceMap<Context> context;
         private final WeakReference<Player> playerReference;
         private final Queue<Tuple<String, String>> commandList;
         private final CompletableFuture<CommandResult> future = new CompletableFuture<>();
 
-        @SuppressWarnings("unchecked")
-        private Callback(Player p, LinkedList<Tuple<String, String>> commandList, Map<String, Object> context, boolean record)
+        private Callback(Player p, LinkedList<Tuple<String, String>> commandList,
+                         ClassToInstanceMap<Context> contextMap, boolean record)
         {
             this.record = record;
-            this.context = context;
+            this.context = contextMap;
             this.commandList = commandList;
             this.playerReference = new WeakReference<>(p);
-            this.actionUUID = (UUID) context.get(ACTION_UUID_KEY);
+            this.actionUUID = contextMap.getInstance(Context.ACTION_UUID).getActionUniqueId();
         }
 
         public CompletableFuture<CommandResult> start()
@@ -374,7 +409,12 @@ public final class VirtualChestActions
                         plugin.getRecordManager().recordExecution(actionUUID, actionOrder, prefix, suffix);
                         logger.debug("Player {} is now executing {}", player.getName(), escapedCommand);
                     }
-                    executors.get(prefix).doAction(player, suffix, context, this);
+                    CompletableFuture<CommandResult> future = CompletableFuture.completedFuture(commandResult);
+                    for (VirtualChestAction action : executors.get(prefix))
+                    {
+                        future = future.thenCompose(parent -> action.execute(parent, suffix, context));
+                    }
+                    future.thenAccept(this);
                 }
             }
         }
@@ -467,6 +507,22 @@ public final class VirtualChestActions
             // lazy initialization
             // noinspection ConstantConditions
             soundCategory = Sponge.getRegistry().getType(SoundCategory.class, "minecraft:player").get();
+        }
+    }
+
+
+    private class LoadEvent extends AbstractEvent implements VirtualChestAction.LoadEvent
+    {
+        @Override
+        public Cause getCause()
+        {
+            return SpongeUnimplemented.createCause(plugin);
+        }
+
+        @Override
+        public void register(String prefix, VirtualChestAction action)
+        {
+            registerPrefix(prefix, action);
         }
     }
 }
