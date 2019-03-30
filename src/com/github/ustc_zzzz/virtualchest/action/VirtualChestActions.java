@@ -45,17 +45,15 @@ import java.util.stream.Stream;
 /**
  * @author ustc_zzzz
  */
-@NonnullByDefault
 public final class VirtualChestActions
 {
     private static final char PREFIX_SPLITTER = ':';
-    public static final String ACTION_UUID_KEY = "ActionUUID";
 
     private final Logger logger;
     private final VirtualChestPlugin plugin;
     private final ListMultimap<String, VirtualChestAction> executors = ArrayListMultimap.create();
 
-    private final SetMultimap<String, UUID> activatedIdentifiers = Multimaps.synchronizedSetMultimap(HashMultimap.create());
+    private final SetMultimap<String, UUID> activateUUIDMap = Multimaps.synchronizedSetMultimap(HashMultimap.create());
 
     private ChannelBinding.RawDataChannel bungeeCordChannel;
 
@@ -74,36 +72,32 @@ public final class VirtualChestActions
         ChannelRegistrar channelRegistrar = Sponge.getChannelRegistrar();
         this.bungeeCordChannel = channelRegistrar.getOrCreateRaw(this.plugin, "BungeeCord");
 
-        registerPrefix("", this::process);
+        this.executors.put("", this::process);
 
-        registerPrefix("console", this::processConsole);
-        registerPrefix("tell", this::processTell);
-        registerPrefix("tellraw", this::processTellraw);
-        registerPrefix("broadcast", this::processBroadcast);
-        registerPrefix("title", this::processTitle);
-        registerPrefix("bigtitle", this::processBigtitle);
-        registerPrefix("subtitle", this::processSubtitle);
-        registerPrefix("delay", this::processDelay);
-        registerPrefix("connect", this::processConnect);
-        registerPrefix("cost", this::processCost);
-        registerPrefix("cost-item", this::processCostItem);
-        registerPrefix("sound", this::processSound);
-        registerPrefix("sound-with-pitch", this::processSoundWithPitch);
+        this.executors.put("console", this::processConsole);
+        this.executors.put("tell", this::processTell);
+        this.executors.put("tellraw", this::processTellraw);
+        this.executors.put("broadcast", this::processBroadcast);
+        this.executors.put("title", this::processTitle);
+        this.executors.put("bigtitle", this::processBigtitle);
+        this.executors.put("subtitle", this::processSubtitle);
+        this.executors.put("delay", this::processDelay);
+        this.executors.put("connect", this::processConnect);
+        this.executors.put("cost", this::processCost);
+        this.executors.put("cost-item", this::processCostItem);
+        this.executors.put("sound", this::processSound);
+        this.executors.put("sound-with-pitch", this::processSoundWithPitch);
 
         Sponge.getEventManager().post(new LoadEvent());
     }
 
-    public void registerPrefix(String prefix, VirtualChestAction executor)
-    {
-        this.executors.put(prefix, executor);
-    }
-
     public Set<UUID> getActivatedActions(String identifier)
     {
-        return this.activatedIdentifiers.get(identifier);
+        return this.activateUUIDMap.get(identifier);
     }
 
-    public CompletableFuture<CommandResult> submitCommands(Player player, Stream<String> commands, ClassToInstanceMap<Context> context, boolean record)
+    public CompletableFuture<CommandResult> submitCommands(Player player, Stream<String> commands,
+                                                           ClassToInstanceMap<Context> context, boolean record)
     {
         VirtualChestPlaceholderManager placeholderManager = this.plugin.getPlaceholderManager();
         LinkedList<Tuple<String, String>> commandList = new LinkedList<>();
@@ -132,7 +126,7 @@ public final class VirtualChestActions
 
     private void tick(Task task)
     {
-        this.activatedIdentifiers.clear();
+        this.activateUUIDMap.clear();
     }
 
     private CompletableFuture<CommandResult> process(CommandResult parent, String command,
@@ -376,7 +370,7 @@ public final class VirtualChestActions
             this.actionUUID = contextMap.getInstance(Context.ACTION_UUID).getActionUniqueId();
         }
 
-        public CompletableFuture<CommandResult> start()
+        private CompletableFuture<CommandResult> start()
         {
             this.accept(CommandResult.success());
             return this.future;
@@ -393,13 +387,13 @@ public final class VirtualChestActions
                 if (Objects.isNull(t))
                 {
                     logger.debug("Player {} has executed all the commands", player.getName());
-                    activatedIdentifiers.remove(identifier, actionUUID);
+                    activateUUIDMap.remove(identifier, actionUUID);
                     future.complete(commandResult);
                 }
                 else
                 {
                     ++actionOrder;
-                    activatedIdentifiers.put(identifier, actionUUID);
+                    activateUUIDMap.put(identifier, actionUUID);
                     String prefix = t.getFirst(), suffix = t.getSecond();
                     String command = prefix.isEmpty() ? suffix : prefix + ": " + suffix;
                     String escapedCommand = '\'' + SpongeUnimplemented.escapeString(command) + '\'';
@@ -504,12 +498,12 @@ public final class VirtualChestActions
         static
         {
             // lazy initialization
-            // noinspection ConstantConditions
-            soundCategory = Sponge.getRegistry().getType(SoundCategory.class, "minecraft:player").get();
+            String id = "minecraft:player";
+            soundCategory = Sponge.getRegistry().getType(SoundCategory.class, id).orElseThrow(RuntimeException::new);
         }
     }
 
-
+    @NonnullByDefault
     private class LoadEvent extends AbstractEvent implements VirtualChestAction.LoadEvent
     {
         @Override
@@ -521,7 +515,7 @@ public final class VirtualChestActions
         @Override
         public void register(String prefix, VirtualChestAction action)
         {
-            registerPrefix(prefix, action);
+            VirtualChestActions.this.executors.put(prefix, action);
         }
     }
 }

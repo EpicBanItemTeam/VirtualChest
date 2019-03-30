@@ -34,9 +34,9 @@ import java.util.stream.Stream;
  */
 public class VirtualChestActionDispatcher
 {
-    public static final DataQuery KEEP_INVENTORY_OPEN = DataQuery.of("KeepInventoryOpen");
-    public static final DataQuery HANDHELD_ITEM = DataQuery.of("HandheldItem");
-    public static final DataQuery COMMAND = DataQuery.of("Command");
+    private static final DataQuery KEEP_INVENTORY_OPEN = DataQuery.of("KeepInventoryOpen");
+    private static final DataQuery HANDHELD_ITEM = DataQuery.of("HandheldItem");
+    private static final DataQuery COMMAND = DataQuery.of("Command");
 
     private static final char SEQUENCE_SPLITTER = ';';
 
@@ -60,7 +60,7 @@ public class VirtualChestActionDispatcher
 
         for (DataView view : views)
         {
-            handheldItemBuilder.add(this.parseHandheldItem(view.getView(HANDHELD_ITEM)));
+            handheldItemBuilder.add(this.parseHandheldItem(view));
             commandsBuilder.add(parseCommand(view.getString(COMMAND).orElse("")));
             keepInventoryOpenBuilder.add(view.getBoolean(KEEP_INVENTORY_OPEN).orElse(false));
 
@@ -184,9 +184,9 @@ public class VirtualChestActionDispatcher
         }
     }
 
-    private VirtualChestHandheldItem parseHandheldItem(Optional<DataView> optional)
+    private VirtualChestHandheldItem parseHandheldItem(DataView view)
     {
-        return optional.map(VirtualChestHandheldItem::new).orElse(VirtualChestHandheldItem.DEFAULT);
+        return view.getView(HANDHELD_ITEM).map(VirtualChestHandheldItem::new).orElse(VirtualChestHandheldItem.DEFAULT);
     }
 
     public static List<String> parseCommand(String commandSequence)
