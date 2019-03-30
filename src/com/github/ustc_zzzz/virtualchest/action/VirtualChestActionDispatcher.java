@@ -1,10 +1,10 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.ActionUUIDContext;
-import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.Context;
-import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.HandheldItemContext;
-import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.PlayerContext;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestActionExecutor.ActionUUIDContext;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestActionExecutor.Context;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestActionExecutor.HandheldItemContext;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestActionExecutor.PlayerContext;
 import com.github.ustc_zzzz.virtualchest.inventory.util.VirtualChestHandheldItem;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.ClassToInstanceMap;

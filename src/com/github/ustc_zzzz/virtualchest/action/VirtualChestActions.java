@@ -1,9 +1,9 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction;
-import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.Context;
-import com.github.ustc_zzzz.virtualchest.api.VirtualChestAction.HandheldItemContext;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestActionExecutor;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestActionExecutor.Context;
+import com.github.ustc_zzzz.virtualchest.api.VirtualChestActionExecutor.HandheldItemContext;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
@@ -51,7 +51,7 @@ public final class VirtualChestActions
 
     private final Logger logger;
     private final VirtualChestPlugin plugin;
-    private final ListMultimap<String, VirtualChestAction> executors = ArrayListMultimap.create();
+    private final ListMultimap<String, VirtualChestActionExecutor> executors = ArrayListMultimap.create();
 
     private final SetMultimap<String, UUID> activateUUIDMap = Multimaps.synchronizedSetMultimap(HashMultimap.create());
 
@@ -403,7 +403,7 @@ public final class VirtualChestActions
                         logger.debug("Player {} is now executing {}", player.getName(), escapedCommand);
                     }
                     CompletableFuture<CommandResult> future = CompletableFuture.completedFuture(commandResult);
-                    for (VirtualChestAction action : executors.get(prefix))
+                    for (VirtualChestActionExecutor action : executors.get(prefix))
                     {
                         future = future.thenCompose(parent -> action.execute(parent, suffix, context));
                     }
@@ -504,7 +504,7 @@ public final class VirtualChestActions
     }
 
     @NonnullByDefault
-    private class LoadEvent extends AbstractEvent implements VirtualChestAction.LoadEvent
+    private class LoadEvent extends AbstractEvent implements VirtualChestActionExecutor.LoadEvent
     {
         @Override
         public Cause getCause()
@@ -513,7 +513,7 @@ public final class VirtualChestActions
         }
 
         @Override
-        public void register(String prefix, VirtualChestAction action)
+        public void register(String prefix, VirtualChestActionExecutor action)
         {
             VirtualChestActions.this.executors.put(prefix, action);
         }

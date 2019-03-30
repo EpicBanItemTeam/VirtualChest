@@ -18,7 +18,7 @@ import java.util.function.Predicate;
  */
 @NonnullByDefault
 @FunctionalInterface
-public interface VirtualChestAction
+public interface VirtualChestActionExecutor
 {
     CompletableFuture<CommandResult> execute(CommandResult parent, String command, ClassToInstanceMap<Context> context);
 
@@ -88,6 +88,6 @@ public interface VirtualChestAction
     @NonnullByDefault
     interface LoadEvent extends Event
     {
-        void register(String prefix, VirtualChestAction action);
+        void register(String prefix, VirtualChestActionExecutor action);
     }
 }
