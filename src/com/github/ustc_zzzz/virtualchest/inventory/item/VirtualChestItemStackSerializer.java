@@ -181,9 +181,9 @@ public class VirtualChestItemStackSerializer implements BiFunction<Player, DataV
             if (byteItems != null && itemTypeString.startsWith(((ByteItemsService) byteItems).getPrefix()))
             {
                 stack = ((ByteItemsService) byteItems)
-                    .get(itemTypeString)
-                    .orElseThrow(() -> new IllegalArgumentException("Cannot find ByteItem '" + itemTypeString + "'!"))
-                    .createStack();
+                        .get(itemTypeString)
+                        .orElseThrow(() -> new IllegalArgumentException("Cannot find ByteItem '" + itemTypeString + "'!"))
+                        .createStack();
 
                 int count = node.getNode("Count").getInt(0);
                 // if an explicit quantity is given, overwrite the quantity ByteItems gave us

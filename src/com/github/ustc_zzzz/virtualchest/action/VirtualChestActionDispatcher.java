@@ -104,16 +104,12 @@ public class VirtualChestActionDispatcher
                 }
                 if (size >= itemTemplate.getCount()) // it's enough! do action now
                 {
-                    ImmutableClassToInstanceMap.Builder<Context> contextBuilder = ImmutableClassToInstanceMap.builder();
-
-                    contextBuilder.put(Context.HANDHELD_ITEM, new HandheldItemContext(itemTemplate::matchItem));
-                    contextBuilder.put(Context.ACTION_UUID, new ActionUUIDContext(actionUUID));
-                    contextBuilder.put(Context.PLAYER, new PlayerContext(player));
-
-                    ClassToInstanceMap<Context> map = contextBuilder.build();
                     int rep = itemTemplate.getRepetition(size);
-
-                    return Tuple.of(this.keepInventoryOpen.get(i), this.getAction(plugin, player, i, rep, map, record));
+                    List<String> commands = this.commands.get(i);
+                    VirtualChestActions actions = plugin.getVirtualChestActions();
+                    ClassToInstanceMap<Context> map = getContextMap(actionUUID, player, itemTemplate);
+                    Stream<String> stream = IntStream.rangeClosed(0, rep).boxed().flatMap(o -> commands.stream());
+                    return Tuple.of(this.keepInventoryOpen.get(i), actions.submitCommands(player, stream, map, record));
                 }
                 areSearchingInventory[i] = false; // otherwise do not search inventory for it in step 2
             }
@@ -152,29 +148,27 @@ public class VirtualChestActionDispatcher
                 VirtualChestHandheldItem itemTemplate = this.handheldItem.get(i);
                 if (size >= itemTemplate.getCount()) // it's enough! do action now
                 {
-                    ImmutableClassToInstanceMap.Builder<Context> contextBuilder = ImmutableClassToInstanceMap.builder();
-
-                    contextBuilder.put(Context.HANDHELD_ITEM, new HandheldItemContext(itemTemplate::matchItem));
-                    contextBuilder.put(Context.ACTION_UUID, new ActionUUIDContext(actionUUID));
-                    contextBuilder.put(Context.PLAYER, new PlayerContext(player));
-
-                    ClassToInstanceMap<Context> map = contextBuilder.build();
                     int rep = itemTemplate.getRepetition(size);
-
-                    return Tuple.of(this.keepInventoryOpen.get(i), this.getAction(plugin, player, i, rep, map, record));
+                    List<String> commands1 = this.commands.get(i);
+                    VirtualChestActions actions = plugin.getVirtualChestActions();
+                    ClassToInstanceMap<Context> map = getContextMap(actionUUID, player, itemTemplate);
+                    Stream<String> stream = IntStream.rangeClosed(0, rep).boxed().flatMap(o -> commands1.stream());
+                    return Tuple.of(this.keepInventoryOpen.get(i), actions.submitCommands(player, stream, map, record));
                 }
             }
         }
         return Tuple.of(Boolean.TRUE, CompletableFuture.completedFuture(CommandResult.success()));
     }
 
-    private CompletableFuture<CommandResult> getAction(VirtualChestPlugin plugin, Player player, int index,
-                                                       int repetition, ClassToInstanceMap<Context> context, boolean record)
+    private static ClassToInstanceMap<Context> getContextMap(UUID actionUUID, Player player, VirtualChestHandheldItem itemTemplate)
     {
-        List<String> commands = this.commands.get(index);
-        VirtualChestActions a = plugin.getVirtualChestActions();
-        Stream<Integer> rangeStream = IntStream.rangeClosed(0, repetition).boxed();
-        return a.submitCommands(player, rangeStream.flatMap(i -> commands.stream()), context, record);
+        ImmutableClassToInstanceMap.Builder<Context> contextBuilder = ImmutableClassToInstanceMap.builder();
+
+        contextBuilder.put(Context.HANDHELD_ITEM, new HandheldItemContext(itemTemplate::matchItem));
+        contextBuilder.put(Context.ACTION_UUID, new ActionUUIDContext(actionUUID));
+        contextBuilder.put(Context.PLAYER, new PlayerContext(player));
+
+        return contextBuilder.build();
     }
 
     public Optional<?> getObjectForSerialization()

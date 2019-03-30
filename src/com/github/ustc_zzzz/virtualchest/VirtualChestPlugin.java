@@ -14,7 +14,6 @@ import com.github.ustc_zzzz.virtualchest.record.VirtualChestRecordManager;
 import com.github.ustc_zzzz.virtualchest.script.VirtualChestJavaScriptManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -64,9 +63,9 @@ import java.util.Optional;
  */
 @Plugin(name = "VirtualChest", id = VirtualChestPlugin.PLUGIN_ID,
         dependencies = {
-            @Dependency(id = "spongeapi"),
-            @Dependency(id = "placeholderapi", version = "[4.0,)"),
-            @Dependency(id = "byte-items", version = "[2.3,)", optional = true)
+                @Dependency(id = "spongeapi"),
+                @Dependency(id = "placeholderapi", version = "[4.0,)"),
+                @Dependency(id = "byte-items", version = "[2.3,)", optional = true)
         },
         authors = {"ustc_zzzz"}, version = VirtualChestPlugin.VERSION, description = VirtualChestPlugin.DESCRIPTION)
 public class VirtualChestPlugin
