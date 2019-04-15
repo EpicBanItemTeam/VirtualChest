@@ -1,4 +1,4 @@
-package com.github.ustc_zzzz.virtualchest.api;
+package com.github.ustc_zzzz.virtualchest.api.action;
 
 import com.google.common.collect.ClassToInstanceMap;
 import org.spongepowered.api.command.CommandResult;

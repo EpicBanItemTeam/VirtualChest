@@ -1,9 +1,9 @@
 package com.github.ustc_zzzz.virtualchest.action;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.api.VirtualChestActionExecutor;
-import com.github.ustc_zzzz.virtualchest.api.VirtualChestActionExecutor.Context;
-import com.github.ustc_zzzz.virtualchest.api.VirtualChestActionExecutor.HandheldItemContext;
+import com.github.ustc_zzzz.virtualchest.api.action.VirtualChestActionExecutor;
+import com.github.ustc_zzzz.virtualchest.api.action.VirtualChestActionExecutor.Context;
+import com.github.ustc_zzzz.virtualchest.api.action.VirtualChestActionExecutor.HandheldItemContext;
 import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
