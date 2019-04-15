@@ -121,7 +121,7 @@ public final class VirtualChestActions
             }
         });
         plugin.getLogger().debug("Player {} tries to run {} command(s)", player.getName(), commandList.size());
-        return new Callback(player, commandList, context, record).start();
+        return new Callback(commandList, context, record).start();
     }
 
     private void tick(Task task)
@@ -356,17 +356,15 @@ public final class VirtualChestActions
         private final boolean record;
         private final UUID actionUUID;
         private final ClassToInstanceMap<Context> context;
-        private final WeakReference<Player> playerReference;
         private final Queue<Tuple<String, String>> commandList;
         private final CompletableFuture<CommandResult> future = new CompletableFuture<>();
 
-        private Callback(Player p, LinkedList<Tuple<String, String>> commandList,
+        private Callback(LinkedList<Tuple<String, String>> commandList,
                          ClassToInstanceMap<Context> contextMap, boolean record)
         {
             this.record = record;
             this.context = contextMap;
             this.commandList = commandList;
-            this.playerReference = new WeakReference<>(p);
             this.actionUUID = contextMap.getInstance(Context.ACTION_UUID).getActionUniqueId();
         }
 
@@ -379,28 +377,25 @@ public final class VirtualChestActions
         @Override
         public void accept(CommandResult commandResult)
         {
-            Player player = playerReference.get();
-            if (Objects.nonNull(player))
-            {
+            Optional<Player> playerOptional = context.getInstance(Context.PLAYER).getPlayer();
                 Tuple<String, String> t = commandList.poll();
-                String identifier = player.getUniqueId().toString();
                 if (Objects.isNull(t))
                 {
-                    logger.debug("Player {} has executed all the commands", player.getName());
-                    activateUUIDMap.remove(identifier, actionUUID);
+                    playerOptional.ifPresent(p -> activateUUIDMap.remove(p.getIdentifier(), actionUUID));
+                    logger.debug("All the commands for {} has been executed", actionUUID);
                     future.complete(commandResult);
                 }
                 else
                 {
                     ++actionOrder;
-                    activateUUIDMap.put(identifier, actionUUID);
                     String prefix = t.getFirst(), suffix = t.getSecond();
                     String command = prefix.isEmpty() ? suffix : prefix + ": " + suffix;
                     String escapedCommand = '\'' + SpongeUnimplemented.escapeString(command) + '\'';
+                    playerOptional.ifPresent(p -> activateUUIDMap.put(p.getIdentifier(), actionUUID));
                     if (record)
                     {
                         plugin.getRecordManager().recordExecution(actionUUID, actionOrder, prefix, suffix);
-                        logger.debug("Player {} is now executing {}", player.getName(), escapedCommand);
+                        logger.debug("{} is not executed for {}", escapedCommand, actionUUID);
                     }
                     CompletableFuture<CommandResult> future = CompletableFuture.completedFuture(commandResult);
                     for (VirtualChestActionExecutor action : executors.get(prefix))
@@ -409,7 +404,6 @@ public final class VirtualChestActions
                     }
                     future.thenAccept(this);
                 }
-            }
         }
     }
 
