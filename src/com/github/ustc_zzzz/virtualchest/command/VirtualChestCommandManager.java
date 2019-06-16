@@ -47,6 +47,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
 
     private final CommandCallable reloadCommand;
     private final CommandCallable listCommand;
+    private final CommandCallable updateCommand;
     private final CommandCallable openCommand;
     private final CommandCallable versionCommand;
 
@@ -66,6 +67,13 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
                 .description(this.translation.take("virtualchest.list.description"))
                 .arguments(GenericArguments.none())
                 .executor(this::processListCommand).build();
+
+        this.updateCommand = CommandSpec.builder()
+                .description(this.translation.take("virtualchest.update.description"))
+                .arguments(GenericArguments.seq(
+                        new VirtualChestInventoryCommandElement(this.plugin, Text.of("inventory")),
+                        GenericArguments.playerOrSource(Text.of("player"))))
+                .executor(this::processUpdateCommand).build();
 
         this.openCommand = CommandSpec.builder()
                 .description(this.translation.take("virtualchest.open.description"))
@@ -154,6 +162,36 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
         return CommandResult.success();
     }
 
+    private CommandResult processUpdateCommand(CommandSource source, CommandContext args) throws CommandException
+    {
+        // noinspection ConstantConditions
+        String inventoryName = args.<String>getOne("inventory").get();
+        Collection<Player> players = args.getAll("player");
+        for (Player player : players)
+        {
+            if (player.equals(source))
+            {
+                if (!source.hasPermission("virtualchest.update.self." + inventoryName))
+                {
+                    String errorKey = "virtualchest.update.self.noPermission";
+                    throw new CommandException(this.translation.take(errorKey, inventoryName));
+                }
+            }
+            else if (source instanceof Player)
+            {
+                if (!source.hasPermission("virtualchest.update.others." + inventoryName))
+                {
+                    String errorKey = "virtualchest.update.others.noPermission";
+                    throw new CommandException(this.translation.take(errorKey, inventoryName, player.getName()));
+                }
+            }
+        }
+        int total = players.size();
+        long success = players.stream().filter(p -> this.plugin.getDispatcher().update(inventoryName, p)).count();
+        source.sendMessage(this.translation.take("virtualchest.update.finish", inventoryName, success, total));
+        return CommandResult.success();
+    }
+
     private CommandResult processListCommand(CommandSource source, CommandContext args) throws CommandException
     {
         VirtualChestInventoryDispatcher dispatcher = this.plugin.getDispatcher();
@@ -202,6 +240,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
         return CommandSpec.builder()
                 .child(this.reloadCommand, "reload", "r")
                 .child(this.listCommand, "list", "l")
+                .child(this.updateCommand, "update", "u")
                 .child(this.openCommand, "open", "o")
                 .child(this.versionCommand, "version", "v")
                 .build();

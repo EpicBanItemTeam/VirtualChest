@@ -99,6 +99,23 @@ public class VirtualChestInventoryDispatcher implements VirtualChestService
         return false;
     }
 
+    public boolean update(String id, Player player)
+    {
+        UUID uuid = player.getUniqueId();
+
+        if (inventories.containsKey(id))
+        {
+            Tuple<String, WeakReference<Container>> tuple = containers.get(uuid);
+            if (!Objects.isNull(tuple) && this.isInventoryOpening(player, id, tuple))
+            {
+                // noinspection ConstantConditions
+                inventories.get(id).getUpdaterFor(id, player).accept(tuple.getSecond().get().first());
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean isInventoryMatchingPrimaryAction(String id, ItemStackSnapshot item)
     {
         VirtualChest chest = inventories.get(id);
@@ -161,7 +178,9 @@ public class VirtualChestInventoryDispatcher implements VirtualChestService
     {
         boolean hasSelfPermission = player.hasPermission("virtualchest.open.self." + inventoryName);
         boolean hasOthersPermission = player.hasPermission("virtualchest.open.others." + inventoryName);
-        return hasSelfPermission || hasOthersPermission;
+        boolean hasSelfUpdatePermission = player.hasPermission("virtualchest.update.self" + inventoryName);
+        boolean hasOthersUpdatePermission = player.hasPermission("virtualchest.update.others" + inventoryName);
+        return hasSelfPermission || hasOthersPermission || hasSelfUpdatePermission || hasOthersUpdatePermission;
     }
 
     public boolean isInventoryOpening(Player player, Container container)
