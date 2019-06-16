@@ -369,15 +369,7 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
                         }
                     }
                 }
-                future.thenAccept(shouldKeepInventoryOpen -> this.closeWhile(shouldKeepInventoryOpen, player));
-            }
-        }
-
-        private void closeWhile(boolean shouldKeepInventoryOpen, Player player)
-        {
-            if (!shouldKeepInventoryOpen)
-            {
-                SpongeUnimplemented.closeInventory(player, plugin);
+                future.thenApply(keepInventoryOpen -> keepInventoryOpen || !plugin.getDispatcher().close(name, player));
             }
         }
 

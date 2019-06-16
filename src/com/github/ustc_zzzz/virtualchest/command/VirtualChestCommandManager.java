@@ -41,7 +41,6 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
     private static final String GITHUB_URL = VirtualChestPlugin.GITHUB_URL;
     private static final String WEBSITE_URL = VirtualChestPlugin.WEBSITE_URL;
 
-    private final Logger logger;
     private final VirtualChestPlugin plugin;
     private final VirtualChestTranslation translation;
 
@@ -54,7 +53,6 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
     public VirtualChestCommandManager(VirtualChestPlugin plugin)
     {
         this.plugin = plugin;
-        this.logger = plugin.getLogger();
         this.translation = plugin.getTranslation();
 
         this.reloadCommand = CommandSpec.builder()
@@ -226,12 +224,6 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
             this.plugin.onReload(() -> SpongeUnimplemented.createCause(source));
             return CommandResult.success();
         }
-    }
-
-    private void openInventory(VirtualChestInventory inventory, String name, Player player)
-    {
-        this.logger.debug("Player {} tries to create the GUI ({}) by a command", player.getName(), name);
-        this.plugin.getDispatcher().open(name, player);
     }
 
     @Override
