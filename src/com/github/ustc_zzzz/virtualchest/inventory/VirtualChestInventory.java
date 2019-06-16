@@ -42,6 +42,7 @@ import org.spongepowered.api.util.annotation.NonnullByDefault;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -134,6 +135,25 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
         return inventories.get(uuid);
     }
 
+    @Override
+    public Consumer<Inventory> getUpdaterFor(String name, Player player)
+    {
+        return inventory ->
+        {
+            try (Timing ignored1 = VirtualChestTimings.updateAndRefreshMappings(name).startTiming())
+            {
+                int index = 0;
+                for (Slot slot : inventory.<Slot>slots())
+                {
+                    try (Timing ignored2 = VirtualChestTimings.updateAndRefreshMapping(name, index).startTiming())
+                    {
+                        this.setItemInInventory(player, slot, index++, name);
+                    }
+                }
+            }
+        };
+    }
+
     private <T> List<List<T>> createListFromMultiMap(Multimap<SlotIndex, T> list, int max)
     {
         ImmutableList.Builder<List<T>> builder = ImmutableList.builder();
@@ -142,21 +162,6 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
             builder.add(ImmutableList.copyOf(list.get(SlotIndex.of(i))));
         }
         return builder.build();
-    }
-
-    private void updateInventory(Player player, Inventory inventory, String name)
-    {
-        try (Timing ignored1 = VirtualChestTimings.updateAndRefreshMappings(name).startTiming())
-        {
-            int index = 0;
-            for (Slot slot : inventory.<Slot>slots())
-            {
-                try (Timing ignored2 = VirtualChestTimings.updateAndRefreshMapping(name, index).startTiming())
-                {
-                    this.setItemInInventory(player, slot, index++, name);
-                }
-            }
-        }
     }
 
     private void setItemInInventory(Player player, Slot slot, int index, String name)
@@ -290,6 +295,7 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
 
                 VirtualChestActions actions = plugin.getVirtualChestActions();
                 ClassToInstanceMap<Context> context = getContextMap(player, actionUUID);
+                Consumer<Inventory> updater = VirtualChestInventory.this.getUpdaterFor(name, player);
 
                 if (recordManager.filter(name, VirtualChestInventory.this))
                 {
@@ -306,21 +312,18 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
                 {
                     Task.Builder builder = Sponge.getScheduler().createTaskBuilder().execute(task ->
                     {
-                        if (dispatcher.isInventoryOpening(player, targetContainer))
-                        {
-                            updateInventory(player, targetInventory, name);
-                        }
-                        else
+                        if (!dispatcher.isInventoryOpening(player, targetContainer))
                         {
                             task.cancel();
                         }
+                        updater.accept(targetInventory);
                     });
                     builder.delayTicks(updateIntervalTick).intervalTicks(updateIntervalTick).submit(plugin);
                 }
 
                 plugin.getScriptManager().onOpeningInventory(player);
 
-                updateInventory(player, targetInventory, name);
+                updater.accept(targetInventory);
             }
         }
 

@@ -5,6 +5,8 @@ import org.spongepowered.api.event.Event;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.util.annotation.NonnullByDefault;
 
+import java.util.function.Consumer;
+
 /**
  * Representation of a chest GUI.
  *
@@ -23,6 +25,19 @@ public interface VirtualChest
      * @return the instance
      */
     Inventory create(String identifier, Player player);
+
+    /**
+     * Create a {@link Consumer} which will be invoked to execute the update logic when an update
+     * request is submitted.
+     *
+     * @param identifier the registered id
+     * @param player     the player
+     * @return a {@link Consumer} which will be passed the opening inventory of the player
+     */
+    default Consumer<Inventory> getUpdaterFor(String identifier, Player player)
+    {
+        return i -> {};
+    }
 
     /**
      * Representation of a event, fired while VirtualChest is being loaded at the stage the server
