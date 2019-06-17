@@ -27,11 +27,13 @@ public class VirtualChestItem
 {
     public static final DataQuery ITEM = DataQuery.of("Item");
     public static final DataQuery REQUIREMENTS = DataQuery.of("Requirements");
+    public static final DataQuery IGNORED_PERMISSIONS = DataQuery.of("IgnoredPermissions");
+
+    public static final DataQuery ACTION = DataQuery.of("Action");
     public static final DataQuery PRIMARY_ACTION = DataQuery.of("PrimaryAction");
     public static final DataQuery SECONDARY_ACTION = DataQuery.of("SecondaryAction");
     public static final DataQuery PRIMARY_SHIFT_ACTION = DataQuery.of("PrimaryShiftAction");
     public static final DataQuery SECONDARY_SHIFT_ACTION = DataQuery.of("SecondaryShiftAction");
-    public static final DataQuery IGNORED_PERMISSIONS = DataQuery.of("IgnoredPermissions");
 
     private final VirtualChestPlugin plugin;
     private final VirtualChestItemStackSerializer serializer;
@@ -47,17 +49,16 @@ public class VirtualChestItem
     public static DataContainer serialize(VirtualChestPlugin plugin, VirtualChestItem item) throws InvalidDataException
     {
         DataContainer container = SpongeUnimplemented.newDataContainer(DataView.SafetyMode.ALL_DATA_CLONED);
+
         container.set(ITEM, item.serializedStack);
+        container.set(REQUIREMENTS, item.requirements.getFirst());
+        container.set(IGNORED_PERMISSIONS, item.ignoredPermissions);
+
         item.primaryAction.getObjectForSerialization().ifPresent(o -> container.set(PRIMARY_ACTION, o));
         item.secondaryAction.getObjectForSerialization().ifPresent(o -> container.set(SECONDARY_ACTION, o));
-        if (!item.requirements.getFirst().isEmpty())
-        {
-            container.set(REQUIREMENTS, item.requirements.getFirst());
-        }
-        if (!item.ignoredPermissions.isEmpty())
-        {
-            container.set(IGNORED_PERMISSIONS, item.ignoredPermissions);
-        }
+        item.primaryShiftAction.getObjectForSerialization().ifPresent(o -> container.set(PRIMARY_SHIFT_ACTION, o));
+        item.secondaryShiftAction.getObjectForSerialization().ifPresent(o -> container.set(SECONDARY_SHIFT_ACTION, o));
+
         return container;
     }
 
@@ -68,21 +69,23 @@ public class VirtualChestItem
         String requirementString = data.getString(REQUIREMENTS).orElse("");
         Tuple<String, CompiledScript> requirements = plugin.getScriptManager().prepare(requirementString);
 
-        List<DataView> primaryList = getViewListOrSingletonList(PRIMARY_ACTION, data);
-        VirtualChestActionDispatcher primaryAction = new VirtualChestActionDispatcher(primaryList);
-
-        List<DataView> secondaryList = getViewListOrSingletonList(SECONDARY_ACTION, data);
-        VirtualChestActionDispatcher secondaryAction = new VirtualChestActionDispatcher(secondaryList);
-
-        List<DataView> primaryShiftList = getViewListOrSingletonList(PRIMARY_SHIFT_ACTION, data);
-        List<DataView> primaryShiftListFinal = primaryShiftList.isEmpty() ? primaryList : primaryShiftList;
-        VirtualChestActionDispatcher primaryShiftAction = new VirtualChestActionDispatcher(primaryShiftListFinal);
-
-        List<DataView> secondaryShiftList = getViewListOrSingletonList(SECONDARY_SHIFT_ACTION, data);
-        List<DataView> secondaryShiftListFinal = secondaryShiftList.isEmpty() ? secondaryList : secondaryShiftList;
-        VirtualChestActionDispatcher secondaryShiftAction = new VirtualChestActionDispatcher(secondaryShiftListFinal);
-
         List<String> ignoredPermissions = data.getStringList(IGNORED_PERMISSIONS).orElse(ImmutableList.of());
+
+        List<DataView> actionList = getViewListOrSingletonList(ACTION, data);
+        List<DataView> primaryList = getViewListOrSingletonList(PRIMARY_ACTION, data);
+        List<DataView> secondaryList = getViewListOrSingletonList(SECONDARY_ACTION, data);
+        List<DataView> primaryShiftList = getViewListOrSingletonList(PRIMARY_SHIFT_ACTION, data);
+        List<DataView> secondaryShiftList = getViewListOrSingletonList(SECONDARY_SHIFT_ACTION, data);
+
+        List<DataView> primaryListFinal = primaryList.isEmpty() ? actionList : primaryList;
+        List<DataView> secondaryListFinal = secondaryList.isEmpty() ? actionList : secondaryList;
+        List<DataView> primaryShiftListFinal = primaryShiftList.isEmpty() ? primaryListFinal : primaryShiftList;
+        List<DataView> secondaryShiftListFinal = secondaryShiftList.isEmpty() ? secondaryListFinal : secondaryShiftList;
+
+        VirtualChestActionDispatcher primaryAction = new VirtualChestActionDispatcher(primaryListFinal);
+        VirtualChestActionDispatcher secondaryAction = new VirtualChestActionDispatcher(secondaryListFinal);
+        VirtualChestActionDispatcher primaryShiftAction = new VirtualChestActionDispatcher(primaryShiftListFinal);
+        VirtualChestActionDispatcher secondaryShiftAction = new VirtualChestActionDispatcher(secondaryShiftListFinal);
 
         return new VirtualChestItem(plugin, serializedStack, requirements,
                 primaryAction, secondaryAction, primaryShiftAction, secondaryShiftAction, ignoredPermissions);
