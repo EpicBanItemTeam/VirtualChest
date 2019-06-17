@@ -36,13 +36,19 @@ public class VirtualChestActionDispatcher
 {
     private static final DataQuery KEEP_INVENTORY_OPEN = DataQuery.of("KeepInventoryOpen");
     private static final DataQuery HANDHELD_ITEM = DataQuery.of("HandheldItem");
+
     private static final DataQuery COMMAND = DataQuery.of("Command");
+    private static final DataQuery COMMAND_AFTER = DataQuery.of("CommandAfter");
+    private static final DataQuery COMMAND_BEFORE = DataQuery.of("CommandBefore");
 
     private static final char SEQUENCE_SPLITTER = ';';
 
     private final ImmutableList<VirtualChestHandheldItem> handheldItem;
     private final ImmutableList<Boolean> keepInventoryOpen;
+
     private final ImmutableList<List<String>> commands;
+    private final ImmutableList<List<String>> commandsAfter;
+    private final ImmutableList<List<String>> commandsBefore;
 
     private final ImmutableList<DataContainer> views;
 
@@ -54,22 +60,31 @@ public class VirtualChestActionDispatcher
 
         ImmutableList.Builder<VirtualChestHandheldItem> handheldItemBuilder = ImmutableList.builder();
         ImmutableList.Builder<Boolean> keepInventoryOpenBuilder = ImmutableList.builder();
+
         ImmutableList.Builder<List<String>> commandsBuilder = ImmutableList.builder();
+        ImmutableList.Builder<List<String>> commandsAfterBuilder = ImmutableList.builder();
+        ImmutableList.Builder<List<String>> commandsBeforeBuilder = ImmutableList.builder();
 
         ImmutableList.Builder<DataContainer> dataContainerBuilder = ImmutableList.builder();
 
         for (DataView view : views)
         {
             handheldItemBuilder.add(this.parseHandheldItem(view));
-            commandsBuilder.add(parseCommand(view.getString(COMMAND).orElse("")));
             keepInventoryOpenBuilder.add(view.getBoolean(KEEP_INVENTORY_OPEN).orElse(false));
+
+            commandsBuilder.add(parseCommand(view.getString(COMMAND).orElse("")));
+            commandsAfterBuilder.add(parseCommand(view.getString(COMMAND_AFTER).orElse("")));
+            commandsBeforeBuilder.add(parseCommand(view.getString(COMMAND_BEFORE).orElse("")));
 
             dataContainerBuilder.add(view.copy());
         }
 
-        this.commands = commandsBuilder.build();
         this.handheldItem = handheldItemBuilder.build();
         this.keepInventoryOpen = keepInventoryOpenBuilder.build();
+
+        this.commands = commandsBuilder.build();
+        this.commandsAfter = commandsAfterBuilder.build();
+        this.commandsBefore = commandsBeforeBuilder.build();
 
         this.views = dataContainerBuilder.build();
     }
@@ -105,10 +120,15 @@ public class VirtualChestActionDispatcher
                 if (size >= itemTemplate.getCount()) // it's enough! do action now
                 {
                     int rep = itemTemplate.getRepetition(size);
-                    List<String> commands = this.commands.get(i);
                     VirtualChestActions actions = plugin.getVirtualChestActions();
                     ClassToInstanceMap<Context> map = getContextMap(actionUUID, player, itemTemplate);
+
+                    List<String> commands = this.commands.get(i);
+                    List<String> commandsAfter = this.commandsAfter.get(i);
+                    List<String> commandsBefore = this.commandsBefore.get(i);
+
                     Stream<String> stream = IntStream.rangeClosed(0, rep).boxed().flatMap(o -> commands.stream());
+                    stream = Stream.concat(Stream.concat(commandsBefore.stream(), stream), commandsAfter.stream());
                     return Tuple.of(this.keepInventoryOpen.get(i), actions.submitCommands(player, stream, map, record));
                 }
                 areSearchingInventory[i] = false; // otherwise do not search inventory for it in step 2
@@ -149,10 +169,16 @@ public class VirtualChestActionDispatcher
                 if (size >= itemTemplate.getCount()) // it's enough! do action now
                 {
                     int rep = itemTemplate.getRepetition(size);
-                    List<String> commands1 = this.commands.get(i);
                     VirtualChestActions actions = plugin.getVirtualChestActions();
                     ClassToInstanceMap<Context> map = getContextMap(actionUUID, player, itemTemplate);
-                    Stream<String> stream = IntStream.rangeClosed(0, rep).boxed().flatMap(o -> commands1.stream());
+
+                    List<String> commands = this.commands.get(i);
+                    List<String> commandsAfter = this.commandsAfter.get(i);
+                    List<String> commandsBefore = this.commandsBefore.get(i);
+
+                    Stream<String> stream = IntStream.rangeClosed(0, rep).boxed().flatMap(o -> commands.stream());
+                    stream = Stream.concat(Stream.concat(commandsBefore.stream(), stream), commandsAfter.stream());
+
                     return Tuple.of(this.keepInventoryOpen.get(i), actions.submitCommands(player, stream, map, record));
                 }
             }
