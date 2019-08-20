@@ -9,17 +9,13 @@ buildscript {
             name = 'minecrell'
             url = 'http://repo.minecrell.net/releases'
         }
-        maven {
-            name = 'Sonatype Snapshots'
-            url = 'https://oss.sonatype.org/content/repositories/snapshots/'
-        }
     }
     dependencies {
         classpath 'net.minecrell:VanillaGradle:2.0.3_1'
+        classpath 'org.javalite:activejdbc-gradle-plugin:1.4.13'
         classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.4'
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7'
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
-        classpath 'org.javalite:activejdbc-gradle-plugin:2.2'
     }
 }
 
@@ -33,36 +29,23 @@ apply plugin: 'net.minecrell.vanilla.server.library'
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
 
+defaultTasks 'clean', 'build'
+
 def getProjectVersion = {
-    def stdout = new ByteArrayOutputStream()
-    exec {
-        commandLine 'git', 'describe', '--abbrev=0', '--tags'
-        standardOutput = stdout
-    }
-    return stdout.toString().trim().substring(1) // drop the 'v' prefix
+    return 'git describe --abbrev=0 --tags'.execute().text.trim().substring(1) // drop the 'v' prefix
 }
 
 def getProjectGitHash = {
-    def stdout = new ByteArrayOutputStream()
-    exec {
-        commandLine 'git', 'rev-parse', '--short', 'HEAD'
-        standardOutput = stdout
-    }
-    return stdout.toString().trim()
+    return 'git rev-parse --short HEAD'.execute().text.trim()
 }
 
 def getProjectReleaseDate = {
-    def stdout = new ByteArrayOutputStream()
-    exec {
-        commandLine 'git', 'show', '-s', '--format=%ct'
-        standardOutput = stdout
-    }
     // noinspection UnnecessaryQualifiedReference
-    return new java.util.Date(Long.valueOf(stdout.toString().trim()) * 1000)
+    return new java.util.Date(Long.valueOf('git show -s --format=%ct'.execute().text.trim()) * 1000)
 }
 
 repositories {
-    mavenCentral()
+    jcenter()
     maven {
         name = 'sponge'
         url = 'http://repo.spongepowered.org/maven'
@@ -70,10 +53,6 @@ repositories {
     maven {
         name = 'bstats-repo'
         url = 'http://repo.bstats.org/content/repositories/releases'
-    }
-    maven {
-        name = 'Sonatype Snapshots'
-        url = 'https://oss.sonatype.org/content/repositories/snapshots/'
     }
     maven {
         name = 'jitpack'
@@ -120,7 +99,7 @@ artifacts {
 
 dependencies {
     compile 'org.bstats:bstats-sponge:1.2'
-    compile 'org.javalite:activejdbc:2.2'
+    compile 'org.javalite:activejdbc:1.4.13'
 
     compile 'org.spongepowered:spongeapi:7.1.0-SNAPSHOT'
     compile 'org.spongepowered:spongecommon:7.1.0-SNAPSHOT:dev'
@@ -175,12 +154,10 @@ shadowJar {
     dependencies {
         it.include it.dependency('org.bstats:.*')
         it.include it.dependency('org.javalite:.*')
-        it.include it.dependency('com.fasterxml.jackson.core:.*')
     }
 
     relocate 'org.bstats', project.group.toString() + '.virtualchest.util.repackage.org.bstats'
     relocate 'org.javalite', project.group.toString() + '.virtualchest.util.repackage.org.javalite'
-    relocate 'com.fasterxml.jackson', project.group.toString() + '.virtualchest.util.repackage.com.fasterxml.jackson'
 }
 
 reobf {
