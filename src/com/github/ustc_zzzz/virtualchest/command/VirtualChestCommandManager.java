@@ -23,8 +23,10 @@ import org.spongepowered.api.util.annotation.NonnullByDefault;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -40,6 +42,8 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
     private static final String SUBTITLE = VirtualChestPlugin.DESCRIPTION;
     private static final String GITHUB_URL = VirtualChestPlugin.GITHUB_URL;
     private static final String WEBSITE_URL = VirtualChestPlugin.WEBSITE_URL;
+
+    private static final SimpleDateFormat RFC3339 = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
 
     private final VirtualChestPlugin plugin;
     private final VirtualChestTranslation translation;
@@ -101,7 +105,7 @@ public class VirtualChestCommandManager implements Supplier<CommandCallable>
         try
         {
             // RFC 3339
-            Date releaseDate = VirtualChestPlugin.RFC3339.parse("@release_date@");
+            Date releaseDate = RFC3339.parse("@release_date@");
             String gitCommitHash = "@git_hash@";
 
             source.sendMessage(this.translation

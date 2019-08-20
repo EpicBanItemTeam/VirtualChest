@@ -13,10 +13,7 @@ import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderMana
 import com.github.ustc_zzzz.virtualchest.record.VirtualChestRecordManager;
 import com.github.ustc_zzzz.virtualchest.script.VirtualChestJavaScriptManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.inject.Inject;
 import de.randombyte.byteitems.api.ByteItemsService;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
@@ -46,16 +43,10 @@ import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.profile.GameProfile;
 import org.spongepowered.api.text.channel.MessageReceiver;
-import org.spongepowered.plugin.meta.version.ComparableVersion;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.HttpsURLConnection;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
 import java.nio.file.Path;
-import java.text.SimpleDateFormat;
-import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -78,9 +69,6 @@ public class VirtualChestPlugin
     public static final String GITHUB_URL = "https://github.com/ustc-zzzz/VirtualChest";
     public static final String WEBSITE_URL = "https://ore.spongepowered.org/zzzz/VirtualChest";
 
-    public static final SimpleDateFormat RFC3339 = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
-    public static final SimpleDateFormat ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ENGLISH);
-
     @Inject
     private Logger logger;
 
@@ -96,6 +84,8 @@ public class VirtualChestPlugin
     private ConfigurationLoader<CommentedConfigurationNode> config;
 
     private CommentedConfigurationNode rootConfigNode;
+
+    private VirtualChestPluginUpdate update;
 
     private VirtualChestTranslation translation;
 
@@ -124,53 +114,11 @@ public class VirtualChestPlugin
 
     private boolean doCheckUpdate = true;
 
-    private void checkUpdate()
-    {
-        try
-        {
-            URL url = new URL(API_URL);
-            HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
-            connection.setRequestMethod("GET");
-            connection.getResponseCode();
-            InputStreamReader reader = new InputStreamReader(connection.getInputStream(), Charsets.UTF_8);
-            JsonObject jsonObject = new JsonParser().parse(reader).getAsJsonArray().get(0).getAsJsonObject();
-            String version = jsonObject.get("tag_name").getAsString();
-            if (version.startsWith("v"))
-            {
-                Logger l = this.logger;
-                version = version.substring(1);
-                String releaseName = jsonObject.get("name").getAsString();
-                String releaseUrl = jsonObject.get("html_url").getAsString();
-                String releaseDate = RFC3339.format(ISO8601.parse(jsonObject.get("published_at").getAsString()));
-                if (new ComparableVersion(version).compareTo(new ComparableVersion(VERSION)) > 0)
-                {
-                    l.info("================================================================================");
-                    l.warn("███╗   ██╗███████╗██╗    ██╗  ██╗   ██╗██████╗ ██████╗  █████╗ ████████╗███████╗");
-                    l.warn("████╗  ██║██╔════╝██║    ██║  ██║   ██║██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔════╝");
-                    l.warn("██╔██╗ ██║█████╗  ██║ █╗ ██║  ██║   ██║██████╔╝██║  ██║███████║   ██║   █████╗  ");
-                    l.warn("██║╚██╗██║██╔══╝  ██║███╗██║  ██║   ██║██╔═══╝ ██║  ██║██╔══██║   ██║   ██╔══╝  ");
-                    l.warn("██║ ╚████║███████╗╚███╔███╔╝  ╚██████╔╝██║     ██████╔╝██║  ██║   ██║   ███████╗");
-                    l.warn("╚═╝  ╚═══╝╚══════╝ ╚══╝╚══╝    ╚═════╝ ╚═╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝");
-                    l.warn("================================================================================");
-                    l.warn("An update was found: " + releaseName);
-                    l.warn("This new update was released at: " + releaseDate);
-                    l.warn("You can get the latest version at: " + releaseUrl);
-                    l.info("================================================================================");
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            // <strike>do not bother offline users</strike> maybe bothering them is a better choice
-            this.logger.warn("Failed to check update", e);
-        }
-    }
-
     private void loadConfig() throws IOException
     {
         CommentedConfigurationNode root = config.load();
-        this.doCheckUpdate = root.getNode(PLUGIN_ID, "check-update").getBoolean(true);
 
+        this.update.loadConfig(root.getNode(PLUGIN_ID, "check-update"));
         this.recordManager.loadConfig(root.getNode(PLUGIN_ID, "recording"));
         this.commandAliases.loadConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.loadConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
@@ -182,8 +130,8 @@ public class VirtualChestPlugin
     private void saveConfig() throws IOException
     {
         CommentedConfigurationNode root = Optional.ofNullable(this.rootConfigNode).orElseGet(config::createEmptyNode);
-        root.getNode(PLUGIN_ID, "check-update").setValue(this.doCheckUpdate);
 
+        this.update.saveConfig(root.getNode(PLUGIN_ID, "check-update"));
         this.recordManager.saveConfig(root.getNode(PLUGIN_ID, "recording"));
         this.commandAliases.saveConfig(root.getNode(PLUGIN_ID, "command-aliases"));
         this.dispatcher.saveConfig(root.getNode(PLUGIN_ID, "scan-dirs"));
@@ -282,6 +230,7 @@ public class VirtualChestPlugin
     @Listener
     public void onPostInitialization(GamePostInitializationEvent event)
     {
+        this.update = new VirtualChestPluginUpdate(this);
         this.translation = new VirtualChestTranslation(this);
         this.recordManager = new VirtualChestRecordManager(this);
         this.virtualChestActions = new VirtualChestActions(this);
@@ -317,10 +266,6 @@ public class VirtualChestPlugin
         {
             this.logger.info("Start loading config ...");
             this.loadConfig();
-            if (this.doCheckUpdate)
-            {
-                new Thread(this::checkUpdate).start();
-            }
             this.saveConfig();
             this.logger.info("Loading config complete.");
         }
