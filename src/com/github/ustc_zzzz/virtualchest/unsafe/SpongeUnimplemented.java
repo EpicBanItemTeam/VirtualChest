@@ -46,7 +46,7 @@ public class SpongeUnimplemented
     private static final MethodHandle SUBJECT_DATA_CLEAR_PERMISSIONS;
     private static final MethodHandle SUBJECT_DATA_SET_PERMISSION;
 
-    private static final MethodHandle GET_ITEM_COMPOUND;
+    private static final MethodHandle GET_TAG_COMPOUND;
     private static final MethodHandle TRANSLATE_DATA;
     private static final MethodHandle GET_INSTANCE;
     private static final MethodHandle ARE_NBT_EQUALS;
@@ -247,7 +247,7 @@ public class SpongeUnimplemented
     {
         try
         {
-            Object nbt2 = ((Optional<?>) GET_ITEM_COMPOUND.invoke(FROM_SNAPSHOT_TO_NATIVE.invoke(item))).orElse(null);
+            Object nbt2 = GET_TAG_COMPOUND.invoke(FROM_SNAPSHOT_TO_NATIVE.invoke(item));
             Object nbt1 = matcher.isPresent() ? TRANSLATE_DATA.invoke(GET_INSTANCE.invoke(), matcher.get()) : null;
             return (boolean) ARE_NBT_EQUALS.invoke(nbt1, nbt2, true);
         }
@@ -295,8 +295,8 @@ public class SpongeUnimplemented
                 lookup, SubjectData.class, "clearPermissions (Ljava/util/Set;)Z", "clearPermissions (Ljava/util/Set;)Ljava/util/concurrent/CompletableFuture;");
         SUBJECT_DATA_SET_PERMISSION = getMethod(
                 lookup, SubjectData.class, "setPermission (Ljava/util/Set;Ljava/lang/String;Lorg/spongepowered/api/util/Tristate;)Z", "setPermission (Ljava/util/Set;Ljava/lang/String;Lorg/spongepowered/api/util/Tristate;)Ljava/util/concurrent/CompletableFuture;");
-        GET_ITEM_COMPOUND = getMethod(
-                lookup, "org.spongepowered.common.data.util.NbtDataUtil", "getItemCompound");
+        GET_TAG_COMPOUND = getMethod(
+                lookup, "net.minecraft.item.ItemStack", "func_77978_p");
         TRANSLATE_DATA = getMethod(
                 lookup, "org.spongepowered.common.data.persistence.NbtTranslator", "translateData");
         GET_INSTANCE = getMethod(
