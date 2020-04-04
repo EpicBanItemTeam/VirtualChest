@@ -8,6 +8,7 @@ import com.github.ustc_zzzz.virtualchest.economy.VirtualChestEconomyManager;
 import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderManager;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.*;
+import com.google.gson.JsonPrimitive;
 import org.slf4j.Logger;
 import org.spongepowered.api.GameRegistry;
 import org.spongepowered.api.Sponge;
@@ -389,12 +390,11 @@ public final class VirtualChestActions
                 ++actionOrder;
                 String prefix = t.getFirst(), suffix = t.getSecond();
                 String command = prefix.isEmpty() ? suffix : prefix + ": " + suffix;
-                String escapedCommand = '\'' + SpongeUnimplemented.escapeString(command) + '\'';
                 playerOptional.ifPresent(p -> activateUUIDMap.put(p.getIdentifier(), actionUUID));
                 if (record)
                 {
                     plugin.getRecordManager().recordExecution(actionUUID, actionOrder, prefix, suffix);
-                    logger.debug("{} is not executed for {}", escapedCommand, actionUUID);
+                    logger.debug("{} is not executed for {}", new JsonPrimitive(command).toString(), actionUUID);
                 }
                 CompletableFuture<CommandResult> future = CompletableFuture.completedFuture(commandResult);
                 for (VirtualChestActionExecutor action : executors.get(prefix))

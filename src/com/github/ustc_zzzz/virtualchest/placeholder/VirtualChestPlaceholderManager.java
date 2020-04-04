@@ -3,6 +3,7 @@ package com.github.ustc_zzzz.virtualchest.placeholder;
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.Maps;
+import com.google.gson.JsonPrimitive;
 import me.rojo8399.placeholderapi.PlaceholderService;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
@@ -60,9 +61,9 @@ public class VirtualChestPlaceholderManager
         int lastIndex = 0;
         while (matcher.find())
         {
-            String matched = SpongeUnimplemented.escapeString(text.substring(matcher.start() + 1, matcher.end() - 1));
+            String matched = new JsonPrimitive(text.substring(matcher.start() + 1, matcher.end() - 1)).toString();
             builder.append(text, lastIndex, matcher.start()).append(functionIdentifier);
-            builder.append("('").append(matched).append("')");
+            builder.append("(").append(matched).append(")");
             lastIndex = matcher.end();
         }
         if (lastIndex < text.length())
