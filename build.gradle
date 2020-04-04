@@ -51,10 +51,6 @@ repositories {
         url = 'http://repo.spongepowered.org/maven'
     }
     maven {
-        name = 'bstats-repo'
-        url = 'http://repo.bstats.org/content/repositories/releases'
-    }
-    maven {
         name = 'jitpack'
         url = 'https://jitpack.io'
     }
@@ -98,13 +94,13 @@ artifacts {
 }
 
 dependencies {
-    compile 'org.bstats:bstats-sponge:1.2'
     compile 'org.javalite:activejdbc:1.4.13'
 
-    compile 'org.spongepowered:spongeapi:7.2.0-SNAPSHOT'
-    compile 'org.spongepowered:spongecommon:1.12.2-7.1.7-SNAPSHOT:dev'
-    compile 'com.github.rojo8399:PlaceholderAPI:master-SNAPSHOT'
-    compile 'com.github.randombyte-developer:byte-items:v2.3.1'
+    compile 'org.spongepowered:spongeapi:7.2.0'
+    compile 'org.spongepowered:spongecommon:1.12.2-7.2.0:dev'
+
+    compile 'com.github.ronaldburns:PlaceholderAPI:4.5.1'
+    compile 'com.github.randombyte-developer:byte-items:v2.4.1'
 }
 
 sourceSets {
@@ -152,11 +148,9 @@ shadowJar {
     classifier = null
 
     dependencies {
-        it.include it.dependency('org.bstats:.*')
         it.include it.dependency('org.javalite:.*')
     }
 
-    relocate 'org.bstats', project.group.toString() + '.virtualchest.util.repackage.org.bstats'
     relocate 'org.javalite', project.group.toString() + '.virtualchest.util.repackage.org.javalite'
 }
 
