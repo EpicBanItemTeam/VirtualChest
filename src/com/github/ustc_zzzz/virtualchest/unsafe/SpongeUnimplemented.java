@@ -1,5 +1,6 @@
 package com.github.ustc_zzzz.virtualchest.unsafe;
 
+import com.google.common.collect.Iterables;
 import org.objectweb.asm.Type;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataView;
@@ -68,21 +69,6 @@ public class SpongeUnimplemented
         {
             throw new UnsupportedOperationException("ItemEnchantment not found");
         }
-    }
-
-    public static boolean isSlotInInventory(Slot slot, Inventory targetInventory)
-    {
-        return slot.parent().equals(targetInventory);
-    }
-
-    public static SlotIndex getSlotOrdinal(Slot slot)
-    {
-        Collection<SlotIndex> properties = slot.parent().getProperties(slot, SlotIndex.class);
-        if (properties.isEmpty())
-        {
-            throw new UnsupportedOperationException("Not recognized");
-        }
-        return properties.iterator().next();
     }
 
     public static boolean isPermissionServiceProvidedBySponge(PermissionService permissionService)

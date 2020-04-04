@@ -16,10 +16,7 @@ import com.github.ustc_zzzz.virtualchest.permission.VirtualChestPermissionManage
 import com.github.ustc_zzzz.virtualchest.record.VirtualChestRecordManager;
 import com.github.ustc_zzzz.virtualchest.timings.VirtualChestTimings;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import com.google.common.collect.ClassToInstanceMap;
-import com.google.common.collect.ImmutableClassToInstanceMap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.*;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
@@ -358,8 +355,8 @@ public final class VirtualChestInventory implements VirtualChest, DataSerializab
                 {
                     Slot slot = slotTransaction.getSlot();
                     Container targetContainer = e.getTargetInventory();
-                    SlotIndex pos = SpongeUnimplemented.getSlotOrdinal(slot);
-                    if (SpongeUnimplemented.isSlotInInventory(slot, targetContainer) && slotToListen.matches(pos))
+                    SlotIndex pos = Iterables.getOnlyElement(slot.parent().getProperties(slot, SlotIndex.class));
+                    if (slot.parent().equals(targetContainer) && slotToListen.matches(pos))
                     {
                         e.setCancelled(true);
                         if (actionIntervalManager.allowAction(player, acceptableActionIntervalTick))
