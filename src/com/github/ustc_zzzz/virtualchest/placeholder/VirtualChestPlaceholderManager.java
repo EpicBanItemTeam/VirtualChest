@@ -1,7 +1,6 @@
 package com.github.ustc_zzzz.virtualchest.placeholder;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
 import com.google.common.collect.Maps;
 import com.google.gson.JsonPrimitive;
 import me.rojo8399.placeholderapi.PlaceholderService;

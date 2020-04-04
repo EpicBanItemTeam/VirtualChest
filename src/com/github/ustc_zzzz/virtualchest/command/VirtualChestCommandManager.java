@@ -1,11 +1,9 @@
 package com.github.ustc_zzzz.virtualchest.command;
 
 import com.github.ustc_zzzz.virtualchest.VirtualChestPlugin;
-import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventory;
 import com.github.ustc_zzzz.virtualchest.inventory.VirtualChestInventoryDispatcher;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
 import com.github.ustc_zzzz.virtualchest.unsafe.SpongeUnimplemented;
-import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.*;
 import org.spongepowered.api.command.args.CommandContext;
