@@ -13,12 +13,12 @@ import com.github.ustc_zzzz.virtualchest.placeholder.VirtualChestPlaceholderMana
 import com.github.ustc_zzzz.virtualchest.record.VirtualChestRecordManager;
 import com.github.ustc_zzzz.virtualchest.script.VirtualChestJavaScriptManager;
 import com.github.ustc_zzzz.virtualchest.translation.VirtualChestTranslation;
+import com.github.ustc_zzzz.virtualchest.util.repackage.org.bstats.sponge.Metrics;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import de.randombyte.byteitems.api.ByteItemsService;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
-import org.bstats.sponge.Metrics2;
 import org.slf4j.Logger;
 import org.spongepowered.api.Platform;
 import org.spongepowered.api.Server;
@@ -73,7 +73,7 @@ public class VirtualChestPlugin
     private Logger logger;
 
     @Inject
-    private Metrics2 metrics;
+    private Metrics metrics;
 
     @Inject
     @ConfigDir(sharedRoot = false)
@@ -280,13 +280,13 @@ public class VirtualChestPlugin
     {
         PluginContainer p = Sponge.getPlatform().getContainer(Platform.Component.IMPLEMENTATION);
         this.metrics.addCustomChart(
-                new Metrics2.SingleLineChart("onlineInventories",
+                new Metrics.SingleLineChart("onlineInventories",
                         () -> this.dispatcher.ids().size()));
         this.metrics.addCustomChart(
-                new Metrics2.AdvancedPie("placeholderapiVersion",
+                new Metrics.AdvancedPie("placeholderapiVersion",
                         () -> ImmutableMap.of(this.placeholderManager.getPlaceholderAPIVersion(), 1)));
         this.metrics.addCustomChart(
-                new Metrics2.DrilldownPie("platformImplementation",
+                new Metrics.DrilldownPie("platformImplementation",
                         () -> ImmutableMap.of(p.getName(), ImmutableMap.of(p.getVersion().orElse("unknown"), 1))));
     }
 
