@@ -394,7 +394,7 @@ public final class VirtualChestActions
                 if (record)
                 {
                     plugin.getRecordManager().recordExecution(actionUUID, actionOrder, prefix, suffix);
-                    logger.debug("{} is not executed for {}", new JsonPrimitive(command).toString(), actionUUID);
+                    logger.debug("{} is now executed for {}", new JsonPrimitive(command).toString(), actionUUID);
                 }
                 CompletableFuture<CommandResult> future = CompletableFuture.completedFuture(commandResult);
                 for (VirtualChestActionExecutor action : executors.get(prefix))
